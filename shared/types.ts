@@ -84,6 +84,8 @@ export interface Project {
   videoCount: number;
   videoModel: string;
   videoDuration: number;
+  hookModel?: string;
+  modelInputs?: Record<string, Record<string, unknown>>;
   frameIds: string[];
   frameSelectionExplicit?: boolean;
   reactionIds: string[];
@@ -134,4 +136,23 @@ export interface Model {
   size?: string;
   imageSize?: string;
   active?: boolean;
+  tag?: string;
+  provider?: string;
+  schema?: ModelSchema;
+}
+export interface ModelSchema {
+  required?: string[];
+  properties?: Record<string, ModelField>;
+}
+export interface ModelField {
+  type?: string;
+  description?: string;
+  enum?: (string | number | boolean)[];
+  default?: unknown;
+  minimum?: number;
+  maximum?: number;
+  minItems?: number;
+  maxItems?: number;
+  items?: ModelField;
+  [key: string]: unknown;
 }

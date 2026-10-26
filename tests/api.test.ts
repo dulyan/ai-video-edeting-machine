@@ -77,6 +77,8 @@ test("private workspace requires authentication and rejects wrong passwords", as
   assert.equal((await api("/state")).status, 200);
 });
 test("projects persist and independent timing fields round trip", async () => {
+  project.hookModel = "anthropic/claude-sonnet-4.6";
+  project.modelInputs = { [project.imageModel]: { aspect_ratio: "9:16" } };
   assert.equal(
     (await api(`/projects/${project.id}`, "PUT", project)).status,
     200,
@@ -96,6 +98,8 @@ test("projects persist and independent timing fields round trip", async () => {
   const state = (await api("/state")).data;
   assert.equal(state.projects[0].composition.hookSpan, "whole");
   assert.equal(state.projects[0].composition.musicSpan, "demo");
+  assert.equal(state.projects[0].hookModel, project.hookModel);
+  assert.deepEqual(state.projects[0].modelInputs, project.modelInputs);
   assert.equal(
     (
       await api(`/projects/${project.id}`, "PATCH", {

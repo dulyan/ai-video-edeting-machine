@@ -55,6 +55,7 @@ import {
   Outline,
   Status,
 } from "./Workflow.tsx";
+import { ModelPicker, useModels } from "./ModelPicker.tsx";
 import { backendURL, configureBackend, request } from "./api.ts";
 type Page =
   "Studio" | "Projects" | "Image Library" | "Video Library" | "Settings";
@@ -78,6 +79,7 @@ function Settings({
   theme: string;
   setTheme: (t: string) => void;
 }) {
+  const { models } = useModels(w.connected);
   const [url, setURL] = useState(backendURL),
     [password, setPassword] = useState(""),
     [key, setKey] = useState(""),
@@ -123,8 +125,8 @@ function Settings({
         <span className="icon-disc">
           <Sun size={20} />
         </span>
-        <h3>Make yourself at home.</h3>
-        <p>Choose the workspace that feels right.</p>
+        <h3>Appearance</h3>
+        <p>Choose a light, dark, or system theme.</p>
         <div className="theme-options">
           {[
             { value: "light", label: "Light", icon: Sun },
@@ -154,7 +156,7 @@ function Settings({
         <span className="icon-disc coral">
           <Link2 size={20} />
         </span>
-        <h3>Your production backend.</h3>
+        <h3>Workspace connection</h3>
         <p>
           Connect the private service that stores media and runs generations and
           renders.
@@ -162,7 +164,7 @@ function Settings({
         <Field label="Backend URL">
           <input
             type="url"
-            placeholder="https://your-app.up.railway.app"
+            placeholder="https://46.62.236.47"
             value={url}
             onChange={(e) => setURL(e.target.value)}
           />
@@ -217,7 +219,7 @@ function Settings({
         <span className="icon-disc coral">
           <KeyRound size={20} />
         </span>
-        <h3>One key. All your AI.</h3>
+        <h3>Siray API key</h3>
         <p>
           Your Siray key powers image, video, and hook generation. It is
           encrypted in your backend.
@@ -241,13 +243,12 @@ function Settings({
             }
           />
         </Field>
-        <Field label="Text model for hooks & prompt variations">
-          <input
-            value={textModel}
-            onChange={(e) => setTextModel(e.target.value)}
-            placeholder="openai/gpt-4.1-mini"
-          />
-        </Field>
+        <ModelPicker
+          label="Default text model for prompt variations"
+          models={models.filter((m) => m.kind === "text")}
+          value={textModel}
+          onChange={setTextModel}
+        />
         <div className="settings-actions">
           <Button
             variant="primary"
@@ -267,6 +268,7 @@ function Settings({
                   setKey("");
                 }
                 w.notify("API settings saved securely.");
+                window.dispatchEvent(new Event("models-changed"));
               })
             }
           >
@@ -306,32 +308,6 @@ function Settings({
             </button>
           )}
         </div>
-      </section>
-      <section className="card settings-card about-card">
-        <div className="brand-mark large">
-          <Play size={25} fill="currentColor" />
-        </div>
-        <h3>Your creative assembly line.</h3>
-        <p>
-          Source on GitHub. Your media stays in your private backend. Every
-          project, prompt, and output has its place.
-        </p>
-        <div className="about-detail">
-          <Layers size={17} />
-          <span>Hooks × reactions × demos × tracks</span>
-        </div>
-        <div className="about-detail">
-          <ShieldCheck size={17} />
-          <span>Independent hook & music timing</span>
-        </div>
-        <a
-          className="button"
-          href="https://github.com/dulyan/ai-video-edeting-machine"
-          target="_blank"
-          rel="noreferrer"
-        >
-          View on GitHub <ExternalLink size={14} />
-        </a>
       </section>
     </div>
   );
@@ -478,7 +454,7 @@ export default function App() {
       ...(next !== 0 && !p.name.trim()
         ? {
             name:
-              "Untitled project ? " +
+              "Untitled project · " +
               new Date().toLocaleDateString("en", {
                 month: "short",
                 day: "numeric",
@@ -496,7 +472,7 @@ export default function App() {
       ...(step === 0 && !p.name.trim()
         ? {
             name:
-              "Untitled project ? " +
+              "Untitled project · " +
               new Date().toLocaleDateString("en", {
                 month: "short",
                 day: "numeric",
@@ -546,9 +522,7 @@ export default function App() {
           <div>
             ai video
             <br />
-            <strong>
-              edeting machine<span>®</span>
-            </strong>
+            <strong>edeting machine</strong>
           </div>
         </a>
         <button
@@ -578,9 +552,7 @@ export default function App() {
             >
               <item.icon size={18} />
               <span>{item.name}</span>
-              {item.name === "Studio" ? (
-                <span className="nav-new">CREATE</span>
-              ) : item.name === "Projects" ? (
+              {item.name === "Studio" ? null : item.name === "Projects" ? (
                 <span className="nav-count">{w.data.projects.length}</span>
               ) : null}
             </button>
@@ -638,15 +610,6 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="small-promo">
-            <span>
-              LESS REPETITION.
-              <br />
-              <strong>More creation.</strong>
-            </span>
-            <Sparkles size={26} />
-            <div className="promo-line" />
-          </div>
           <button
             className={`settings-nav ${page === "Settings" ? "active" : ""}`}
             onClick={() => {
@@ -660,7 +623,6 @@ export default function App() {
             />
           </button>
           <div className="operator">
-            <span className="operator-avatar">D</span>
             <div>
               <strong>My workspace</strong>
               <small>
@@ -701,7 +663,6 @@ export default function App() {
             <strong>{page === "Studio" ? "Creative studio" : page}</strong>
           </div>
           <div className="topbar-right">
-            <span className="topbar-date">{today}</span>
             <button
               className={`backend-pill ${w.connected ? "online" : ""}`}
               onClick={() => setPage("Settings")}
@@ -719,36 +680,7 @@ export default function App() {
         </header>
         <main>
           <div className="page-heading">
-            <div>
-              <div className="eyebrow">
-                {page === "Studio"
-                  ? "YOUR IDEAS, IN MOTION."
-                  : page === "Settings"
-                    ? "A SPACE THAT WORKS FOR YOU."
-                    : "EVERY CREATION HAS ITS PLACE."}
-              </div>
-              <h1>
-                {page === "Studio"
-                  ? "Let’s make a little magic."
-                  : page === "Projects"
-                    ? "The projects. The possibilities."
-                    : page === "Settings"
-                      ? "Your studio, your way."
-                      : page === "Image Library"
-                        ? "Your frames of inspiration."
-                        : "Your motion collection."}
-                <span className="heading-spark">✳</span>
-              </h1>
-              <p>
-                {page === "Studio"
-                  ? stepSubtitles[step]
-                  : page === "Projects"
-                    ? "Pick up where you left off, or start something entirely new."
-                    : page === "Settings"
-                      ? "Set the mood. Connect your tools. Make it yours."
-                      : "All your assets, together. Ready for their next big moment."}
-              </p>
-            </div>
+            <h1>{page === "Studio" ? p.name || "New project" : page}</h1>
           </div>
           {page === "Studio" ? (
             <>
@@ -761,22 +693,6 @@ export default function App() {
                     <span>STEP {step + 1} OF 9</span>
                     <h2>{STEPS[step]}</h2>
                   </div>
-                </div>
-                <div
-                  className="workflow-progress"
-                  aria-label={`Step ${step + 1} of 9`}
-                >
-                  {STEPS.map((label, i) => (
-                    <button
-                      aria-label={`Go to ${label}`}
-                      title={label}
-                      key={label}
-                      className={
-                        i === step ? "current" : i < step ? "complete" : ""
-                      }
-                      onClick={() => navigate(i)}
-                    />
-                  ))}
                 </div>
                 <div className="autosave">
                   <span className="tiny-dot" />
@@ -949,10 +865,6 @@ export default function App() {
               inspect={setInspected}
             />
           )}
-          <div className="studio-bottom-note">
-            <span className="brand-mini">✳</span> MADE FOR THE IDEAS YOU HAVEN’T
-            HAD YET.<span>ai video edeting machine</span>
-          </div>
         </main>
       </div>
       {w.notice && (

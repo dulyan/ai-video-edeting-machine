@@ -88,6 +88,8 @@ Final output is portrait 1080×1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes so
 - Upload limit: 100 MB per file. Rendering limit: 100,000 combinations per batch. Split larger selections into separate batches. Outlines paginate rather than constructing the full product in browser memory.
 - One operator, one backend instance, four queued workers with at most one FFmpeg render. Authentication sessions expire after seven days or a server restart. The frontend URL and session token stay in the browser; Siray keys are stored encrypted only on the backend.
 - Model adapters follow Siray’s published per-model schemas. Use Refresh model availability to check the current API key’s catalog. Unsupported durations are not submitted.
+- Model selection uses [Siray Model Verse](https://api-gateway.siray.ai/api/model-verse/models) schemas and the authenticated [Models API](https://docs.siray.ai/api-reference/models). A bundled snapshot contains all 175 published text/image/video models as of October 26, 2026 (37 text, 58 image, 80 video); the backend refreshes the catalog every ten minutes and on request. Models unavailable to the saved key are disabled. Editing, reference, and video-to-video models expose the additional media inputs they require; text-to-video models can run without first frames.
+- Choose the hook-writing model in the Viral hooks step. That choice is saved with the project and snapshotted into each generation job. Settings holds the default text model used for prompt variation and product import. Test calls in this repository do not spend provider credits.
 
 ## Verification
 

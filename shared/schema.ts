@@ -60,7 +60,11 @@ export const projectSchema = z.object({
   videoPrompt: text,
   videoCount: z.number().int().min(1).max(100),
   videoModel: id,
-  videoDuration: z.number().int().min(1).max(30),
+  videoDuration: z.number().int().min(-1).max(600),
+  hookModel: id.optional(),
+  modelInputs: z
+    .record(z.string(), z.record(z.string(), z.unknown()))
+    .optional(),
   frameIds: ids,
   frameSelectionExplicit: z.boolean().optional(),
   reactionIds: ids,

@@ -39,7 +39,8 @@ import {
   VIDEO_PROMPT,
   SPANS,
 } from "../shared/project.ts";
-import { MODELS } from "../shared/models.ts";
+import { ModelPicker, ModelOptions, useModels } from "./ModelPicker.tsx";
+import { isAutoFrameField } from "../shared/catalog.ts";
 import type { Workspace } from "./workspace.tsx";
 import {
   AssetCard,
@@ -62,103 +63,26 @@ type Props = {
 };
 const toggle = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
-export function Naming({ p, w, update }: Props) {
-  const finished = w.data.assets.filter(
-    (a) => a.projectId === p.id && a.kind === "output",
-  ).length;
+export function Naming({ p, update }: Props) {
   return (
-    <div className="naming-grid">
-      <section className="card naming-card">
-        <div className="eyebrow">
-          <span className="tiny-dot" /> YOUR CREATIVE ASSEMBLY LINE
-        </div>
-        <h2>
-          From first frame
-          <br />
-          to <span>final cut.</span>
-        </h2>
-        <p>
-          One idea. Every variation.
-          <br />
-          Build your next batch of product videos, all in one place.
-        </p>
-        <Field
-          label="Give your project a name"
-          hint="Make it yours. You can always rename it later."
-        >
-          <input
-            className="name-input"
-            autoFocus
-            placeholder="e.g. The autumn skincare drop"
-            value={p.name}
-            onChange={(e) => update({ name: e.target.value })}
-            maxLength={200}
-          />
-        </Field>
-        <Button variant="black" onClick={() => update({ step: 1 })}>
-          Let’s make something <ArrowRight size={17} />
-        </Button>
-        <div className="naming-footnote">
-          <span className="mini-avatars">
-            <i>01</i>
-            <i>02</i>
-            <i>03</i>
-          </span>
-          <span>
-            Frames. Reactions. Videos. <strong>Connected.</strong>
-          </span>
-        </div>
-      </section>
-      <div className="naming-side">
-        <section className="assembly-card">
-          <div className="assembly-heading">
-            <span>THE BIG PICTURE</span>
-            <ArrowUpRight size={20} />
-          </div>
-          <div className="assembly-art">
-            <div className="art-orbit orbit-one" />
-            <div className="art-orbit orbit-two" />
-            <div className="art-frame frame-one">
-              <ImageIcon size={28} />
-              <span>First frame</span>
-            </div>
-            <div className="art-frame frame-two">
-              <span className="art-face">✳</span>
-              <span>Reaction</span>
-            </div>
-            <div className="art-frame frame-three">
-              <Film size={27} />
-              <span>Final cut</span>
-            </div>
-            <span className="art-plus plus-one">+</span>
-            <span className="art-plus plus-two">+</span>
-          </div>
-          <h3>
-            A small idea.
-            <br />A whole lot of possibilities.
-          </h3>
-          <p>Generate once. Create every combination.</p>
-        </section>
-        <div className="naming-stats">
-          <div className="card">
-            <span className="stat-icon">
-              <Layers size={17} />
-            </span>
-            <strong>
-              {w.data.projects.length.toString().padStart(2, "0")}
-            </strong>
-            <small>Projects in your studio</small>
-          </div>
-          <div className="card">
-            <span className="stat-icon coral">
-              <Film size={17} />
-            </span>
-            <strong>{finished.toString().padStart(2, "0")}</strong>
-            <small>Final cuts in this project</small>
-          </div>
-        </div>
-      </div>
-    </div>
+    <section className="card naming-card">
+      <Field
+        label="Project name"
+        hint="Projects keep your prompts, assets, and finished videos together."
+      >
+        <input
+          className="name-input"
+          autoFocus
+          placeholder="e.g. Autumn skincare launch"
+          value={p.name}
+          onChange={(e) => update({ name: e.target.value })}
+          maxLength={200}
+        />
+      </Field>
+      <Button variant="black" onClick={() => update({ step: 1 })}>
+        Continue to first frames <ArrowRight size={18} />
+      </Button>
+    </section>
   );
 }
 export function Generation({
@@ -168,8 +92,8 @@ export function Generation({
   inspect,
   mode,
 }: { mode: "image" | "video" } & Props) {
-  const [models, setModels] = useState(MODELS),
-    [showSources, setShowSources] = useState(false),
+  const { models, setModels } = useModels(w.connected);
+  const [showSources, setShowSources] = useState(false),
     [presetName, setPresetName] = useState("");
   const image = mode === "image",
     assets = w.data.assets.filter(
@@ -191,7 +115,12 @@ export function Generation({
   const model = models.find(
     (m) => m.id === (image ? p.imageModel : p.videoModel),
   );
-  const amount = image ? p.imageCount : p.videoCount * chosenFrames.length;
+  const needsFrames =
+    !image &&
+    Object.keys(model?.schema?.properties || {}).some(isAutoFrameField);
+  const amount = image
+    ? p.imageCount
+    : p.videoCount * (needsFrames ? chosenFrames.length : 1);
   return (
     <div className="generation-layout">
       <section className="card generation-form">
@@ -200,7 +129,9 @@ export function Generation({
             <span className="eyebrow">
               {image ? "01 / THE STARTING POINT" : "02 / BRING IT TO LIFE"}
             </span>
-            <h3>{image ? "Set the scene." : "Give it a reaction."}</h3>
+            <h3>
+              {image ? "Generate first frames" : "Generate reaction videos"}
+            </h3>
           </div>
           <span className="icon-disc">
             {image ? <ImageIcon size={20} /> : <Film size={20} />}
@@ -324,61 +255,65 @@ export function Generation({
           </span>
         </div>
         <div className="form-columns">
-          <Field label={image ? "Text-to-image model" : "Image-to-video model"}>
-            <select
-              value={image ? p.imageModel : p.videoModel}
-              onChange={(e) => {
-                const next = models.find((m) => m.id === e.target.value);
-                update(
-                  image
-                    ? { imageModel: e.target.value }
-                    : {
-                        videoModel: e.target.value,
-                        videoDuration: next?.durations?.includes(
-                          p.videoDuration,
-                        )
-                          ? p.videoDuration
-                          : next?.durations?.[0] || 8,
-                      },
-                );
-              }}
-            >
-              {models
-                .filter((m) => m.kind === mode)
-                .map((m) => (
-                  <option value={m.id} key={m.id} disabled={m.active === false}>
-                    {m.name}
-                    {m.active === false ? " · unavailable" : ""}
-                  </option>
-                ))}
-            </select>
-          </Field>
-          {!image && (
-            <Field label="Clip duration">
-              <select
-                value={p.videoDuration}
-                onChange={(e) =>
-                  update({ videoDuration: Number(e.target.value) })
-                }
-              >
-                {model?.durations?.map((n) => (
-                  <option key={n} value={n}>
-                    {n} seconds
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
+          <ModelPicker
+            label={image ? "Image model" : "Video model"}
+            models={models.filter((m) => m.kind === mode)}
+            value={image ? p.imageModel : p.videoModel}
+            onChange={(id) => {
+              const next = models.find((m) => m.id === id);
+              update(
+                image
+                  ? { imageModel: id }
+                  : {
+                      videoModel: id,
+                      videoDuration: next?.durations?.includes(p.videoDuration)
+                        ? p.videoDuration
+                        : next?.durations?.[0] || 8,
+                    },
+              );
+            }}
+          />
+          {!image &&
+            (model?.schema?.properties?.duration ||
+              model?.schema?.properties?.seconds) && (
+              <Field label="Clip duration">
+                <select
+                  value={p.videoDuration}
+                  onChange={(e) =>
+                    update({ videoDuration: Number(e.target.value) })
+                  }
+                >
+                  {(model?.durations || [p.videoDuration]).map((n) => (
+                    <option key={n} value={n}>
+                      {n === -1 ? "Auto duration" : `${n} seconds`}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
         </div>
+        <ModelOptions
+          model={model}
+          p={p}
+          w={w}
+          update={update}
+          autoFrame={needsFrames}
+        />
         <Quantity
-          label={image ? "How many first frames" : "Videos per first frame"}
+          label={
+            image
+              ? "How many first frames"
+              : needsFrames
+                ? "Videos per first frame"
+                : "How many videos"
+          }
           value={image ? p.imageCount : p.videoCount}
           max={image ? 1000 : 100}
           onChange={(value) =>
             update(image ? { imageCount: value } : { videoCount: value })
           }
         />
-        {!image && (
+        {needsFrames && (
           <button
             className="source-summary"
             onClick={() => setShowSources(!showSources)}
@@ -430,7 +365,7 @@ export function Generation({
           disabled={!w.connected}
           onClick={() =>
             void w.act("Refreshing models", async () => {
-              const result = await request("/models");
+              const result = await request("/models?refresh=1");
               setModels(result.models);
               w.notify("Model availability refreshed from Siray.");
             })
@@ -495,11 +430,7 @@ export function Generation({
           </div>
         ) : (
           <EmptyState
-            title={
-              image
-                ? "Every good story starts here."
-                : "A still image. A real reaction."
-            }
+            title={image ? "No first frames yet" : "No reaction clips yet"}
             description={
               image
                 ? "Your generated first frames will appear here. Write your brief and let Auto choice create the variations."
@@ -682,6 +613,7 @@ function ProductModal({
   );
 }
 export function Hooks({ p, w, update, inspect }: Props) {
+  const { models } = useModels(w.connected);
   const [productModal, setProductModal] = useState<false | "new" | "edit">(
       false,
     ),
@@ -755,6 +687,13 @@ export function Hooks({ p, w, update, inspect }: Props) {
               )}
             </div>
             <div className="hook-generator-bottom">
+              <ModelPicker
+                label="Hook generation model"
+                models={models.filter((m) => m.kind === "text")}
+                value={p.hookModel || ""}
+                onChange={(hookModel) => update({ hookModel })}
+                allowDefault
+              />
               <Quantity
                 label="How many hooks"
                 value={p.hookCount}
@@ -801,7 +740,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
           </section>
           <section className="hook-editor">
             <div className="section-heading">
-              <h3>Make it your style.</h3>
+              <h3>Hook style and timing</h3>
               <span className="muted-text">{hooks.length} unique hooks</span>
             </div>
             <div className="style-tabs" role="tablist" aria-label="Hook style">
@@ -1067,8 +1006,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
                 </form>
                 {!hooks.length && (
                   <div className="hook-hint">
-                    A little curiosity goes a long way. Generate hooks above or
-                    write your own.
+                    Generate hooks above or write your own.
                   </div>
                 )}
               </>
@@ -1344,6 +1282,7 @@ export function LibraryChooser({
   );
 }
 export function Outline({ p, w, update, inspect }: Props) {
+  const { models } = useModels(w.connected);
   const [page, setPage] = useState(0),
     count = combinationCount(p),
     effective = effectiveProject(p),
@@ -1560,11 +1499,13 @@ export function Outline({ p, w, update, inspect }: Props) {
               value={p.imageModel}
               onChange={(e) => update({ imageModel: e.target.value })}
             >
-              {MODELS.filter((m) => m.kind === "image").map((m) => (
-                <option value={m.id} key={m.id}>
-                  {m.name}
-                </option>
-              ))}
+              {models
+                .filter((m) => m.kind === "image")
+                .map((m) => (
+                  <option value={m.id} key={m.id}>
+                    {m.name}
+                  </option>
+                ))}
             </select>
           </Field>
           <Field label="Product">

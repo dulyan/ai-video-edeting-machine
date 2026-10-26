@@ -36,7 +36,8 @@ import { probe } from "./render.ts";
 import { siray, chatJSON } from "./siray.ts";
 import { publicFetch } from "./network.ts";
 import { projectSchema, productSchema } from "../shared/schema.ts";
-import { MODELS } from "../shared/models.ts";
+import { getCatalog, invalidateCatalog } from "./catalog.ts";
+import { isAutoFrameField, modelPayload } from "../shared/catalog.ts";
 import type { Asset, Project } from "../shared/types.ts";
 const app = Fastify({
   logger: {
@@ -82,22 +83,18 @@ app.addHook("onRequest", async (req, reply) => {
 });
 app.setErrorHandler((error: any, _req, reply) => {
   if (error instanceof z.ZodError)
-    return reply
-      .code(400)
-      .send({
-        error: error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; "),
-      });
-  const status = error.statusCode || 400;
-  return reply
-    .code(status)
-    .send({
-      error:
-        status >= 500
-          ? "The server could not complete this request"
-          : error.message,
+    return reply.code(400).send({
+      error: error.issues
+        .map((i) => `${i.path.join(".")}: ${i.message}`)
+        .join("; "),
     });
+  const status = error.statusCode || 400;
+  return reply.code(status).send({
+    error:
+      status >= 500
+        ? "The server could not complete this request"
+        : error.message,
+  });
 });
 app.get("/api/health", () => ({
   ok: true,
@@ -185,7 +182,10 @@ app.put("/api/settings", async (req) => {
       textModel: z.string().max(200).optional(),
     })
     .parse(req.body);
-  if (apiKey !== undefined) setSecret("siray", apiKey.trim());
+  if (apiKey !== undefined) {
+    setSecret("siray", apiKey.trim());
+    invalidateCatalog();
+  }
   if (textModel) setSecret("textModel", textModel);
   return { ok: true };
 });
@@ -193,15 +193,9 @@ app.post("/api/settings/test", async () => {
   const data = await siray("/v1/models");
   return { ok: true, models: data.data?.length || 0 };
 });
-app.get("/api/models", async () => {
-  if (!getSecret("siray")) return { models: MODELS };
-  const response = await siray("/v1/models");
-  const available = new Set(
-    (response.data || [])
-      .filter((m: any) => m.status !== "deprecated" && m.status !== "retired")
-      .map((m: any) => m.id),
-  );
-  return { models: MODELS.map((m) => ({ ...m, active: available.has(m.id) })) };
+app.get("/api/models", async (req) => {
+  if ((req.query as any).refresh === "1") invalidateCatalog();
+  return { models: await getCatalog() };
 });
 app.post("/api/uploads", async (req) => {
   const parts = req.parts();
@@ -327,6 +321,12 @@ app.post("/api/generate", async (req) => {
   if (!getSecret("siray"))
     throw new Error("Add your Siray API key in Settings first");
   if (mode === "hooks") {
+    const model =
+      p.hookModel || getSecret("textModel") || "openai/gpt-4.1-mini";
+    const definition = (await getCatalog()).find(
+      (m) => m.id === model && m.kind === "text" && m.active !== false,
+    );
+    if (!definition) throw new Error("Choose an available text model");
     if (!get("products", p.productId))
       throw new Error("Save or choose a product first");
     const active = all("jobs").some(
@@ -341,32 +341,58 @@ app.post("/api/generate", async (req) => {
       productId: p.productId,
       count: p.hookCount,
       language: p.language,
+      model,
+      modelDefinition: definition,
     });
   }
   const count = mode === "image" ? p.imageCount : p.videoCount,
     prompt = mode === "image" ? p.imagePrompt : p.videoPrompt,
     model = mode === "image" ? p.imageModel : p.videoModel;
   if (!prompt.trim()) throw new Error("Enter a prompt first");
-  if (!MODELS.some((m) => m.id === model && m.kind === mode))
-    throw new Error("Choose a supported model");
+  const catalog = await getCatalog();
+  const chosenModel = catalog.find(
+    (m) => m.id === model && m.kind === mode && m.active !== false,
+  );
+  if (!chosenModel) throw new Error("Choose a supported model");
+  const needsFrames =
+    mode === "video" &&
+    Object.keys(chosenModel.schema?.properties || {}).some(isAutoFrameField);
   const frameIds =
     p.frameSelectionExplicit || p.frameIds.length
       ? p.frameIds
       : all("assets")
           .filter((a) => a.projectId === p.id && a.kind === "image")
           .map((a) => a.id);
-  if (mode === "video" && !frameIds.length)
+  if (needsFrames && !frameIds.length)
     throw new Error("Generate or select at least one first-frame image");
   if (
-    mode === "video" &&
+    needsFrames &&
     frameIds.some((id) => !get("assets", id)?.mime.startsWith("image/"))
   )
     throw new Error("Choose valid first-frame images");
+  const inputs = p.modelInputs?.[model] || {};
+  modelPayload(
+    chosenModel,
+    prompt,
+    1,
+    mode === "video" ? p.videoDuration : undefined,
+    needsFrames ? "first-frame" : undefined,
+    inputs,
+  );
   return addJob(
     p.id,
     "prepare",
-    `Prepare ${mode === "image" ? count : count * frameIds.length} ${mode === "image" ? "first frames" : "reactions"}`,
-    { mode, count, prompt, model, duration: p.videoDuration, frameIds },
+    `Prepare ${mode === "image" || !needsFrames ? count : count * frameIds.length} ${mode === "image" ? "first frames" : "reactions"}`,
+    {
+      mode,
+      count,
+      prompt,
+      model,
+      duration: p.videoDuration,
+      frameIds: needsFrames ? frameIds : [null],
+      modelInputs: inputs,
+      modelDefinition: chosenModel,
+    },
   );
 });
 app.post("/api/render", async (req) => {

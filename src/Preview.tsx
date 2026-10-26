@@ -166,13 +166,7 @@ export default function Preview({
         ) : (
           <div className="preview-empty">
             <div className="preview-grid" />
-            <span className="preview-spark">✳</span>
-            <p>
-              Your story,
-              <br />
-              in the making.
-            </p>
-            <small>Select a clip to bring it to life</small>
+            <strong>Select a clip to preview</strong>
           </div>
         )}
         <span className="preview-top-label">
@@ -198,7 +192,7 @@ export default function Preview({
               className={`preview-hook pos-${c.position} style-${c.style.replace(" ", "-")}`}
               style={{ fontSize: `${c.fontSize / 3.6}px` }}
             >
-              {hook?.text || "Your next great hook lives here."}
+              {hook?.text || "Your hook text"}
             </div>
           ))}
         {url && !asset?.mime.startsWith("image/") && (

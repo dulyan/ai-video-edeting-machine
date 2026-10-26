@@ -34,6 +34,24 @@ export function recoverJobs() {
     else patchJob(job.id, { status: "queued" });
   }
 }
+async function materializeInputs(value: any): Promise<any> {
+  if (typeof value === "string" && value.startsWith("asset:")) {
+    const asset = get("assets", value.slice(6));
+    if (!asset) throw new Error("A selected model reference asset is missing");
+    return assetDataURL(asset);
+  }
+  if (Array.isArray(value)) return Promise.all(value.map(materializeInputs));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      await Promise.all(
+        Object.entries(value).map(async ([k, v]) => [
+          k,
+          await materializeInputs(v),
+        ]),
+      ),
+    );
+  return value;
+}
 async function processJob(job: Job) {
   const controller = new AbortController();
   controllers.set(job.id, controller);
@@ -66,6 +84,8 @@ async function processJob(job: Job) {
             `${mode === "image" ? "First frame" : "Reaction"} ${offset + i + 1}`,
             {
               model,
+              modelInputs: job.input.modelInputs,
+              modelDefinition: job.input.modelDefinition,
               prompt: resolved,
               seed: Math.floor(Math.random() * 2147483646),
               duration,
@@ -96,6 +116,8 @@ async function processJob(job: Job) {
           job.input.seed,
           job.input.duration,
           source ? await assetDataURL(source) : undefined,
+          await materializeInputs(job.input.modelInputs || {}),
+          job.input.modelDefinition ? [job.input.modelDefinition] : undefined,
         );
         const response = await siray(
           job.kind === "image"
@@ -201,6 +223,8 @@ async function processJob(job: Job) {
             count,
             avoid: Array.from(generated).slice(-80),
           }),
+          job.input.model,
+          job.input.modelDefinition,
         );
         if (!Array.isArray(response.hooks))
           throw new Error("Hook response was invalid");

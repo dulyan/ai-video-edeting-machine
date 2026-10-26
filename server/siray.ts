@@ -1,5 +1,7 @@
 import { getSecret } from "./store.ts";
 import { MODELS } from "../shared/models.ts";
+import { modelPayload } from "../shared/catalog.ts";
+import type { Model } from "../shared/types.ts";
 export async function siray(
   path: string,
   body?: unknown,
@@ -29,15 +31,23 @@ export async function siray(
     );
   return data;
 }
-export async function chatJSON(system: string, message: string): Promise<any> {
+export async function chatJSON(
+  system: string,
+  message: string,
+  model?: string,
+  definition?: Model,
+): Promise<any> {
+  const modelId = model || getSecret("textModel") || "openai/gpt-4.1-mini";
+  const fields = (definition || MODELS.find((m) => m.id === modelId))?.schema
+    ?.properties;
   const response = await siray("/v1/chat/completions", {
-    model: getSecret("textModel") || "openai/gpt-4.1-mini",
+    model: modelId,
     messages: [
       { role: "system", content: system },
       { role: "user", content: message },
     ],
-    temperature: 0.95,
-    max_tokens: 8000,
+    ...(!fields || fields.temperature ? { temperature: 0.95 } : {}),
+    max_tokens: Math.min(8000, fields?.max_tokens?.maximum || 8000),
   });
   const text = response.choices?.[0]?.message?.content || "";
   try {
@@ -56,26 +66,10 @@ export function generationPayload(
   seed: number,
   duration?: number,
   image?: string,
+  inputs: Record<string, unknown> = {},
+  catalog: Model[] = MODELS,
 ) {
-  const model = MODELS.find((m) => m.id === modelId);
+  const model = catalog.find((m) => m.id === modelId);
   if (!model) throw new Error("Unsupported model");
-  const body: any = { model: modelId, prompt };
-  if (modelId.includes("flux"))
-    Object.assign(body, { aspect_ratio: "9:16", output_format: "png", seed });
-  if (modelId.includes("seedream"))
-    Object.assign(body, {
-      size: model.imageSize,
-      n: 1,
-      enable_sequential: false,
-    });
-  if (modelId.includes("gemini"))
-    body.prompt = `${prompt}\nPortrait 9:16 composition.`;
-  if (model.kind === "video") {
-    if (!model.durations?.includes(duration!))
-      throw new Error("Choose a supported duration for this model");
-    Object.assign(body, { image, duration });
-    if (modelId.includes("seedance"))
-      Object.assign(body, { size: model.size, aspect_ratio: "9:16" });
-  }
-  return body;
+  return modelPayload(model, prompt, seed, duration, image, inputs);
 }
