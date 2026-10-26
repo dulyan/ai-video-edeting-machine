@@ -206,7 +206,7 @@ function Settings({
         </div>
         <a
           className="text-link"
-          href="https://github.com/dulyan/ai-video-edeting-machine#deploy-the-backend"
+          href="https://github.com/dulyan/ai-video-edeting-machine#deploy-on-a-vps-hetzner-contabo-or-another-docker-host"
           target="_blank"
           rel="noreferrer"
         >
