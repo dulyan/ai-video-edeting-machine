@@ -22,7 +22,20 @@ Open the Vite Local URL (normally http://localhost:5173). The development backen
 
 In Settings, connect the backend, enter your Siray API key, and test it. The frontend can save local project drafts before a backend is connected; generation, uploads, and rendering require the backend. Browser drafts do not contain media or API keys.
 
-## Deploy the backend
+## Deploy on a VPS (Hetzner, Contabo, or another Docker host)
+
+Use Ubuntu Server 24.04 LTS with Docker Engine and Docker Compose. The existing application runs without a provider-specific database or queue service.
+
+- Clone the repository to `/srv/ai-video-edeting-machine/source`.
+- Create `/srv/ai-video-edeting-machine/data` owned by UID/GID 1000 with mode 700. This holds the database, media, work files, and encrypted settings.
+- Create `/etc/ai-video-edeting-machine/app.env` readable only by root, setting `APP_PASSWORD`, `ENCRYPTION_KEY`, `FRONTEND_ORIGIN=https://dulyan.github.io`, `PUBLIC_API_URL` to the public HTTPS backend address, and `DATA_DIR=/data`. Use unique random values for the password and encryption key, and retain the encryption key across deployments.
+- Run `docker compose -f deploy/compose.yml up -d --build` from the source checkout. The API listens only on the host's loopback interface; put Nginx or another HTTPS reverse proxy in front of `/api/`. Allow at least 110 MB HTTP bodies for multipart uploads, and disable proxy buffering for streamed media/ZIP downloads.
+- The supplied Compose configuration uses a non-root container, a 2 GB memory limit, two CPU cores, bounded container logs, and automatic restart after reboot. Adjust those resource limits for the actual server after benchmarking.
+- Configure HTTPS and automatic certificate renewal. A domain works normally; Let's Encrypt also supports short-lived public-IP certificates with Certbot 5.4+ using `--preferred-profile shortlived --ip-address ADDRESS --webroot`. IP certificates need frequent automatic renewal and a webserver reload hook.
+- Back up the SQLite database using SQLite's backup API, plus the media directory and root-only environment file. Retain an off-server copy. Do not delete the encryption key or regenerate it on redeployment.
+- Set the GitHub repository variable `VITE_API_URL` to the backend HTTPS URL and run the Pages workflow, or enter the URL manually in the app Settings. The API key belongs in the app Settings, not a frontend build variable.
+
+## Deploy the backend on Railway
 
 The frontend is deployed to GitHub Pages by the included workflow. GitHub Pages cannot run FFmpeg or background jobs. Deploy the included backend to Railway:
 
