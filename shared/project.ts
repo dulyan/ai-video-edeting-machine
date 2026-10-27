@@ -16,7 +16,9 @@ export const SPANS: { value: Span; label: string }[] = [
   { value: "demo", label: "Demo only" },
 ];
 export const IMAGE_PROMPT =
-  "A candid smartphone portrait of a [woman/man] in a [sunlit kitchen/cozy living room/bright home office], looking at the camera, a natural surprised expression. Authentic UGC, realistic skin, soft daylight, no text or logos.";
+  "Invent a different believable adult and everyday setting for each output. Describe the person's specific appearance, casual clothing, ordinary personal details, and lived-in surroundings in rich detail. Choose the details yourself and make the person, environment, and lighting physically consistent. Respect the fixed image instructions.";
+export const IMAGE_FIXED_INSTRUCTIONS =
+  "Create a realistic casual UGC smartphone selfie frame. Use ordinary phone-video camera quality, natural skin texture, slightly imperfect framing, and physically plausible lighting. The person looks into the camera with a naturally surprised expression. No glamour retouching, cinematic grading, text, captions, watermarks, interfaces, or logos.";
 export const VIDEO_PROMPT =
   "The person reacts with [delighted surprise/curious disbelief/an excited smile], small natural head movements, looking at the camera. Handheld smartphone footage, authentic and candid.";
 export function newProject(): Project {
@@ -29,6 +31,8 @@ export function newProject(): Project {
     step: 0,
     skipped: [],
     imagePrompt: IMAGE_PROMPT,
+    imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
+    imageVariation: 50,
     imageCount: 4,
     imageModel: "black-forest-labs/flux-1.1-pro-t2i",
     imagePromptModel: "openai/gpt-4.1-mini",

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Loader2, Check, Image as ImageIcon } from "lucide-react";
-import type { Job, Asset } from "../shared/types.ts";
+import type { Job, Asset, PromptParts } from "../shared/types.ts";
 import type { Workspace } from "./workspace.tsx";
-import { AssetMedia, Button } from "./components.tsx";
+import { AssetMedia, Button, Modal } from "./components.tsx";
+import PromptContent from "./PromptContent.tsx";
 import { request } from "./api.ts";
 export default function GenerationProgress({
   batch,
@@ -18,6 +19,10 @@ export default function GenerationProgress({
   toggleAsset: (id: string) => void;
 }) {
   const [page, setPage] = useState(0);
+  const [fullPrompt, setFullPrompt] = useState<{
+    prompt: string;
+    parts?: PromptParts;
+  } | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (batch.status !== "running") return;
@@ -158,10 +163,32 @@ export default function GenerationProgress({
                   </span>
                 </header>
                 <p className="unique-prompt">
-                  {prompts[index] ||
+                  {batch.generatedDescriptions?.[index] ||
+                    prompts[index] ||
                     (index === prompts.length ? batch.draftText : "") ||
                     "The complete unique prompt will appear here."}
                 </p>
+                {batch.mode === "image" && prompts[index] && (
+                  <Button
+                    className="full-prompt-button"
+                    onClick={() =>
+                      setFullPrompt({
+                        prompt: prompts[index],
+                        parts:
+                          batch.fixedInstructions !== undefined &&
+                          batch.generatedDescriptions?.[index] !== undefined
+                            ? {
+                                fixedInstructions: batch.fixedInstructions,
+                                generatedDescription:
+                                  batch.generatedDescriptions[index],
+                              }
+                            : child?.promptParts || asset?.promptParts,
+                      })
+                    }
+                  >
+                    View full image prompt
+                  </Button>
+                )}
                 {asset ? (
                   <>
                     <button
@@ -237,6 +264,11 @@ export default function GenerationProgress({
             Next
           </Button>
         </div>
+      )}
+      {fullPrompt && (
+        <Modal title="Full image prompt" onClose={() => setFullPrompt(null)}>
+          <PromptContent prompt={fullPrompt.prompt} parts={fullPrompt.parts} />
+        </Modal>
       )}
     </section>
   );

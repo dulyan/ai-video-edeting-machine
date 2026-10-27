@@ -3,10 +3,16 @@ import { textSlot } from "./text-slots.ts";
 import { addJob, all, get, patchJob } from "./store.ts";
 import { MODELS } from "../shared/models.ts";
 import { streamPrompts } from "./prompt-stream.ts";
+import { assembleImagePrompt } from "../shared/image-prompts.ts";
+const IMAGE_DESCRIPTION_SYSTEM =
+  'Generate ONE unique, highly specific, richly detailed description following textModelInstructions. Invent the details yourself within those instructions; do not return alternatives or predefined variable lists. readOnlyImageInstructions are immutable image constraints supplied as context: respect every requirement, but DO NOT reproduce, paraphrase, or rewrite that fixed block in your response. Return only the newly invented description, not a full combined image prompt; the app will prepend the fixed block verbatim. variationLevel is a 0–100 diversity scale: 0 means restrained differences within the allowed choices, 50 means balanced variation, and 100 means broader inventive differences that remain plausible and mutually coherent. The scale never reduces specificity or detail, never permits changes forbidden by the fixed constraints, and never overrides the user\'s instructions. Every description must stay highly specific, detailed, and consistent with the fixed image instructions at every scale value. Return exactly one JSON object {"prompt":"generated description"}. Escape newlines inside the string. No commentary. Do not repeat any description in avoid.';
 
 export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   const { mode, count, prompt, model, duration, frameIds } = job.input;
   const total = mode === "image" ? count : count * frameIds.length;
+  const splitImage =
+    mode === "image" && job.input.promptFormat === "split-image-v1";
+  const fixedInstructions: string = job.input.fixedInstructions ?? "";
   const definition: Model =
     job.input.promptModelDefinition ||
     MODELS.find(
@@ -20,8 +26,20 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
       .filter((j) => j.batchId === job.batchId && j.kind === mode)
       .sort((a, b) => (a.input.sequence || 0) - (b.input.sequence || 0))
       .map((j) => j.input.prompt);
+  const descriptions: string[] = splitImage
+    ? [
+        ...(job.generatedDescriptions ||
+          prompts.map((p) =>
+            fixedInstructions && p.startsWith(fixedInstructions + "\n\n")
+              ? p.slice(fixedInstructions.length + 2)
+              : p,
+          )),
+      ]
+    : [];
   const seen = new Set(
-    prompts.map((p) => p.replace(/\s+/g, " ").trim().toLowerCase()),
+    (splitImage ? descriptions : prompts).map((p) =>
+      p.replace(/\s+/g, " ").trim().toLowerCase(),
+    ),
   );
   const requests: PromptRequest[] = [...(job.promptRequests || [])]
     .slice(-8)
@@ -40,6 +58,7 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
     promptStartedAt: new Date().toISOString(),
     promptFinishedAt: undefined,
     promptRequests: requests,
+    ...(splitImage ? { generatedDescriptions: descriptions } : {}),
   });
   while (
     prompts.length < total &&
@@ -66,20 +85,35 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
             promptRequests: requests.slice(-12).map((r) => ({ ...r })),
             prompts: [...prompts],
             progress: Math.round((prompts.length / total) * 100),
+            ...(splitImage ? { generatedDescriptions: [...descriptions] } : {}),
           });
         let lastDraft = 0,
           candidate = false;
         save();
         try {
           await streamPrompts(
-            'Resolve the supplied generic image/video brief into ONE complete, distinct production prompt. Follow ONLY the variation or randomness instructions already in that brief. Preserve all fixed requirements; do not invent randomization rules. The brief describes the requested media, not the format of your chat response. Honor its scene/content rules inside the output prompt, even if it mentions FINAL OUTPUT or asks to generate an image. Your chat response must be exactly one JSON object {"prompt":"complete resolved production prompt"}. Escape newlines inside the string. No commentary. Do not repeat any prompt in avoid.',
-            JSON.stringify({
-              genericPrompt: prompt,
-              count: 1,
-              variation: request.id,
-              aspectRatio: job.input.aspectRatio || "9:16",
-              avoid: prompts.slice(-20),
-            }),
+            splitImage
+              ? IMAGE_DESCRIPTION_SYSTEM
+              : 'Resolve the supplied generic image/video brief into ONE complete, distinct production prompt. Follow ONLY the variation or randomness instructions already in that brief. Preserve all fixed requirements; do not invent randomization rules. The brief describes the requested media, not the format of your chat response. Honor its scene/content rules inside the output prompt, even if it mentions FINAL OUTPUT or asks to generate an image. Your chat response must be exactly one JSON object {"prompt":"complete resolved production prompt"}. Escape newlines inside the string. No commentary. Do not repeat any prompt in avoid.',
+            JSON.stringify(
+              splitImage
+                ? {
+                    textModelInstructions: prompt,
+                    readOnlyImageInstructions: fixedInstructions,
+                    variationLevel: job.input.variation ?? 50,
+                    count: 1,
+                    variation: request.id,
+                    aspectRatio: job.input.aspectRatio || "9:16",
+                    avoid: descriptions.slice(-20),
+                  }
+                : {
+                    genericPrompt: prompt,
+                    count: 1,
+                    variation: request.id,
+                    aspectRatio: job.input.aspectRatio || "9:16",
+                    avoid: prompts.slice(-20),
+                  },
+            ),
             definition,
             (text) => {
               if (candidate || prompts.length >= total) return;
@@ -91,7 +125,15 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
                 return;
               }
               seen.add(normalized);
-              prompts.push(text);
+              if (splitImage) {
+                descriptions.push(text);
+                prompts.push(
+                  assembleImagePrompt({
+                    fixedInstructions,
+                    generatedDescription: text,
+                  }),
+                );
+              } else prompts.push(text);
               request.status = "completed";
               request.draftText = "";
               save();
@@ -143,6 +185,14 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
         modelInputs: job.input.modelInputs,
         modelDefinition: job.input.modelDefinition,
         prompt: resolved,
+        ...(splitImage
+          ? {
+              promptParts: {
+                fixedInstructions,
+                generatedDescription: descriptions[i],
+              },
+            }
+          : {}),
         seed: Math.floor(Math.random() * 2147483646),
         duration,
         sequence: i + 1,
@@ -160,5 +210,6 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
     prompts,
     draftText: "",
     promptFinishedAt: new Date().toISOString(),
+    ...(splitImage ? { generatedDescriptions: descriptions } : {}),
   });
 }

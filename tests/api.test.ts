@@ -121,6 +121,69 @@ test("API keys are encrypted at rest and never returned in state", async () => {
   assert(!db.includes(Buffer.from(key)));
   await api("/settings", "PUT", { apiKey: "" });
 });
+test("fixed image instructions, paired presets, and variation settings round trip without trimming", async () => {
+  const fixed = "  Camera rules:\r\n\tNo text or logos.  \n";
+  const result = await api(`/projects/${project.id}`, "PATCH", {
+    imageFixedInstructions: fixed,
+    imageVariation: 0,
+  });
+  assert.equal(result.status, 200);
+  let saved = (await api("/state")).data;
+  assert.equal(saved.projects[0].imageFixedInstructions, fixed);
+  assert.equal(saved.projects[0].imageVariation, 0);
+  const preset = {
+    id: "paired-image",
+    name: "Paired image brief",
+    mode: "image",
+    prompt: "Invent a detailed person and a coherent scene.",
+    fixedInstructions: fixed,
+    variation: 100,
+  };
+  assert.equal((await api("/presets/" + preset.id, "PUT", preset)).status, 200);
+  saved = (await api("/state")).data;
+  assert.deepEqual(
+    saved.presets.find((p: any) => p.id === preset.id),
+    preset,
+  );
+  const legacy = {
+    id: "legacy-image",
+    name: "Previous preset",
+    mode: "image",
+    prompt: "Previous generic prompt",
+  };
+  assert.equal((await api("/presets/" + legacy.id, "PUT", legacy)).status, 200);
+  const video = {
+    id: "video-preset",
+    name: "Reaction preset",
+    mode: "video",
+    prompt: "A natural surprised reaction.",
+  };
+  assert.equal((await api("/presets/" + video.id, "PUT", video)).status, 200);
+  saved = (await api("/state")).data;
+  assert.deepEqual(
+    saved.presets.find((p: any) => p.id === video.id),
+    video,
+  );
+  assert.deepEqual(
+    saved.presets.find((p: any) => p.id === legacy.id),
+    legacy,
+  );
+  assert.equal(
+    (await api(`/projects/${project.id}`, "PATCH", { imageVariation: 101 }))
+      .status,
+    400,
+  );
+  assert.equal(
+    (
+      await api("/presets/invalid", "PUT", {
+        ...preset,
+        id: "invalid",
+        variation: -1,
+      })
+    ).status,
+    400,
+  );
+});
 test("bodyless retry and cancel actions tolerate older JSON headers", async () => {
   const cancel = await api("/jobs/nonexistent/cancel", "POST");
   assert.equal(cancel.status, 200);

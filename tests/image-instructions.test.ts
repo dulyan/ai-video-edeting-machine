@@ -1,0 +1,337 @@
+import { test, after, mock } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, readFile } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import https from "node:https";
+import { PassThrough } from "node:stream";
+import { EventEmitter } from "node:events";
+import { MODELS } from "../shared/models.ts";
+import { assembleImagePrompt } from "../shared/image-prompts.ts";
+import { newProject } from "../shared/project.ts";
+import { projectSchema } from "../shared/schema.ts";
+process.env.DATA_DIR = await mkdtemp(
+  path.join(os.tmpdir(), "avem-image-instructions-"),
+);
+const { get, put, all, addJob, patchJob, setSecret, state, mediaDir } =
+  await import("../server/store.ts");
+const { prepareGeneration } = await import("../server/prepare.ts");
+const { processJob } = await import("../server/queue.ts");
+const { run, ffmpeg } = await import("../server/render.ts");
+const original = globalThis.fetch;
+after(() => {
+  globalThis.fetch = original;
+});
+setSecret("siray", "test-only-not-a-real-key");
+const textModel = MODELS.find((m) => m.id === "openai/gpt-4.1-mini")!,
+  imageModel = MODELS.find(
+    (m) => m.id === "black-forest-labs/flux-1.1-pro-t2i",
+  )!;
+const fixed =
+  "  CAMERA:\r\n\tPhone-video quality. 😮\r\n\r\nNo logos. Keep these spaces.  \n";
+const descriptions = [
+  "A 43-year-old woman with a round face, flyaway auburn hair and a faded olive sweatshirt, in a lived-in kitchen. Late-afternoon window light falls from her left beside a chipped mug and folded dish towel.",
+  "A 61-year-old man with salt-and-pepper stubble, rectangular glasses and a worn blue cardigan in a small home office. A desk lamp softly lights his right cheek; books, a charging cable and an unfinished cup of tea sit behind him.",
+  "A 29-year-old adult with short dark curls and a loose rust-colored T-shirt on an ordinary covered porch. Overcast daylight softly lights their face; scuffed shoes, a small plant and a folded canvas bag are visible nearby.",
+  "A 52-year-old woman with a softly angular face, fine lines and loosely tied silver-streaked brown hair, in a modest living room. A floor lamp lights her cheek; a rumpled blanket and TV remote sit on a worn sofa.",
+];
+function input(count = 4, variation = 50, fixedInstructions = fixed) {
+  return {
+    mode: "image",
+    count,
+    prompt:
+      "Invent highly specific people and coherent everyday settings with rich, realistic details.",
+    model: imageModel.id,
+    modelDefinition: imageModel,
+    promptModel: textModel.id,
+    promptModelDefinition: textModel,
+    frameIds: [null],
+    aspectRatio: "1:1",
+    modelInputs: { aspect_ratio: "1:1" },
+    promptFormat: "split-image-v1",
+    fixedInstructions,
+    variation,
+  };
+}
+test("four image prompts preserve the exact fixed block, show only generated details, and reach the provider unchanged", async () => {
+  const p = newProject();
+  p.imageFixedInstructions = fixed;
+  put("projects", p);
+  const job = addJob(p.id, "prepare", "Prepare 4 first frames", input());
+  const fixture = path.join(mediaDir, "fixture.png");
+  await run(ffmpeg, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=blue:s=48x48",
+    "-frames:v",
+    "1",
+    fixture,
+  ]);
+  const bytes = await readFile(fixture);
+  const download = mock.method(https, "request", ((
+    _u: unknown,
+    _o: unknown,
+    cb: any,
+  ) => {
+    const req: any = new EventEmitter();
+    req.setTimeout = () => req;
+    req.end = () => {
+      const res: any = new PassThrough();
+      res.statusCode = 200;
+      res.headers = { "content-type": "image/png" };
+      cb(res);
+      res.end(bytes);
+    };
+    return req;
+  }) as any);
+  const textRequests: any[] = [],
+    imageRequests: any[] = [];
+  let n = 0,
+    tasks = 0;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes("/chat/completions")) {
+      const body = JSON.parse(String(options?.body));
+      textRequests.push(body);
+      return Response.json({
+        choices: [
+          {
+            message: { content: JSON.stringify({ prompt: descriptions[n++] }) },
+          },
+        ],
+      });
+    }
+    if (options?.method === "POST") {
+      imageRequests.push(JSON.parse(String(options.body)));
+      return Response.json({ task_id: "task-" + ++tasks });
+    }
+    return Response.json({
+      status: "SUCCESS",
+      outputs: ["https://8.8.8.8/fixture.png"],
+    });
+  };
+  try {
+    await processJob(job);
+    const prepared = get("jobs", job.id)!;
+    assert.equal(prepared.status, "completed");
+    assert.equal(prepared.prompts?.length, 4);
+    assert.deepEqual(
+      new Set(prepared.generatedDescriptions),
+      new Set(descriptions),
+    );
+    for (const body of textRequests) {
+      const message = JSON.parse(body.messages[1].content);
+      assert.equal(message.readOnlyImageInstructions, fixed);
+      assert.equal(message.textModelInstructions, input().prompt);
+      assert.equal(message.variationLevel, 50);
+      assert(
+        body.messages[0].content.includes(
+          "never reduces specificity or detail",
+        ),
+      );
+      assert(body.messages[0].content.includes("DO NOT reproduce"));
+    }
+    p.imageFixedInstructions = "A later edit must not alter this batch";
+    put("projects", p);
+    const children = all("jobs").filter(
+      (j) => j.batchId === job.batchId && j.kind === "image",
+    );
+    assert.equal(children.length, 4);
+    for (const child of children) {
+      assert.equal(child.input.promptParts.fixedInstructions, fixed);
+      assert.equal(
+        child.input.prompt,
+        assembleImagePrompt(child.input.promptParts),
+      );
+      await processJob(child);
+      assert.equal(
+        get("jobs", child.id)?.status,
+        "completed",
+        get("jobs", child.id)?.error || "Expected saved image",
+      );
+    }
+    const assets = all("assets").filter((a) => a.projectId === p.id);
+    assert.equal(assets.length, 4);
+    for (const asset of assets) {
+      assert.equal(asset.promptParts?.fixedInstructions, fixed);
+      assert.equal(asset.prompt, assembleImagePrompt(asset.promptParts!));
+      assert(asset.prompt!.startsWith(fixed + "\n\n"));
+      assert(imageRequests.some((b) => b.prompt === asset.prompt));
+    }
+    assert(
+      imageRequests.every(
+        (b) => !("variationLevel" in b) && !("textModelInstructions" in b),
+      ),
+    );
+    const publicJob = state().jobs.find((j) => j.id === job.id)!;
+    assert.equal(publicJob.fixedInstructions, fixed);
+    assert.deepEqual(
+      publicJob.generatedDescriptions,
+      prepared.generatedDescriptions,
+    );
+  } finally {
+    globalThis.fetch = original;
+    download.mock.restore();
+  }
+});
+test("split-image retries preserve completed prompts and snapshotted fixed text without double-prefixing", async () => {
+  const job = addJob(
+    "retry-project",
+    "prepare",
+    "Prepare 2 first frames",
+    input(2),
+  );
+  const first = assembleImagePrompt({
+    fixedInstructions: fixed,
+    generatedDescription: descriptions[0],
+  });
+  patchJob(job.id, {
+    status: "running",
+    prompts: [first],
+    generatedDescriptions: [descriptions[0]],
+  });
+  globalThis.fetch = async () =>
+    Response.json({
+      choices: [{ message: { content: '{"prompt":"incomplete' } }],
+    });
+  await assert.rejects(
+    () => prepareGeneration(get("jobs", job.id)!),
+    /incomplete prompt JSON/,
+  );
+  assert.deepEqual(get("jobs", job.id)?.prompts, [first]);
+  assert.equal(
+    all("jobs").filter((j) => j.batchId === job.batchId && j.kind === "image")
+      .length,
+    0,
+  );
+  globalThis.fetch = async () =>
+    Response.json({
+      choices: [
+        { message: { content: JSON.stringify({ prompt: descriptions[1] }) } },
+      ],
+    });
+  await prepareGeneration(get("jobs", job.id)!);
+  const children = all("jobs").filter(
+    (j) => j.batchId === job.batchId && j.kind === "image",
+  );
+  assert.equal(children.length, 2);
+  assert(
+    children.every(
+      (j) => j.input.prompt === assembleImagePrompt(j.input.promptParts),
+    ),
+  );
+  assert.equal(get("jobs", job.id)?.prompts?.[0], first);
+  assert.equal(get("jobs", job.id)?.generatedDescriptions?.length, 2);
+  globalThis.fetch = original;
+});
+test("variation endpoints change only text-model diversity guidance; specificity and fixed constraints remain mandatory", async () => {
+  for (const variation of [0, 50, 100]) {
+    const job = addJob(
+      "variation-" + variation,
+      "prepare",
+      "Prepare 1 first frame",
+      input(1, variation),
+    );
+    let body: any;
+    globalThis.fetch = async (_u, options) => {
+      body = JSON.parse(String(options?.body));
+      return Response.json({
+        choices: [
+          { message: { content: JSON.stringify({ prompt: descriptions[0] }) } },
+        ],
+      });
+    };
+    await prepareGeneration(job);
+    const request = JSON.parse(body.messages[1].content);
+    assert.equal(request.variationLevel, variation);
+    assert.equal(request.readOnlyImageInstructions, fixed);
+    assert(
+      body.messages[0].content.includes(
+        "highly specific, detailed, and consistent",
+      ),
+    );
+    assert(!("temperature" in body));
+  }
+  globalThis.fetch = original;
+});
+test("empty fixed text and whitespace-only fixed text assemble predictably, while older projects remain valid", async () => {
+  assert.equal(
+    assembleImagePrompt({
+      fixedInstructions: "",
+      generatedDescription: descriptions[0],
+    }),
+    descriptions[0],
+  );
+  assert.equal(
+    assembleImagePrompt({
+      fixedInstructions: "  \n",
+      generatedDescription: "Detailed scene",
+    }),
+    "  \n\n\nDetailed scene",
+  );
+  const job = addJob(
+    "empty-fixed",
+    "prepare",
+    "Prepare 1 first frame",
+    input(1, 50, ""),
+  );
+  globalThis.fetch = async () =>
+    Response.json({
+      choices: [
+        { message: { content: JSON.stringify({ prompt: descriptions[0] }) } },
+      ],
+    });
+  await prepareGeneration(job);
+  assert.equal(get("jobs", job.id)?.prompts?.[0], descriptions[0]);
+  globalThis.fetch = original;
+  const legacy = newProject();
+  delete legacy.imageFixedInstructions;
+  delete legacy.imageVariation;
+  const parsed = projectSchema.parse(legacy);
+  assert.equal(parsed.imagePrompt, legacy.imagePrompt);
+  assert.equal(parsed.imageFixedInstructions, undefined);
+  assert.equal(
+    projectSchema.safeParse({ ...legacy, imageVariation: 101 }).success,
+    false,
+  );
+});
+test("video and pre-split image jobs keep legacy request and prompt semantics", async () => {
+  for (const mode of ["video", "image"]) {
+    const settings: any = { ...input(1), mode };
+    delete settings.promptFormat;
+    const job = addJob(
+      "legacy-" + mode,
+      "prepare",
+      "Prepare 1 output",
+      settings,
+    );
+    let body: any;
+    globalThis.fetch = async (_u, options) => {
+      body = JSON.parse(String(options?.body));
+      return Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                prompt: "Legacy resolved production prompt",
+              }),
+            },
+          },
+        ],
+      });
+    };
+    await prepareGeneration(job);
+    const message = JSON.parse(body.messages[1].content);
+    assert.equal(message.genericPrompt, settings.prompt);
+    assert(!("readOnlyImageInstructions" in message));
+    const child = all("jobs").find(
+      (j) => j.batchId === job.batchId && j.kind === mode,
+    )!;
+    assert.equal(child.input.prompt, "Legacy resolved production prompt");
+    assert.equal(child.input.promptParts, undefined);
+  }
+  globalThis.fetch = original;
+});

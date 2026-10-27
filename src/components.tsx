@@ -15,6 +15,7 @@ import {
 import type { Asset, Span } from "../shared/types.ts";
 import { SPANS } from "../shared/project.ts";
 import { mediaURL } from "./api.ts";
+import PromptContent from "./PromptContent.tsx";
 export function Button({
   children,
   variant = "default",
@@ -367,13 +368,19 @@ export function Inspector({
         <dd>{asset.model || "Uploaded media"}</dd>
         <dt>File size</dt>
         <dd>{(asset.size / 1048576).toFixed(1)} MB</dd>
-        {asset.prompt && (
+        {asset.prompt && !asset.promptParts && (
           <>
             <dt>Resolved prompt</dt>
             <dd>{asset.prompt}</dd>
           </>
         )}
       </dl>
+      {asset.prompt && asset.promptParts && (
+        <details className="asset-prompt-details">
+          <summary>View full image prompt</summary>
+          <PromptContent prompt={asset.prompt} parts={asset.promptParts} />
+        </details>
+      )}
       <a href={url} target="_blank" rel="noreferrer" className="button black">
         <Download size={16} /> Open / download original
       </a>

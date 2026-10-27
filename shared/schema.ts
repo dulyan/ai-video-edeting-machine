@@ -57,6 +57,8 @@ export const projectSchema = z.object({
   step: z.number().int().min(0).max(8),
   skipped: z.array(z.number().int().min(0).max(8)).max(9),
   imagePrompt: text,
+  imageFixedInstructions: text.optional(),
+  imageVariation: z.number().int().min(0).max(100).optional(),
   imageCount: z.number().int().min(1).max(1000),
   imageModel: id,
   imagePromptModel: id.optional(),

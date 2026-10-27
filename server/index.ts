@@ -183,6 +183,8 @@ app.put("/api/presets/:id", async (req) => {
       name: z.string().min(1).max(100),
       mode: z.enum(["image", "video"]),
       prompt: z.string().min(1).max(20000),
+      fixedInstructions: z.string().max(20000).optional(),
+      variation: z.number().int().min(0).max(100).optional(),
     })
     .parse(req.body);
   if (p.id !== (req.params as any).id)
@@ -442,6 +444,13 @@ app.post("/api/generate", async (req) => {
       promptModel: promptModelId,
       promptModelDefinition,
       aspectRatio,
+      ...(mode === "image"
+        ? {
+            promptFormat: "split-image-v1",
+            fixedInstructions: p.imageFixedInstructions || "",
+            variation: p.imageVariation ?? 50,
+          }
+        : {}),
     },
   );
 });

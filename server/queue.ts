@@ -147,6 +147,9 @@ export async function processJob(job: Job) {
             width: metadata.width,
             height: metadata.height,
             prompt: job.input.prompt,
+            ...(job.input.promptParts
+              ? { promptParts: job.input.promptParts }
+              : {}),
             model: job.input.model,
             sourceId: job.input.sourceId,
             jobId: job.id,

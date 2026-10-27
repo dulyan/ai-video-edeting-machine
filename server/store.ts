@@ -131,6 +131,11 @@ export function state(): AppState {
           : undefined),
       sequence: sequence(j),
       aspectRatio: j.input.aspectRatio,
+      fixedInstructions:
+        j.input.promptFormat === "split-image-v1"
+          ? (j.input.fixedInstructions ?? "")
+          : undefined,
+      promptParts: j.input.promptParts,
       prompts:
         j.prompts ||
         (j.kind === "prepare"

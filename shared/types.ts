@@ -21,6 +21,7 @@ export interface Asset {
   width?: number;
   height?: number;
   prompt?: string;
+  promptParts?: PromptParts;
   model?: string;
   sourceId?: string;
   jobId?: string;
@@ -79,6 +80,8 @@ export interface Project {
   step: number;
   skipped: number[];
   imagePrompt: string;
+  imageFixedInstructions?: string;
+  imageVariation?: number;
   imageCount: number;
   imageModel: string;
   imagePromptModel?: string;
@@ -114,6 +117,9 @@ export interface Job {
   generationModel?: string;
   targetCount?: number;
   prompts?: string[];
+  generatedDescriptions?: string[];
+  fixedInstructions?: string;
+  promptParts?: PromptParts;
   draftText?: string;
   sequence?: number;
   aspectRatio?: string;
@@ -148,6 +154,12 @@ export interface PromptPreset {
   name: string;
   mode: "image" | "video";
   prompt: string;
+  fixedInstructions?: string;
+  variation?: number;
+}
+export interface PromptParts {
+  fixedInstructions: string;
+  generatedDescription: string;
 }
 export interface AppState {
   projects: Project[];

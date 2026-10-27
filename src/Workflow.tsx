@@ -36,6 +36,7 @@ import {
   excludedCount,
   effectiveProject,
   IMAGE_PROMPT,
+  IMAGE_FIXED_INSTRUCTIONS,
   VIDEO_PROMPT,
   SPANS,
 } from "../shared/project.ts";
@@ -58,6 +59,7 @@ import {
 } from "./components.tsx";
 import Preview from "./Preview.tsx";
 import { request } from "./api.ts";
+import VariationControl from "./VariationControl.tsx";
 type Props = {
   p: Project;
   w: Workspace;
@@ -160,7 +162,11 @@ export function Generation({
             onClick={() =>
               update(
                 image
-                  ? { imagePrompt: IMAGE_PROMPT }
+                  ? {
+                      imagePrompt: IMAGE_PROMPT,
+                      imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
+                      imageVariation: 50,
+                    }
                   : { videoPrompt: VIDEO_PROMPT },
               )
             }
@@ -173,7 +179,9 @@ export function Generation({
                 image
                   ? {
                       imagePrompt:
-                        "A [woman/man] reacting with surprise in a [kitchen/office], candid UGC portrait, smartphone photography, realistic skin, no text.",
+                        "Invent a different, highly specific everyday adult and lived-in setting for each output. Describe their natural appearance, casually chosen clothing, ordinary personal details, and plausible surroundings in rich detail. Choose all details yourself and keep the scene coherent with the fixed image instructions.",
+                      imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
+                      imageVariation: 50,
                     }
                   : {
                       videoPrompt:
@@ -197,7 +205,12 @@ export function Generation({
                 if (preset)
                   update(
                     image
-                      ? { imagePrompt: preset.prompt }
+                      ? {
+                          imagePrompt: preset.prompt,
+                          imageFixedInstructions:
+                            preset.fixedInstructions ?? "",
+                          imageVariation: preset.variation ?? 50,
+                        }
                       : { videoPrompt: preset.prompt },
                   );
               }}
@@ -214,8 +227,12 @@ export function Generation({
           </Field>
         )}
         <Field
-          label="1. Generic prompt"
-          hint="Include all variation instructions in this prompt. Fixed details will be preserved."
+          label={image ? "Text-model instructions" : "1. Generic prompt"}
+          hint={
+            image
+              ? "Tell the text model what to invent, how detailed it should be, and what should differ between outputs."
+              : "Include all variation instructions in this prompt. Fixed details will be preserved."
+          }
         >
           <textarea
             className="prompt-input"
@@ -230,6 +247,37 @@ export function Generation({
             rows={6}
           />
         </Field>
+        {image && (
+          <>
+            <VariationControl
+              value={p.imageVariation ?? 50}
+              onChange={(imageVariation) => update({ imageVariation })}
+            />
+            <Field
+              label="Fixed image instructions"
+              hint="This wording is copied exactly into every final image prompt, including its spacing and line breaks."
+            >
+              <textarea
+                rows={7}
+                value={p.imageFixedInstructions ?? ""}
+                placeholder="Paste the image instructions that should stay identical in every output…"
+                onChange={(e) =>
+                  update({ imageFixedInstructions: e.target.value })
+                }
+              />
+            </Field>
+            <p className="prompt-assembly-note">
+              The text model generates the unique description. The app combines
+              it with your fixed instructions without rewriting them.
+            </p>
+            {p.imageFixedInstructions === undefined && (
+              <p className="info-note">
+                Your previous generic prompt is preserved above. Move any
+                wording you want copied verbatim into Fixed image instructions.
+              </p>
+            )}
+          </>
+        )}
         <div className="save-prompt-row">
           <input
             aria-label="Prompt preset name"
@@ -248,6 +296,12 @@ export function Generation({
                   name: presetName.trim(),
                   mode,
                   prompt: image ? p.imagePrompt : p.videoPrompt,
+                  ...(image
+                    ? {
+                        fixedInstructions: p.imageFixedInstructions ?? "",
+                        variation: p.imageVariation ?? 50,
+                      }
+                    : {}),
                 });
                 setPresetName("");
               })
@@ -1523,11 +1577,20 @@ export function Outline({ p, w, update, inspect }: Props) {
       <details className="card outline-details">
         <summary>Edit prompts & product information</summary>
         <div className="form-columns">
-          <Field label="First-frame prompt">
+          <Field label="First-frame text-model instructions">
             <textarea
               rows={3}
               value={p.imagePrompt}
               onChange={(e) => update({ imagePrompt: e.target.value })}
+            />
+          </Field>
+          <Field label="Fixed first-frame image instructions">
+            <textarea
+              rows={3}
+              value={p.imageFixedInstructions ?? ""}
+              onChange={(e) =>
+                update({ imageFixedInstructions: e.target.value })
+              }
             />
           </Field>
           <Field label="Reaction prompt">
@@ -1538,6 +1601,10 @@ export function Outline({ p, w, update, inspect }: Props) {
             />
           </Field>
         </div>
+        <VariationControl
+          value={p.imageVariation ?? 50}
+          onChange={(imageVariation) => update({ imageVariation })}
+        />
         <div className="form-columns">
           <Field label="Text-to-image model">
             <select
