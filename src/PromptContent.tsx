@@ -12,21 +12,22 @@ export default function PromptContent({
     <div className="prompt-content">
       {parts ? (
         <>
-          <section className="prompt-section fixed">
-            <h3>
-              Fixed instructions <small>Copied verbatim</small>
-            </h3>
-            <pre aria-label="Fixed instructions verbatim">
-              {parts.fixedInstructions}
-            </pre>
-            {!parts.fixedInstructions && (
-              <p className="muted-text">
-                No fixed instructions for this output.
-              </p>
-            )}
-          </section>
+          {parts.fixedInstructions && (
+            <section className="prompt-section fixed">
+              <h3>
+                Fixed instructions <small>Copied verbatim</small>
+              </h3>
+              <pre aria-label="Fixed instructions verbatim">
+                {parts.fixedInstructions}
+              </pre>
+            </section>
+          )}
           <section className="prompt-section generated">
-            <h3>Generated description</h3>
+            <h3>
+              {parts.enforcedInstructions
+                ? "Video instructions"
+                : "Generated description"}
+            </h3>
             <pre>{parts.generatedDescription}</pre>
           </section>
           {parts.enforcedInstructions && (
