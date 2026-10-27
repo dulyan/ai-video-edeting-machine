@@ -1,4 +1,4 @@
-import { reactionInputs } from "../shared/reaction.ts";
+import { reactionInputs, reactionInstructions } from "../shared/reaction.ts";
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
@@ -369,7 +369,10 @@ app.post("/api/generate", async (req) => {
     });
   }
   const count = mode === "image" ? p.imageCount : p.videoCount,
-    prompt = mode === "image" ? p.imagePrompt : p.videoPrompt,
+    prompt =
+      mode === "image"
+        ? p.imagePrompt
+        : reactionInstructions(p.videoPrompt, p.videoFixedInstructions),
     model = mode === "image" ? p.imageModel : p.videoModel;
   if (!prompt.trim()) throw new Error("Enter a prompt first");
   const catalog = await getCatalog();
@@ -460,7 +463,7 @@ app.post("/api/generate", async (req) => {
         : {
             promptFormat: "direct-video-v1",
             reactionAudio: p.videoAudio ?? "silent",
-            fixedInstructions: p.videoFixedInstructions ?? "",
+            fixedInstructions: "",
             variation: p.videoVariation ?? 50,
           }),
     },

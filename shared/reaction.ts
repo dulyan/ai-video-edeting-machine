@@ -28,3 +28,10 @@ export function reactionInputs(
     result.task_type = "image_to_video";
   return result;
 }
+
+export function reactionInstructions(
+  prompt: string,
+  legacyFixed?: string,
+): string {
+  return legacyFixed ? legacyFixed + "\n\n" + prompt : prompt;
+}

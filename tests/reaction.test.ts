@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { reactionInputs, reactionConstraints } from "../shared/reaction.ts";
+import {
+  reactionInputs,
+  reactionConstraints,
+  reactionInstructions,
+} from "../shared/reaction.ts";
 import { assembleImagePrompt } from "../shared/image-prompts.ts";
 import type { Model } from "../shared/types.ts";
 process.env.DATA_DIR = await mkdtemp(
@@ -94,4 +98,12 @@ test("real FFmpeg removes all returned audio without re-encoding video or changi
   assert.equal(saved.size, (await stat(file)).size);
   await removeReactionAudio(file);
   assert.equal((await probe(file)).hasAudio, false);
+});
+
+test("single reaction instructions preserve legacy sections without duplicating them after editing", () => {
+  const fixed = "  Fixed\r\nNo speech.  ";
+  const combined = reactionInstructions("Movement guidance", fixed);
+  assert.equal(combined, fixed + "\n\nMovement guidance");
+  assert.equal(reactionInstructions(combined, ""), combined);
+  assert.equal(reactionInstructions("One shared prompt"), "One shared prompt");
 });
