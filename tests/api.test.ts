@@ -121,6 +121,13 @@ test("API keys are encrypted at rest and never returned in state", async () => {
   assert(!db.includes(Buffer.from(key)));
   await api("/settings", "PUT", { apiKey: "" });
 });
+test("bodyless retry and cancel actions tolerate older JSON headers", async () => {
+  const cancel = await api("/jobs/nonexistent/cancel", "POST");
+  assert.equal(cancel.status, 200);
+  const retry = await api("/jobs/nonexistent/retry", "POST");
+  assert.equal(retry.status, 400);
+  assert.equal(retry.data.error, "This job cannot be retried");
+});
 test("live state events require authentication and deliver project updates without polling", async () => {
   const unauthorized = await fetch(base + "/events");
   assert.equal(unauthorized.status, 401);

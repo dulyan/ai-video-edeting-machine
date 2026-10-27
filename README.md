@@ -68,6 +68,8 @@ Railway hosting and Siray usage are separate costs. Configure Railway usage aler
 
 Prompt drafts, completed unique prompts, media job progress, and saved previews update through an authenticated event stream. A disconnected browser reconnects automatically. Partial prompt batches persist and can resume; media is not submitted for an incomplete batch. Ratio controls cover first frames, reaction clips, and final rendered videos. Model-native ratios/dimensions are used where supported; otherwise generated media is center-cropped after downloading, as shown in the form.
 
+Prompt preparation uses up to four concurrent single-prompt requests across the backend. The selected model is preserved; GPT-5, GPT-5 mini, and GPT-5 nano use minimal reasoning for this preparation task. The parser accepts pretty-printed, fenced, and multiline JSON as well as a single plain-text prompt. Live status distinguishes waiting for the model from receiving text and records request timing. Resume and cancel requests work without a JSON body, including requests from older open browser sessions.
+
 Every step can be skipped. Skipping hook, clip, demo, or music selection omits that component without deleting saved inputs. Revisiting a step enables it again. An omitted dimension contributes one empty component to the Cartesian product. At least one reaction clip, demo, or image hook is required to render.
 
 ## Hook styles and rendering

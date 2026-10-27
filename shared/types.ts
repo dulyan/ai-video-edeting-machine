@@ -105,6 +105,9 @@ export interface Project {
   rowOverrides: Record<string, Partial<RenderRow>>;
 }
 export interface Job {
+  promptStartedAt?: string;
+  promptFinishedAt?: string;
+  promptRequests?: PromptRequest[];
   mode?: "image" | "video";
   prompt?: string;
   promptModel?: string;
@@ -128,6 +131,17 @@ export interface Job {
   error?: string;
   createdAt: string;
   updatedAt: string;
+}
+export interface PromptRequest {
+  id: number;
+  status: "waiting" | "streaming" | "completed" | "failed" | "duplicate";
+  startedAt: string;
+  draftText?: string;
+  firstTextMs?: number;
+  durationMs?: number;
+  outputChars?: number;
+  reasoningTokens?: number;
+  outputTokens?: number;
 }
 export interface PromptPreset {
   id: string;

@@ -1,3 +1,4 @@
+import { apiHeaders } from "../shared/http.ts";
 export let backendURL = (
   localStorage.getItem("avem.backend") ||
   import.meta.env.VITE_API_URL ||
@@ -22,13 +23,7 @@ export async function request<T = any>(
     );
   const response = await fetch(`${backendURL}/api${path}`, {
     ...options,
-    headers: {
-      ...(options.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
+    headers: apiHeaders(options, token),
   });
   if (!response.ok) {
     let error;

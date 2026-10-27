@@ -89,6 +89,8 @@ test("four prompts stream live, duplicates are replaced, then exactly four saved
   }) as any);
   const requests: any[] = [];
   let chats = 0;
+  let activeChats = 0,
+    maxActiveChats = 0;
   let task = 0;
   let checkpoints: number[] = [];
   const observe = () => {
@@ -106,9 +108,10 @@ test("four prompts stream live, duplicates are replaced, then exactly four saved
       requests.push(body);
       assert.equal(body.model, textModel.id);
       assert.equal(body.stream, true);
-      const lines = (
-        chats++ === 0 ? [texts[0], texts[0], texts[1]] : [texts[2], texts[3]]
-      )
+      activeChats++;
+      maxActiveChats = Math.max(maxActiveChats, activeChats);
+      const index = chats++;
+      const lines = [index < 2 ? texts[0] : texts[Math.min(index - 1, 3)]]
         .map((prompt) => JSON.stringify({ prompt }) + "\n")
         .join("");
       const encoder = new TextEncoder();
@@ -119,6 +122,7 @@ test("four prompts stream live, duplicates are replaced, then exactly four saved
             await new Promise((r) => setTimeout(r, 2));
             if (at >= lines.length) {
               controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              activeChats--;
               controller.close();
               return;
             }
@@ -155,11 +159,15 @@ test("four prompts stream live, duplicates are replaced, then exactly four saved
       .filter((j) => j.batchId === batch.batchId && j.kind === "image")
       .sort((a, b) => a.input.sequence - b.input.sequence);
     assert.equal(children.length, 4);
+    assert(
+      maxActiveChats > 1 && maxActiveChats <= 4,
+      "Prompt calls must overlap without exceeding four requests",
+    );
     assert.deepEqual(
       children.map((j) => j.input.prompt),
-      texts,
+      get("jobs", batch.id)?.prompts,
     );
-    assert.deepEqual(get("jobs", batch.id)?.prompts, texts);
+    assert.deepEqual(new Set(get("jobs", batch.id)?.prompts), new Set(texts));
     assert(
       checkpoints.includes(1) &&
         checkpoints.includes(2) &&
@@ -212,10 +220,12 @@ test("retry keeps partial unique prompts and never starts images for an incomple
   );
   patchJob(batch.id, { status: "running", prompts: [texts[0]] });
   globalThis.fetch = async () =>
-    Response.json({ choices: [{ message: { content: "invalid response" } }] });
+    Response.json({
+      choices: [{ message: { content: '{"prompt":"incomplete' } }],
+    });
   await assert.rejects(
     () => prepareGeneration(get("jobs", batch.id)!),
-    /invalid prompt line/,
+    /incomplete prompt JSON/,
   );
   assert.deepEqual(get("jobs", batch.id)?.prompts, [texts[0]]);
   assert.equal(
@@ -223,15 +233,13 @@ test("retry keeps partial unique prompts and never starts images for an incomple
       .length,
     0,
   );
+  let resumed = 0;
   globalThis.fetch = async () =>
     Response.json({
       choices: [
         {
           message: {
-            content: texts
-              .slice(1)
-              .map((prompt) => JSON.stringify({ prompt }))
-              .join("\n"),
+            content: JSON.stringify({ prompt: texts[++resumed] }),
           },
         },
       ],

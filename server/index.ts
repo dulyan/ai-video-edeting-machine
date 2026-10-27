@@ -72,6 +72,19 @@ await app.register(rateLimit, { max: 500, timeWindow: "1 minute" });
 await app.register(staticFiles, { root: mediaDir, serve: false });
 const sessions = new Map<string, number>();
 app.addHook("onRequest", async (req, reply) => {
+  // Support already-open older frontends that sent JSON headers on bodyless actions.
+  if (
+    req.method === "POST" &&
+    req.headers["content-length"] === "0" &&
+    req.headers["content-type"]?.startsWith("application/json") &&
+    [
+      "/api/jobs/:id/retry",
+      "/api/jobs/:id/cancel",
+      "/api/logout",
+      "/api/settings/test",
+    ].includes(req.routeOptions.url || "")
+  )
+    delete req.headers["content-type"];
   if (
     req.method === "OPTIONS" ||
     ["/api/health", "/api/login", "/api/media/:id"].includes(

@@ -1,7 +1,8 @@
 import { getSecret } from "./store.ts";
 import type { Model } from "../shared/types.ts";
+import { PromptParser } from "./prompt-parser.ts";
 
-// Parse newline-delimited prompt objects as soon as the provider finishes each line.
+// Stream prompt text without assuming that JSON or prompt content fits on one line.
 export async function streamPrompts(
   system: string,
   message: string,
@@ -9,10 +10,21 @@ export async function streamPrompts(
   onPrompt: (prompt: string) => void,
   onDraft: (draft: string) => void,
   signal?: AbortSignal,
+  onTiming?: (timing: {
+    firstTextMs?: number;
+    durationMs: number;
+    outputChars: number;
+    reasoningTokens?: number;
+    outputTokens?: number;
+  }) => void,
 ) {
   const key = getSecret("siray");
   if (!key) throw new Error("Add your Siray API key in Settings first");
   const fields = model.schema?.properties;
+  const started = Date.now();
+  let firstTextMs: number | undefined,
+    outputChars = 0,
+    usage: any;
   const response = await fetch("https://api.siray.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -26,7 +38,18 @@ export async function streamPrompts(
         { role: "user", content: message },
       ],
       stream: true,
-      max_tokens: Math.min(12000, fields?.max_tokens?.maximum || 12000),
+      max_tokens: Math.min(
+        Math.max(2000, Math.ceil(message.length / 2) + 1500),
+        fields?.max_tokens?.maximum || 12000,
+        12000,
+      ),
+      ...(/^openai\/gpt-5(?:-(?:nano|mini))?$/.test(model.id)
+        ? { reasoning_effort: "minimal" }
+        : {}),
+      ...(/^openai\/gpt-(?:4o|4\.1|5(?:-(?:nano|mini))?$)/.test(model.id)
+        ? { response_format: { type: "json_object" } }
+        : {}),
+      stream_options: { include_usage: true },
     }),
     signal: AbortSignal.any([
       ...(signal ? [signal] : []),
@@ -41,36 +64,11 @@ export async function streamPrompts(
         `Siray returned ${response.status}`,
     );
   }
-  let pending = "";
+  const parser = new PromptParser(onPrompt, onDraft);
   function content(text: string) {
-    pending += text;
-    let end: number;
-    while ((end = pending.indexOf("\n")) >= 0) {
-      const line = pending.slice(0, end).trim();
-      pending = pending.slice(end + 1);
-      linePrompt(line);
-    }
-    onDraft(
-      pending
-        .replace(/^\s*\{\s*"prompt"\s*:\s*"?/, "")
-        .replace(/"?\s*}\s*$/, "")
-        .replaceAll("\\n", "\n")
-        .replaceAll('\\"', '"'),
-    );
-  }
-  function linePrompt(line: string) {
-    if (!line || line.startsWith("```")) return;
-    let parsed: any;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      throw new Error(
-        "The text model returned an invalid prompt line. Completed prompts have been kept; retry to continue.",
-      );
-    }
-    if (typeof parsed.prompt !== "string" || !parsed.prompt.trim())
-      throw new Error("The text model returned an empty prompt");
-    onPrompt(parsed.prompt.trim());
+    firstTextMs ??= Date.now() - started;
+    outputChars += text.length;
+    parser.push(text);
   }
   if (!response.headers.get("content-type")?.includes("text/event-stream")) {
     const data = await response.json();
@@ -85,6 +83,7 @@ export async function streamPrompts(
     const text = data.choices?.[0]?.message?.content;
     if (typeof text !== "string" || !text.trim())
       throw new Error("The text model returned no prompt content");
+    usage = data.usage;
     content(text);
   } else {
     if (!response.body) throw new Error("Siray returned an empty stream");
@@ -109,6 +108,7 @@ export async function streamPrompts(
           const event = JSON.parse(data);
           if (event.error)
             throw new Error(event.error.message || "Siray streaming failed");
+          if (event.usage) usage = event.usage;
           const text = event.choices?.[0]?.delta?.content;
           if (typeof text === "string") content(text);
         }
@@ -119,6 +119,14 @@ export async function streamPrompts(
       reader.releaseLock();
     }
   }
-  if (pending.trim()) linePrompt(pending.trim());
-  onDraft("");
+  parser.finish();
+  onTiming?.({
+    firstTextMs,
+    durationMs: Date.now() - started,
+    outputChars,
+    reasoningTokens:
+      usage?.completion_tokens_details?.reasoning_tokens ??
+      usage?.reasoning_tokens,
+    outputTokens: usage?.completion_tokens,
+  });
 }

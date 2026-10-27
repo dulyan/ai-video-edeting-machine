@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Check, Image as ImageIcon } from "lucide-react";
 import type { Job, Asset } from "../shared/types.ts";
 import type { Workspace } from "./workspace.tsx";
@@ -18,6 +18,15 @@ export default function GenerationProgress({
   toggleAsset: (id: string) => void;
 }) {
   const [page, setPage] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (batch.status !== "running") return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [batch.status]);
+  const writing = (batch.promptRequests || []).filter((r) =>
+    ["waiting", "streaming"].includes(r.status),
+  );
   const prompts = batch.prompts || [],
     total = batch.targetCount || prompts.length;
   const children = w.data.jobs.filter(
@@ -43,6 +52,13 @@ export default function GenerationProgress({
           </span>
           <progress max={total || 1} value={prompts.length} />
           <small>{batch.promptModel}</small>
+          {batch.promptStartedAt && (
+            <small>
+              {batch.promptFinishedAt
+                ? `Ready in ${Math.round((Date.parse(batch.promptFinishedAt) - Date.parse(batch.promptStartedAt)) / 1000)}s`
+                : `Elapsed ${Math.max(0, Math.floor((now - Date.parse(batch.promptStartedAt)) / 1000))}s · up to 4 requests in parallel`}
+            </small>
+          )}
         </div>
         <div
           className={
@@ -59,7 +75,25 @@ export default function GenerationProgress({
           <small>{batch.generationModel}</small>
         </div>
       </div>
-      {!promptDone && batch.draftText && (
+      {!!writing.length && (
+        <div className="prompt-request-grid">
+          {writing.map((r) => (
+            <div className="prompt-draft" key={r.id}>
+              <strong>
+                <Loader2 size={15} className="spin" /> Request {r.id} ·{" "}
+                {r.status === "waiting" ? "Waiting for model" : "Writing"} ·{" "}
+                {Math.max(
+                  0,
+                  Math.floor((now - Date.parse(r.startedAt)) / 1000),
+                )}
+                s
+              </strong>
+              {r.draftText && <p>{r.draftText}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+      {!writing.length && !promptDone && batch.draftText && (
         <div className="prompt-draft">
           <strong>
             <Loader2 size={15} className="spin" /> Writing prompt{" "}
