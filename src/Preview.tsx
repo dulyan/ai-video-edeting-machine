@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { Asset, Project } from "../shared/types.ts";
 import { activeHooks } from "../shared/project.ts";
+import { outputResolution } from "../shared/ratios.ts";
 import { useMedia } from "./components.tsx";
 function KeyedPresenter({ asset, p }: { asset?: Asset; p: Project }) {
   const url = useMedia(asset?.id),
@@ -136,11 +137,13 @@ export default function Preview({
       <div className="preview-heading">
         <span>LIVE PREVIEW</span>
         <span className="preview-format">
-          9:16 <span>·</span> 1080p
+          {c.aspectRatio || "9:16"} <span>·</span>{" "}
+          {outputResolution(c.aspectRatio).join(" × ")}
         </span>
       </div>
       <div
         className={`phone-preview ${c.style === "Text Wall" ? "text-wall" : ""}`}
+        style={{ aspectRatio: (c.aspectRatio || "9:16").replace(":", " / ") }}
       >
         {url ? (
           asset?.mime.startsWith("image/") ? (

@@ -16,7 +16,7 @@ export const SPANS: { value: Span; label: string }[] = [
   { value: "demo", label: "Demo only" },
 ];
 export const IMAGE_PROMPT =
-  "A candid vertical smartphone portrait of a [woman/man] in a [sunlit kitchen/cozy living room/bright home office], looking at the camera, a natural surprised expression. Authentic UGC, realistic skin, soft daylight, no text or logos.";
+  "A candid smartphone portrait of a [woman/man] in a [sunlit kitchen/cozy living room/bright home office], looking at the camera, a natural surprised expression. Authentic UGC, realistic skin, soft daylight, no text or logos.";
 export const VIDEO_PROMPT =
   "The person reacts with [delighted surprise/curious disbelief/an excited smile], small natural head movements, looking at the camera. Handheld smartphone footage, authentic and candid.";
 export function newProject(): Project {
@@ -31,9 +31,13 @@ export function newProject(): Project {
     imagePrompt: IMAGE_PROMPT,
     imageCount: 4,
     imageModel: "black-forest-labs/flux-1.1-pro-t2i",
+    imagePromptModel: "openai/gpt-4.1-mini",
+    imageAspectRatio: "9:16",
     videoPrompt: VIDEO_PROMPT,
     videoCount: 1,
     videoModel: "bytedance/seedance-1.5-pro-i2v",
+    videoPromptModel: "openai/gpt-4.1-mini",
+    videoAspectRatio: "9:16",
     videoDuration: 8,
     frameIds: [],
     reactionIds: [],
@@ -45,6 +49,7 @@ export function newProject(): Project {
     language: "English",
     productId: "",
     composition: {
+      aspectRatio: "9:16",
       style: "Text",
       hookSpan: "reaction",
       musicSpan: "whole",

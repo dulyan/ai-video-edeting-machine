@@ -1,4 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
+import { EventEmitter } from "node:events";
+export const changes = new EventEmitter();
+changes.setMaxListeners(100);
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import {
@@ -63,10 +66,12 @@ export function put<K extends keyof RecordMap>(kind: K, value: RecordMap[K]) {
   db.prepare(
     "INSERT INTO records(kind,id,body) VALUES(?,?,?) ON CONFLICT(kind,id) DO UPDATE SET body=excluded.body",
   ).run(kind, value.id, JSON.stringify(value));
+  changes.emit("change");
   return value;
 }
 export function remove(kind: keyof RecordMap, id: string) {
   db.prepare("DELETE FROM records WHERE kind=? AND id=?").run(kind, id);
+  changes.emit("change");
 }
 export function patchJob(id: string, patch: Partial<Job>) {
   const j = get("jobs", id);
@@ -98,12 +103,46 @@ export function addJob(
   });
 }
 export function state(): AppState {
+  const jobs = all("jobs");
+  const sequence = (j: Job) =>
+    j.input.sequence ||
+    (/-(\d+)$/.test(j.id) ? Number(j.id.match(/-(\d+)$/)![1]) + 1 : undefined);
   return {
     projects: all("projects"),
     products: all("products"),
     assets: all("assets"),
     presets: all("presets"),
-    jobs: all("jobs").map((j) => ({ ...j, input: undefined })),
+    jobs: jobs.map((j) => ({
+      ...j,
+      input: undefined,
+      mode: j.kind === "prepare" ? j.input.mode : undefined,
+      prompt:
+        j.kind === "image" || j.kind === "video" ? j.input.prompt : undefined,
+      promptModel:
+        j.input.promptModel ||
+        (j.kind === "prepare" ? "openai/gpt-4.1-mini" : undefined),
+      generationModel: j.input.model,
+      targetCount:
+        j.targetCount ||
+        (j.kind === "prepare"
+          ? j.input.mode === "image"
+            ? j.input.count
+            : j.input.count * (j.input.frameIds?.length || 1)
+          : undefined),
+      sequence: sequence(j),
+      aspectRatio: j.input.aspectRatio,
+      prompts:
+        j.prompts ||
+        (j.kind === "prepare"
+          ? jobs
+              .filter(
+                (child) =>
+                  child.batchId === j.batchId && child.kind === j.input.mode,
+              )
+              .sort((a, b) => (sequence(a) || 0) - (sequence(b) || 0))
+              .map((child) => child.input.prompt)
+          : undefined),
+    })),
   };
 }
 export function setSecret(name: string, value: string) {

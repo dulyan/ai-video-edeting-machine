@@ -40,6 +40,9 @@ import {
   SPANS,
 } from "../shared/project.ts";
 import { ModelPicker, ModelOptions, useModels } from "./ModelPicker.tsx";
+import GenerationProgress from "./GenerationProgress.tsx";
+import { RatioPicker } from "./RatioPicker.tsx";
+import { isTextToImage, isImageToVideo } from "../shared/ratios.ts";
 import { isAutoFrameField } from "../shared/catalog.ts";
 import type { Workspace } from "./workspace.tsx";
 import {
@@ -104,14 +107,28 @@ export function Generation({
       p.frameSelectionExplicit || p.frameIds.length
         ? p.frameIds
         : frames.filter((a) => a.projectId === p.id).map((a) => a.id);
+  const batch = w.data.jobs.find(
+    (j) =>
+      j.projectId === p.id &&
+      j.kind === "prepare" &&
+      (j.mode === mode ||
+        (!j.mode &&
+          j.label.toLowerCase().includes(image ? "frames" : "reactions"))),
+  );
   const jobs = w.data.jobs.filter(
     (j) =>
       j.projectId === p.id &&
-      (j.kind === mode ||
-        (j.kind === "prepare" &&
-          j.label.toLowerCase().includes(image ? "frames" : "reactions"))) &&
-      ["queued", "running"].includes(j.status),
+      ["running", "queued"].includes(j.status) &&
+      (j.kind === mode || (j.kind === "prepare" && j.mode === mode)),
   );
+  const previousAssets = batch
+    ? assets.filter(
+        (a) =>
+          !w.data.jobs.some(
+            (j) => j.batchId === batch.batchId && j.outputId === a.id,
+          ),
+      )
+    : assets;
   const model = models.find(
     (m) => m.id === (image ? p.imageModel : p.videoModel),
   );
@@ -156,7 +173,7 @@ export function Generation({
                 image
                   ? {
                       imagePrompt:
-                        "A [woman/man] reacting with surprise in a [kitchen/office], candid UGC portrait, smartphone photography, realistic skin, portrait 9:16, no text.",
+                        "A [woman/man] reacting with surprise in a [kitchen/office], candid UGC portrait, smartphone photography, realistic skin, no text.",
                     }
                   : {
                       videoPrompt:
@@ -197,8 +214,8 @@ export function Generation({
           </Field>
         )}
         <Field
-          label="Your generic prompt"
-          hint="Use [option / option] to offer choices. Fixed instructions stay fixed."
+          label="1. Generic prompt"
+          hint="Include all variation instructions in this prompt. Fixed details will be preserved."
         >
           <textarea
             className="prompt-input"
@@ -239,25 +256,24 @@ export function Generation({
             Save preset
           </Button>
         </div>
-        <div className="auto-choice">
-          <span className="auto-choice-icon">
-            <Sparkles size={18} />
-          </span>
-          <div>
-            <strong>Auto choice is always on</strong>
-            <small>
-              Fresh choices, creative details, and supported seeds for each
-              variation.
-            </small>
-          </div>
-          <span className="enabled-indicator">
-            <Check size={12} /> ON
-          </span>
-        </div>
+        <ModelPicker
+          label="Text model for unique prompts"
+          models={models.filter((m) => m.kind === "text")}
+          value={
+            (image ? p.imagePromptModel : p.videoPromptModel) ||
+            "openai/gpt-4.1-mini"
+          }
+          onChange={(id) =>
+            update(image ? { imagePromptModel: id } : { videoPromptModel: id })
+          }
+        />
+        <h3 className="generation-phase-heading">
+          2. Generate {image ? "first frames" : "reaction clips"}
+        </h3>
         <div className="form-columns">
           <ModelPicker
-            label={image ? "Image model" : "Video model"}
-            models={models.filter((m) => m.kind === mode)}
+            label={image ? "Text-to-image model" : "Image-to-video model"}
+            models={models.filter(image ? isTextToImage : isImageToVideo)}
             value={image ? p.imageModel : p.videoModel}
             onChange={(id) => {
               const next = models.find((m) => m.id === id);
@@ -292,12 +308,22 @@ export function Generation({
               </Field>
             )}
         </div>
+        <RatioPicker
+          model={model}
+          value={(image ? p.imageAspectRatio : p.videoAspectRatio) || "9:16"}
+          onChange={(ratio) =>
+            update(
+              image ? { imageAspectRatio: ratio } : { videoAspectRatio: ratio },
+            )
+          }
+        />
         <ModelOptions
           model={model}
           p={p}
           w={w}
           update={update}
           autoFrame={needsFrames}
+          managedRatio
         />
         <Quantity
           label={
@@ -350,14 +376,16 @@ export function Generation({
         )}
         <Button
           variant="primary"
-          disabled={!!w.busy}
+          disabled={!!w.busy || jobs.length > 0 || amount === 0}
           onClick={() =>
             void w.act("Starting generation", () => w.generate(p.id, mode))
           }
         >
           <Sparkles size={17} />
           {w.busy ||
-            `Generate ${amount} ${image ? "first frames" : "reaction clips"}`}
+            (jobs.length > 0
+              ? "Batch in progress"
+              : `Generate ${amount} ${image ? "first frames" : "reaction clips"}`)}
           <ArrowUpRight size={17} />
         </Button>
         <button
@@ -398,18 +426,28 @@ export function Generation({
             </button>
           )}
         </div>
-        {jobs.length > 0 && (
-          <div className="job-banner">
-            <Loader2 className="spin" size={17} />
-            <span>
-              {jobs.length} {image ? "frame" : "video"} jobs in progress.
-              Results appear here as they finish.
-            </span>
-          </div>
+        {batch && (
+          <GenerationProgress
+            key={batch.id}
+            batch={batch}
+            w={w}
+            inspect={inspect}
+            selectedIds={image ? p.frameIds : p.reactionIds}
+            toggleAsset={(id) =>
+              update(
+                image
+                  ? {
+                      frameIds: toggle(p.frameIds, id),
+                      frameSelectionExplicit: true,
+                    }
+                  : { reactionIds: toggle(p.reactionIds, id) },
+              )
+            }
+          />
         )}
-        {assets.length ? (
+        {previousAssets.length ? (
           <div className="asset-grid">
-            {assets.map((a) => (
+            {previousAssets.map((a) => (
               <AssetCard
                 key={a.id}
                 asset={a}
@@ -428,17 +466,17 @@ export function Generation({
               />
             ))}
           </div>
-        ) : (
+        ) : !batch ? (
           <EmptyState
             title={image ? "No first frames yet" : "No reaction clips yet"}
             description={
               image
-                ? "Your generated first frames will appear here. Write your brief and let Auto choice create the variations."
+                ? "Unique prompts and frame previews will appear here as the batch runs. Completed frames are saved to this project and the Image Library."
                 : "Turn your first frames into expressive reaction clips. Each result is saved to this project and your Video Library."
             }
             icon={image ? "image" : "film"}
           />
-        )}
+        ) : null}
         <UploadZone
           compact
           kind={image ? "image" : "video"}
@@ -1416,6 +1454,13 @@ export function Outline({ p, w, update, inspect }: Props) {
               </label>
             ))}
           </div>
+          <RatioPicker
+            label="Rendered video aspect ratio"
+            value={p.composition.aspectRatio || "9:16"}
+            onChange={(aspectRatio) =>
+              update({ composition: { ...p.composition, aspectRatio } })
+            }
+          />
           <SpanControl
             label="Text / image hook spans"
             value={p.composition.hookSpan}

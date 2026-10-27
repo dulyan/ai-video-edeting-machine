@@ -121,6 +121,58 @@ test("API keys are encrypted at rest and never returned in state", async () => {
   assert(!db.includes(Buffer.from(key)));
   await api("/settings", "PUT", { apiKey: "" });
 });
+test("live state events require authentication and deliver project updates without polling", async () => {
+  const unauthorized = await fetch(base + "/events");
+  assert.equal(unauthorized.status, 401);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const response = await fetch(base + "/events", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Origin: "http://localhost:5173",
+    },
+    signal: controller.signal,
+  });
+  assert.equal(response.status, 200);
+  assert(response.headers.get("content-type")?.includes("text/event-stream"));
+  assert.equal(
+    response.headers.get("access-control-allow-origin"),
+    "http://localhost:5173",
+  );
+  const reader = response.body!.getReader(),
+    decoder = new TextDecoder();
+  let buffer = "";
+  async function next() {
+    while (true) {
+      const boundary = buffer.indexOf("\n\n");
+      if (boundary >= 0) {
+        const event = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        if (event.startsWith("data:")) return JSON.parse(event.slice(5));
+      }
+      const chunk = await reader.read();
+      if (chunk.done) throw new Error("Stream ended before update");
+      buffer += decoder.decode(chunk.value, { stream: true });
+    }
+  }
+  try {
+    await next();
+    await api(`/projects/${project.id}`, "PATCH", {
+      imagePromptModel: "anthropic/claude-sonnet-4.6",
+      imageAspectRatio: "16:9",
+    });
+    const update = await next();
+    assert.equal(
+      update.projects.find((p: any) => p.id === project.id).imageAspectRatio,
+      "16:9",
+    );
+    assert(update.jobs.every((j: any) => j.input === undefined));
+  } finally {
+    clearTimeout(timeout);
+    controller.abort();
+    await reader.cancel().catch(() => {});
+  }
+});
 test("empty rendering is rejected atomically without queued partial jobs", async () => {
   const result = await api("/render", "POST", { projectId: project.id });
   assert.equal(result.status, 400);

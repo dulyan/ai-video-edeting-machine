@@ -44,6 +44,7 @@ export interface Product {
   proof: string;
 }
 export interface Composition {
+  aspectRatio?: string;
   style: HookStyle;
   hookSpan: Span;
   musicSpan: Span;
@@ -80,9 +81,13 @@ export interface Project {
   imagePrompt: string;
   imageCount: number;
   imageModel: string;
+  imagePromptModel?: string;
+  imageAspectRatio?: string;
   videoPrompt: string;
   videoCount: number;
   videoModel: string;
+  videoPromptModel?: string;
+  videoAspectRatio?: string;
   videoDuration: number;
   hookModel?: string;
   modelInputs?: Record<string, Record<string, unknown>>;
@@ -100,6 +105,15 @@ export interface Project {
   rowOverrides: Record<string, Partial<RenderRow>>;
 }
 export interface Job {
+  mode?: "image" | "video";
+  prompt?: string;
+  promptModel?: string;
+  generationModel?: string;
+  targetCount?: number;
+  prompts?: string[];
+  draftText?: string;
+  sequence?: number;
+  aspectRatio?: string;
   id: string;
   projectId: string;
   batchId: string;

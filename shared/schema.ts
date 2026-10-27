@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { RATIOS } from "./ratios.ts";
 const text = z.string().max(20000),
   id = z.string().max(200),
   ids = z.array(id).max(1000);
 const span = z.enum(["whole", "reaction", "demo"]);
 export const compositionSchema = z.object({
+  aspectRatio: z.enum(RATIOS).optional(),
   style: z.enum(["Text", "Snapchat", "IMG", "Text Wall", "Green screen"]),
   hookSpan: span,
   musicSpan: span,
@@ -57,9 +59,13 @@ export const projectSchema = z.object({
   imagePrompt: text,
   imageCount: z.number().int().min(1).max(1000),
   imageModel: id,
+  imagePromptModel: id.optional(),
+  imageAspectRatio: z.enum(RATIOS).optional(),
   videoPrompt: text,
   videoCount: z.number().int().min(1).max(100),
   videoModel: id,
+  videoPromptModel: id.optional(),
+  videoAspectRatio: z.enum(RATIOS).optional(),
   videoDuration: z.number().int().min(-1).max(600),
   hookModel: id.optional(),
   modelInputs: z

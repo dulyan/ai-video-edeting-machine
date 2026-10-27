@@ -5,6 +5,7 @@ import ffmpegStatic from "ffmpeg-static";
 import ffprobeStatic from "ffprobe-static";
 import type { Asset, Composition, Hook, RenderRow } from "../shared/types.ts";
 import { spanWindow } from "../shared/project.ts";
+import { outputResolution } from "../shared/ratios.ts";
 import { workDir } from "./store.ts";
 import { downloadAsset } from "./storage.ts";
 export const ffmpeg = process.env.FFMPEG_PATH || ffmpegStatic!;
@@ -112,7 +113,7 @@ export async function renderVideo(
   destination: string,
   onProgress: (progress: number) => void = () => {},
   signal?: AbortSignal,
-  resolution = [1080, 1920],
+  resolution = outputResolution(spec.composition.aspectRatio),
 ) {
   const dir = await mkdtemp(path.join(workDir, "render-"));
   const [w, h] = resolution;

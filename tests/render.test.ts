@@ -213,6 +213,28 @@ test("render rejects an empty visual timeline", async () => {
     /Select a reaction/,
   );
 });
+test("rendered video honors the selected square output ratio by default", async () => {
+  const p = newProject();
+  p.composition.aspectRatio = "1:1";
+  const file = path.join(testDir, "square-output.mp4");
+  await renderVideo(
+    {
+      row: {
+        id: "square",
+        hookId: null,
+        reactionId: "reaction",
+        demoId: null,
+        musicId: null,
+      },
+      composition: p.composition,
+      assets,
+    },
+    file,
+  );
+  const info = await probe(file);
+  assert.equal(info.width, 1080);
+  assert.equal(info.height, 1080);
+});
 async function pixels(file: string, time: number) {
   return await new Promise<Buffer>((resolve, reject) => {
     const child = spawn(

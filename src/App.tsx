@@ -244,7 +244,7 @@ function Settings({
           />
         </Field>
         <ModelPicker
-          label="Default text model for prompt variations"
+          label="Product details import model"
           models={models.filter((m) => m.kind === "text")}
           value={textModel}
           onChange={setTextModel}

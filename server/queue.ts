@@ -1,4 +1,6 @@
 import path from "node:path";
+import { prepareGeneration } from "./prepare.ts";
+import { conformMedia } from "./conform.ts";
 import { stat, unlink } from "node:fs/promises";
 import type { Asset, Hook, Job, Project } from "../shared/types.ts";
 import { addJob, all, get, put, patchJob, mediaDir } from "./store.ts";
@@ -52,58 +54,13 @@ async function materializeInputs(value: any): Promise<any> {
     );
   return value;
 }
-async function processJob(job: Job) {
+export async function processJob(job: Job) {
   const controller = new AbortController();
   controllers.set(job.id, controller);
   try {
     patchJob(job.id, { status: "running", error: undefined });
     if (job.kind === "prepare") {
-      const { mode, count, prompt, model, duration, frameIds } = job.input;
-      const total = mode === "image" ? count : count * frameIds.length;
-      // Persist each planning chunk before advancing; deterministic child IDs survive restarts.
-      for (let offset = job.input.cursor || 0; offset < total; offset += 20) {
-        if (get("jobs", job.id)?.status === "canceled") return;
-        const amount = Math.min(20, total - offset),
-          base = Array.from({ length: amount }, (_, i) =>
-            resolveChoices(prompt, offset + i),
-          );
-        const response = await chatJSON(
-          'You write distinct production prompts. Preserve every fixed requirement and the person/scene choices already resolved. Vary only unspecified framing, lighting, expression, and minor details. Return JSON {"prompts":[strings]}. No commentary.',
-          JSON.stringify({ type: mode, briefs: base }),
-        );
-        if (
-          !Array.isArray(response.prompts) ||
-          response.prompts.length !== amount ||
-          response.prompts.some((p: any) => typeof p !== "string" || !p.trim())
-        )
-          throw new Error("Prompt variation returned an incomplete batch");
-        response.prompts.forEach((resolved: string, i: number) =>
-          addJob(
-            job.projectId,
-            mode,
-            `${mode === "image" ? "First frame" : "Reaction"} ${offset + i + 1}`,
-            {
-              model,
-              modelInputs: job.input.modelInputs,
-              modelDefinition: job.input.modelDefinition,
-              prompt: resolved,
-              seed: Math.floor(Math.random() * 2147483646),
-              duration,
-              sourceId:
-                mode === "video"
-                  ? frameIds[Math.floor((offset + i) / count)]
-                  : undefined,
-            },
-            job.batchId,
-            `${job.id}-${offset + i}`,
-          ),
-        );
-        patchJob(job.id, {
-          progress: Math.round(((offset + amount) / total) * 100),
-          input: { ...job.input, cursor: offset + amount },
-        });
-      }
-      patchJob(job.id, { status: "completed", progress: 100 });
+      await prepareGeneration(job, controller.signal);
     } else if (job.kind === "image" || job.kind === "video") {
       let taskId = job.taskId;
       if (!taskId) {
@@ -152,6 +109,7 @@ async function processJob(job: Job) {
             info.fail_reason || info.message || "Provider generation failed",
           );
         if (["SUCCESS", "COMPLETED", "SUCCEEDED"].includes(status)) {
+          if (get("jobs", job.id)?.status === "canceled") return;
           const output = info.outputs?.[0],
             url = typeof output === "string" ? output : output?.url;
           if (!url) throw new Error("Siray completed without an output URL");
@@ -159,7 +117,16 @@ async function processJob(job: Job) {
             id = job.id,
             key = `${id}${ext}`,
             file = path.join(mediaDir, key);
-          const copied = await copyRemote(url, file);
+          let copied = await copyRemote(url, file);
+          if (job.input.aspectRatio) {
+            const conformed = await conformMedia(
+              file,
+              job.kind,
+              job.input.aspectRatio,
+              controller.signal,
+            );
+            if (conformed) copied = { ...copied, ...conformed };
+          }
           const metadata = await probe(file);
           const asset: Asset = {
             id,
@@ -184,6 +151,10 @@ async function processJob(job: Job) {
             sourceId: job.input.sourceId,
             jobId: job.id,
           };
+          if (get("jobs", job.id)?.status === "canceled") {
+            await unlink(file).catch(() => {});
+            return;
+          }
           await storeFile(file, asset);
           patchJob(job.id, {
             status: "completed",

@@ -8,7 +8,7 @@ import type {
   PromptPreset,
 } from "../shared/types.ts";
 import { newProject } from "../shared/project.ts";
-import { backendURL, configureBackend, request } from "./api.ts";
+import { backendURL, configureBackend, request, watchState } from "./api.ts";
 const empty = (): AppState => ({
   projects: [newProject()],
   products: [],
@@ -57,8 +57,7 @@ export function useWorkspace() {
     const timer = setTimeout(() => setNotice(""), 6500);
     return () => clearTimeout(timer);
   }, [notice]);
-  const refresh = useCallback(async () => {
-    const state = await request<AppState>("/state");
+  const acceptState = useCallback((state: AppState) => {
     setData((prev) => ({
       ...state,
       projects: state.projects.map((p) =>
@@ -68,6 +67,10 @@ export function useWorkspace() {
       ),
     }));
   }, []);
+  const refresh = useCallback(
+    async () => acceptState(await request<AppState>("/state")),
+    [acceptState],
+  );
   const sync = useCallback(async () => {
     const remote = await request<AppState>("/state");
     for (const product of current.current.products)
@@ -113,13 +116,35 @@ export function useWorkspace() {
   }, [sync]);
   useEffect(() => {
     if (!connected) return;
-    const timer = setInterval(() => {
-      void refresh().catch((e) => {
-        if (/Sign in/.test(e.message)) setConnected(false);
-      });
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [connected, refresh]);
+    const controller = new AbortController();
+    void (async () => {
+      while (!controller.signal.aborted) {
+        try {
+          await watchState(acceptState, controller.signal);
+        } catch (e) {
+          if (controller.signal.aborted) return;
+          if (/Sign in/.test((e as Error).message)) {
+            setConnected(false);
+            return;
+          }
+          try {
+            await refresh();
+          } catch {}
+        }
+        if (!controller.signal.aborted)
+          await new Promise<void>((resolve) => {
+            const done = () => {
+              clearTimeout(timer);
+              controller.signal.removeEventListener("abort", done);
+              resolve();
+            };
+            const timer = setTimeout(done, 2000);
+            controller.signal.addEventListener("abort", done, { once: true });
+          });
+      }
+    })();
+    return () => controller.abort();
+  }, [connected, refresh, acceptState]);
   function updateProject(id: string, patch: Partial<Project>) {
     setData((prev) => ({
       ...prev,

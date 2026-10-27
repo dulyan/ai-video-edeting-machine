@@ -69,7 +69,9 @@ export function ModelPicker({
         >
           {allowDefault && <option value="">Workspace default</option>}
           {value && !selected && (
-            <option value={value}>{value} · saved model</option>
+            <option value={value} disabled>
+              Choose a compatible model
+            </option>
           )}
           {groups.map((group) => (
             <optgroup key={group} label={group.replaceAll("-", " ")}>
@@ -96,12 +98,14 @@ export function ModelOptions({
   w,
   update,
   autoFrame,
+  managedRatio = false,
 }: {
   model?: Model;
   p: Project;
   w: Workspace;
   update: (patch: Partial<Project>) => void;
   autoFrame: boolean;
+  managedRatio?: boolean;
 }) {
   if (!model) return null;
   const inputs = p.modelInputs?.[model.id] || {};
@@ -118,7 +122,15 @@ export function ModelOptions({
         "num_outputs",
         "enable_sequential",
       ].includes(name) &&
-      !(autoFrame && isAutoFrameField(name) && field.type !== "array"),
+      !(autoFrame && isAutoFrameField(name) && field.type !== "array") &&
+      !(
+        managedRatio &&
+        (name === "aspect_ratio" ||
+          (name === "size" &&
+            field.enum?.some(
+              (s) => typeof s === "string" && /^\d+x\d+$/.test(s),
+            )))
+      ),
   );
   const required = fields.filter(([name]) =>
     model.schema?.required?.includes(name),

@@ -38,6 +38,12 @@ import { publicFetch } from "./network.ts";
 import { projectSchema, productSchema } from "../shared/schema.ts";
 import { getCatalog, invalidateCatalog } from "./catalog.ts";
 import { isAutoFrameField, modelPayload } from "../shared/catalog.ts";
+import {
+  isTextToImage,
+  isImageToVideo,
+  ratioInputs,
+} from "../shared/ratios.ts";
+import { registerEvents } from "./events.ts";
 import type { Asset, Project } from "../shared/types.ts";
 const app = Fastify({
   logger: {
@@ -124,6 +130,7 @@ app.post("/api/logout", (req) => {
   return { ok: true };
 });
 app.get("/api/state", () => state());
+registerEvents(app);
 app.put("/api/projects/:id", async (req) => {
   const id = (req.params as any).id;
   const p = projectSchema.parse(req.body);
@@ -351,9 +358,30 @@ app.post("/api/generate", async (req) => {
   if (!prompt.trim()) throw new Error("Enter a prompt first");
   const catalog = await getCatalog();
   const chosenModel = catalog.find(
-    (m) => m.id === model && m.kind === mode && m.active !== false,
+    (m) =>
+      m.id === model &&
+      (mode === "image" ? isTextToImage(m) : isImageToVideo(m)) &&
+      m.active !== false,
   );
   if (!chosenModel) throw new Error("Choose a supported model");
+  const promptModelId =
+    (mode === "image" ? p.imagePromptModel : p.videoPromptModel) ||
+    "openai/gpt-4.1-mini";
+  const promptModelDefinition = catalog.find(
+    (m) => m.id === promptModelId && m.kind === "text" && m.active !== false,
+  );
+  if (!promptModelDefinition)
+    throw new Error("Choose an available text model for unique prompts");
+  const existing = all("jobs").some(
+    (j) =>
+      j.projectId === p.id &&
+      ["queued", "running"].includes(j.status) &&
+      (j.kind === mode || (j.kind === "prepare" && j.input.mode === mode)),
+  );
+  if (existing)
+    throw new Error(
+      "This generation batch is still running. Wait for it to finish or cancel it first.",
+    );
   const needsFrames =
     mode === "video" &&
     Object.keys(chosenModel.schema?.properties || {}).some(isAutoFrameField);
@@ -370,7 +398,13 @@ app.post("/api/generate", async (req) => {
     frameIds.some((id) => !get("assets", id)?.mime.startsWith("image/"))
   )
     throw new Error("Choose valid first-frame images");
-  const inputs = p.modelInputs?.[model] || {};
+  const aspectRatio =
+    (mode === "image" ? p.imageAspectRatio : p.videoAspectRatio) || "9:16";
+  const inputs = ratioInputs(
+    chosenModel,
+    aspectRatio,
+    p.modelInputs?.[model] || {},
+  );
   modelPayload(
     chosenModel,
     prompt,
@@ -392,6 +426,9 @@ app.post("/api/generate", async (req) => {
       frameIds: needsFrames ? frameIds : [null],
       modelInputs: inputs,
       modelDefinition: chosenModel,
+      promptModel: promptModelId,
+      promptModelDefinition,
+      aspectRatio,
     },
   );
 });

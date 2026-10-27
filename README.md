@@ -1,8 +1,8 @@
-# ai video edeting machine
+﻿# ai video edeting machine
 
 A project-based creative assembly line for first frames, reaction clips, viral hooks, product demos, music, and final video batches.
 
-**Outputs = hooks × reaction clips × product demos × music tracks.** Hook and music spans are independent: whole video, reaction only, or demo only. Each output pairing and span can be edited in the task outline.
+**Outputs = hooks Г— reaction clips Г— product demos Г— music tracks.** Hook and music spans are independent: whole video, reaction only, or demo only. Each output pairing and span can be edited in the task outline.
 
 ## Run locally
 
@@ -57,14 +57,16 @@ Railway hosting and Siray usage are separate costs. Configure Railway usage aler
 ## Workflow
 
 1. Name a project (or keep the generated name).
-2. Generate first frames from a generic prompt. `[woman/man]` and `[kitchen/office]` enumerate explicit choices. A Siray text model varies unspecified details; supported models use distinct seeds. Visual uniqueness cannot be guaranteed by an AI provider.
-3. Select first frames and generate a chosen number of videos **per frame**, using model-supported durations.
+2. Generate first frames in two visible phases. Select a text model directly on the step, enter the generic prompt with all its own variation instructions, choose a text-to-image model, output count, and ratio. The text model streams distinct complete prompts; duplicates are rejected across the batch. Only after all N unique prompts are saved does the app create exactly N image jobs, one per prompt. No extra randomness rules are injected. Each result is saved with its prompt in the project and Image Library. Provider output is not a guarantee of visual uniqueness.
+3. Select first frames and generate a chosen number of videos **per frame**, with a separate text model on the step for prompt preparation, an image-to-video model, supported duration, and aspect ratio. Text-to-image selectors exclude image editors; image-to-video selectors exclude unrelated text-to-video and motion-control workflows.
 4. Save product facts and generate editable hook batches (up to 1,000 hooks per request). Regeneration appends hooks; prior product details remain saved. Website import is optional and uses accessible HTML, not authenticated pages or browser automation.
 5. Select reaction clips from any project, sorted by creation date.
 6. Select or upload product demos.
 7. Select music. **Every selected track** multiplies the output count; **Random from selection** assigns one track per visual combination; **No added music** preserves only original audio.
 8. Review and edit every combination. Set hook and music spans independently, globally or per output. Exclude unwanted outputs. Click Render.
 9. Watch real job status and download completed videos individually or as a ZIP.
+
+Prompt drafts, completed unique prompts, media job progress, and saved previews update through an authenticated event stream. A disconnected browser reconnects automatically. Partial prompt batches persist and can resume; media is not submitted for an incomplete batch. Ratio controls cover first frames, reaction clips, and final rendered videos. Model-native ratios/dimensions are used where supported; otherwise generated media is center-cropped after downloading, as shown in the form.
 
 Every step can be skipped. Skipping hook, clip, demo, or music selection omits that component without deleting saved inputs. Revisiting a step enables it again. An omitted dimension contributes one empty component to the Cartesian product. At least one reaction clip, demo, or image hook is required to render.
 
@@ -76,7 +78,7 @@ Every step can be skipped. Skipping hook, clip, demo, or music selection omits t
 - **Text Wall**: wrapped centered text, with 7- or 14-second opening segments. Longer clips are trimmed and shorter clips hold their last frame.
 - **Green screen**: a keyed presenter over the reaction or an optional custom background, with color, similarity, edge blend, position, and scale controls. Presenter compositing follows the hook span. Use actual green-screen footage; this is chroma keying, not AI background removal.
 
-Final output is portrait 1080×1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes source clips, preserves the reaction-before-demo order, burns hooks using the selected span, and loops/trims music inside its independently selected span. Source and music volumes are independent. Fonts support Latin and Cyrillic. Browser previews indicate selected media, styles, timing scopes, and approximate keying; FFmpeg is the final composition renderer.
+Final output is portrait 1080Г—1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes source clips, preserves the reaction-before-demo order, burns hooks using the selected span, and loops/trims music inside its independently selected span. Source and music volumes are independent. Fonts support Latin and Cyrillic. Browser previews indicate selected media, styles, timing scopes, and approximate keying; FFmpeg is the final composition renderer.
 
 ## Reliability and limits
 
@@ -87,9 +89,9 @@ Final output is portrait 1080×1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes so
 - Polling/download failures can be retried against the same provider task. Failed prompt planning and hook writing may require a new text request on retry; completed chunk checkpoints are retained.
 - Upload limit: 100 MB per file. Rendering limit: 100,000 combinations per batch. Split larger selections into separate batches. Outlines paginate rather than constructing the full product in browser memory.
 - One operator, one backend instance, four queued workers with at most one FFmpeg render. Authentication sessions expire after seven days or a server restart. The frontend URL and session token stay in the browser; Siray keys are stored encrypted only on the backend.
-- Model adapters follow Siray’s published per-model schemas. Use Refresh model availability to check the current API key’s catalog. Unsupported durations are not submitted.
-- Model selection uses [Siray Model Verse](https://api-gateway.siray.ai/api/model-verse/models) schemas and the authenticated [Models API](https://docs.siray.ai/api-reference/models). A bundled snapshot contains all 175 published text/image/video models as of October 26, 2026 (37 text, 58 image, 80 video); the backend refreshes the catalog every ten minutes and on request. Models unavailable to the saved key are disabled. Editing, reference, and video-to-video models expose the additional media inputs they require; text-to-video models can run without first frames.
-- Choose the hook-writing model in the Viral hooks step. That choice is saved with the project and snapshotted into each generation job. Settings holds the default text model used for prompt variation and product import. Test calls in this repository do not spend provider credits.
+- Model adapters follow SirayвЂ™s published per-model schemas. Use Refresh model availability to check the current API keyвЂ™s catalog. Unsupported durations are not submitted.
+- Model selection uses [Siray Model Verse](https://api-gateway.siray.ai/api/model-verse/models) schemas and the authenticated [Models API](https://docs.siray.ai/api-reference/models). A bundled snapshot contains all 175 published text/image/video models as of October 26, 2026 (37 text, 58 image, 80 video); the backend refreshes the catalog every ten minutes and on request. Models unavailable to the saved key are disabled. Workflow pickers show only models compatible with each action. The broader catalog is retained for capability metadata; editing and unrelated video modes are excluded from first-frame and reaction generation.
+- Choose hook-writing and prompt-generation models directly on their workflow steps. Choices are saved with the project and snapshotted into each job. Settings holds the text model used for product-details import. Test calls in this repository do not spend provider credits.
 
 ## Verification
 
@@ -103,4 +105,5 @@ Tests cover the four-dimensional Cartesian product, skipped dimensions, random-t
 
 ## Architecture
 
-React/Vite frontend · Fastify API · SQLite durable queue · private S3-compatible or disk media storage · Siray text/image/video adapters · FFmpeg compositor. No credentials, project data, or generated media are committed to Git.
+React/Vite frontend В· Fastify API В· SQLite durable queue В· private S3-compatible or disk media storage В· Siray text/image/video adapters В· FFmpeg compositor. No credentials, project data, or generated media are committed to Git.
+

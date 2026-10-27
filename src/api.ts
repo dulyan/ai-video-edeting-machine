@@ -43,6 +43,46 @@ export async function request<T = any>(
     return (await response.blob()) as T;
   return response.json();
 }
+export async function watchState(
+  onState: (state: import("../shared/types.ts").AppState) => void,
+  signal: AbortSignal,
+) {
+  const response = await fetch(`${backendURL}/api/events`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  });
+  if (!response.ok)
+    throw new Error(
+      response.status === 401
+        ? "Sign in to your workspace"
+        : "Live updates unavailable",
+    );
+  if (!response.body) throw new Error("Live updates unavailable");
+  const reader = response.body.getReader(),
+    decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let boundary: number;
+      while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+        const event = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const data = event
+          .split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trim())
+          .join("\n");
+        if (data) onState(JSON.parse(data));
+      }
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
 const mediaCache = new Map<string, { url: string; expires: number }>();
 export async function mediaURL(id: string) {
   const cached = mediaCache.get(`${backendURL}:${id}`);
