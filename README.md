@@ -1,8 +1,8 @@
-﻿# ai video edeting machine
+# ai video edeting machine
 
 A project-based creative assembly line for first frames, reaction clips, viral hooks, product demos, music, and final video batches.
 
-**Outputs = hooks Г— reaction clips Г— product demos Г— music tracks.** Hook and music spans are independent: whole video, reaction only, or demo only. Each output pairing and span can be edited in the task outline.
+**Outputs = hooks × reaction clips × product demos × music tracks.** Hook and music spans are independent: whole video, reaction only, or demo only. Each output pairing and span can be edited in the task outline.
 
 ## Run locally
 
@@ -78,7 +78,7 @@ Every step can be skipped. Skipping hook, clip, demo, or music selection omits t
 - **Text Wall**: wrapped centered text, with 7- or 14-second opening segments. Longer clips are trimmed and shorter clips hold their last frame.
 - **Green screen**: a keyed presenter over the reaction or an optional custom background, with color, similarity, edge blend, position, and scale controls. Presenter compositing follows the hook span. Use actual green-screen footage; this is chroma keying, not AI background removal.
 
-Final output is portrait 1080Г—1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes source clips, preserves the reaction-before-demo order, burns hooks using the selected span, and loops/trims music inside its independently selected span. Source and music volumes are independent. Fonts support Latin and Cyrillic. Browser previews indicate selected media, styles, timing scopes, and approximate keying; FFmpeg is the final composition renderer.
+Final output is portrait 1080×1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes source clips, preserves the reaction-before-demo order, burns hooks using the selected span, and loops/trims music inside its independently selected span. Source and music volumes are independent. Fonts support Latin and Cyrillic. Browser previews indicate selected media, styles, timing scopes, and approximate keying; FFmpeg is the final composition renderer.
 
 ## Reliability and limits
 
@@ -89,7 +89,7 @@ Final output is portrait 1080Г—1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes
 - Polling/download failures can be retried against the same provider task. Failed prompt planning and hook writing may require a new text request on retry; completed chunk checkpoints are retained.
 - Upload limit: 100 MB per file. Rendering limit: 100,000 combinations per batch. Split larger selections into separate batches. Outlines paginate rather than constructing the full product in browser memory.
 - One operator, one backend instance, four queued workers with at most one FFmpeg render. Authentication sessions expire after seven days or a server restart. The frontend URL and session token stay in the browser; Siray keys are stored encrypted only on the backend.
-- Model adapters follow SirayвЂ™s published per-model schemas. Use Refresh model availability to check the current API keyвЂ™s catalog. Unsupported durations are not submitted.
+- Model adapters follow Siray’s published per-model schemas. Use Refresh model availability to check the current API key’s catalog. Unsupported durations are not submitted.
 - Model selection uses [Siray Model Verse](https://api-gateway.siray.ai/api/model-verse/models) schemas and the authenticated [Models API](https://docs.siray.ai/api-reference/models). A bundled snapshot contains all 175 published text/image/video models as of October 26, 2026 (37 text, 58 image, 80 video); the backend refreshes the catalog every ten minutes and on request. Models unavailable to the saved key are disabled. Workflow pickers show only models compatible with each action. The broader catalog is retained for capability metadata; editing and unrelated video modes are excluded from first-frame and reaction generation.
 - Choose hook-writing and prompt-generation models directly on their workflow steps. Choices are saved with the project and snapshotted into each job. Settings holds the text model used for product-details import. Test calls in this repository do not spend provider credits.
 
@@ -105,5 +105,4 @@ Tests cover the four-dimensional Cartesian product, skipped dimensions, random-t
 
 ## Architecture
 
-React/Vite frontend В· Fastify API В· SQLite durable queue В· private S3-compatible or disk media storage В· Siray text/image/video adapters В· FFmpeg compositor. No credentials, project data, or generated media are committed to Git.
-
+React/Vite frontend · Fastify API · SQLite durable queue · private S3-compatible or disk media storage · Siray text/image/video adapters · FFmpeg compositor. No credentials, project data, or generated media are committed to Git.
