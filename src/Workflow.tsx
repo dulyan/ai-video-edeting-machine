@@ -36,6 +36,7 @@ import {
   excludedCount,
   effectiveProject,
   IMAGE_PROMPT,
+  VIDEO_FIXED_INSTRUCTIONS,
   IMAGE_FIXED_INSTRUCTIONS,
   VIDEO_PROMPT,
   SPANS,
@@ -167,7 +168,11 @@ export function Generation({
                       imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
                       imageVariation: 50,
                     }
-                  : { videoPrompt: VIDEO_PROMPT },
+                  : {
+                      videoPrompt: VIDEO_PROMPT,
+                      videoFixedInstructions: VIDEO_FIXED_INSTRUCTIONS,
+                      videoVariation: 50,
+                    },
               )
             }
           >
@@ -185,7 +190,9 @@ export function Generation({
                     }
                   : {
                       videoPrompt:
-                        "The person starts with a curious expression and slowly breaks into a delighted smile. Natural authentic reaction, slight handheld camera movement.",
+                        "Describe a slow, silent progression from curious disbelief to delighted surprise and a warm excited smile. Specify subtle natural gestures and timing compatible with the starting frame. Respect the fixed video instructions.",
+                      videoFixedInstructions: VIDEO_FIXED_INSTRUCTIONS,
+                      videoVariation: 50,
                     },
               )
             }
@@ -211,7 +218,12 @@ export function Generation({
                             preset.fixedInstructions ?? "",
                           imageVariation: preset.variation ?? 50,
                         }
-                      : { videoPrompt: preset.prompt },
+                      : {
+                          videoPrompt: preset.prompt,
+                          videoFixedInstructions:
+                            preset.fixedInstructions ?? "",
+                          videoVariation: preset.variation ?? 50,
+                        },
                   );
               }}
             >
@@ -227,11 +239,11 @@ export function Generation({
           </Field>
         )}
         <Field
-          label={image ? "Text-model instructions" : "1. Generic prompt"}
+          label="Text-model instructions"
           hint={
             image
               ? "Tell the text model what to invent, how detailed it should be, and what should differ between outputs."
-              : "Include all variation instructions in this prompt. Fixed details will be preserved."
+              : "Tell the text model what movements, expressions, and timing to invent while preserving the starting frame."
           }
         >
           <textarea
@@ -247,22 +259,38 @@ export function Generation({
             rows={6}
           />
         </Field>
-        {image && (
+        {
           <>
             <VariationControl
-              value={p.imageVariation ?? 50}
-              onChange={(imageVariation) => update({ imageVariation })}
+              value={(image ? p.imageVariation : p.videoVariation) ?? 50}
+              onChange={(variation) =>
+                update(
+                  image
+                    ? { imageVariation: variation }
+                    : { videoVariation: variation },
+                )
+              }
             />
             <Field
-              label="Fixed image instructions"
-              hint="This wording is copied exactly into every final image prompt, including its spacing and line breaks."
+              label={
+                image ? "Fixed image instructions" : "Fixed video instructions"
+              }
+              hint="This wording is copied exactly into every final prompt, including its spacing and line breaks."
             >
               <textarea
                 rows={7}
-                value={p.imageFixedInstructions ?? ""}
+                value={
+                  (image
+                    ? p.imageFixedInstructions
+                    : p.videoFixedInstructions) ?? ""
+                }
                 placeholder="Paste the image instructions that should stay identical in every output…"
                 onChange={(e) =>
-                  update({ imageFixedInstructions: e.target.value })
+                  update(
+                    image
+                      ? { imageFixedInstructions: e.target.value }
+                      : { videoFixedInstructions: e.target.value },
+                  )
                 }
               />
             </Field>
@@ -270,14 +298,16 @@ export function Generation({
               The text model generates the unique description. The app combines
               it with your fixed instructions without rewriting them.
             </p>
-            {p.imageFixedInstructions === undefined && (
+            {(image ? p.imageFixedInstructions : p.videoFixedInstructions) ===
+              undefined && (
               <p className="info-note">
                 Your previous generic prompt is preserved above. Move any
-                wording you want copied verbatim into Fixed image instructions.
+                wording you want copied verbatim into the fixed instructions
+                field.
               </p>
             )}
           </>
-        )}
+        }
         <div className="save-prompt-row">
           <input
             aria-label="Prompt preset name"
@@ -296,12 +326,12 @@ export function Generation({
                   name: presetName.trim(),
                   mode,
                   prompt: image ? p.imagePrompt : p.videoPrompt,
-                  ...(image
-                    ? {
-                        fixedInstructions: p.imageFixedInstructions ?? "",
-                        variation: p.imageVariation ?? 50,
-                      }
-                    : {}),
+                  fixedInstructions:
+                    (image
+                      ? p.imageFixedInstructions
+                      : p.videoFixedInstructions) ?? "",
+                  variation:
+                    (image ? p.imageVariation : p.videoVariation) ?? 50,
                 });
                 setPresetName("");
               })
@@ -1593,7 +1623,7 @@ export function Outline({ p, w, update, inspect }: Props) {
               }
             />
           </Field>
-          <Field label="Reaction prompt">
+          <Field label="Reaction text-model instructions">
             <textarea
               rows={3}
               value={p.videoPrompt}
@@ -1601,6 +1631,17 @@ export function Outline({ p, w, update, inspect }: Props) {
             />
           </Field>
         </div>
+        <Field label="Fixed reaction video instructions">
+          <textarea
+            rows={3}
+            value={p.videoFixedInstructions ?? ""}
+            onChange={(e) => update({ videoFixedInstructions: e.target.value })}
+          />
+        </Field>
+        <VariationControl
+          value={p.videoVariation ?? 50}
+          onChange={(videoVariation) => update({ videoVariation })}
+        />
         <VariationControl
           value={p.imageVariation ?? 50}
           onChange={(imageVariation) => update({ imageVariation })}

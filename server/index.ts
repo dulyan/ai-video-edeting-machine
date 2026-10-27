@@ -450,7 +450,11 @@ app.post("/api/generate", async (req) => {
             fixedInstructions: p.imageFixedInstructions || "",
             variation: p.imageVariation ?? 50,
           }
-        : {}),
+        : {
+            promptFormat: "split-video-v1",
+            fixedInstructions: p.videoFixedInstructions ?? "",
+            variation: p.videoVariation ?? 50,
+          }),
     },
   );
 });

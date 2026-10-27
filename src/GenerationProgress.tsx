@@ -168,7 +168,7 @@ export default function GenerationProgress({
                     (index === prompts.length ? batch.draftText : "") ||
                     "The complete unique prompt will appear here."}
                 </p>
-                {batch.mode === "image" && prompts[index] && (
+                {prompts[index] && (
                   <Button
                     className="full-prompt-button"
                     onClick={() =>
@@ -186,7 +186,8 @@ export default function GenerationProgress({
                       })
                     }
                   >
-                    View full image prompt
+                    View full {batch.mode === "video" ? "video" : "image"}{" "}
+                    prompt
                   </Button>
                 )}
                 {asset ? (

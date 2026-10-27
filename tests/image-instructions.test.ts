@@ -335,3 +335,94 @@ test("video and pre-split image jobs keep legacy request and prompt semantics", 
   }
   globalThis.fetch = original;
 });
+
+test("split video prompts keep frame context paired across out-of-order completion and resume", async () => {
+  for (const [id, prompt] of [
+    ["frame-a", "A person beside packed gym bag"],
+    ["frame-b", "A person near the hallway mirror"],
+  ]) {
+    put("assets", {
+      id,
+      prompt,
+      kind: "image",
+      projectId: "video-split",
+      name: id,
+      createdAt: new Date().toISOString(),
+      mime: "image/png",
+      size: 1,
+      key: id,
+    });
+  }
+  const job = addJob("video-split", "prepare", "Prepare reactions", {
+    ...input(2),
+    mode: "video",
+    promptFormat: "split-video-v1",
+    frameIds: ["frame-a", "frame-b"],
+    duration: 8,
+  });
+  let n = 0;
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(String(options?.body));
+    const context = JSON.parse(body.messages[1].content);
+    assert.equal(context.readOnlyVideoInstructions, fixed);
+    assert.equal(context.durationSeconds, 8);
+    assert(!("readOnlyImageInstructions" in context));
+    const index = n++;
+    await new Promise((resolve) => setTimeout(resolve, index === 0 ? 30 : 1));
+    if (index === 1) throw new Error("temporary test failure");
+    return Response.json({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              prompt: context.startingFrameContext + " movement " + index,
+            }),
+          },
+        },
+      ],
+    });
+  };
+  await assert.rejects(() => prepareGeneration(job), /temporary test failure/);
+  assert.equal(get("jobs", job.id)?.prompts?.length, 3);
+  assert.equal(
+    all("jobs").filter((j) => j.batchId === job.batchId && j.kind === "video")
+      .length,
+    0,
+  );
+  await prepareGeneration(get("jobs", job.id)!);
+  const children = all("jobs").filter(
+    (j) => j.batchId === job.batchId && j.kind === "video",
+  );
+  assert.equal(children.length, 4);
+  for (const id of ["frame-a", "frame-b"])
+    assert.equal(children.filter((j) => j.input.sourceId === id).length, 2);
+  for (const child of children) {
+    assert.equal(
+      child.input.prompt,
+      assembleImagePrompt(child.input.promptParts),
+    );
+    assert(
+      child.input.promptParts.generatedDescription.startsWith(
+        get("assets", child.input.sourceId)!.prompt!,
+      ),
+    );
+  }
+  assert.equal(
+    state().jobs.find((j) => j.id === job.id)?.fixedInstructions,
+    fixed,
+  );
+  const project = newProject();
+  assert.equal(
+    projectSchema.parse({
+      ...project,
+      videoFixedInstructions: fixed,
+      videoVariation: 100,
+    }).videoFixedInstructions,
+    fixed,
+  );
+  assert.equal(
+    projectSchema.safeParse({ ...project, videoVariation: 101 }).success,
+    false,
+  );
+  globalThis.fetch = original;
+});

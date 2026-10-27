@@ -110,3 +110,5 @@ Tests cover the four-dimensional Cartesian product, skipped dimensions, random-t
 ## Architecture
 
 React/Vite frontend · Fastify API · SQLite durable queue · private S3-compatible or disk media storage · Siray text/image/video adapters · FFmpeg compositor. No credentials, project data, or generated media are committed to Git.
+
+Reaction videos also separate text-model motion instructions from fixed video instructions. The Variation control changes the breadth of movements while retaining specificity and fixed constraints. Presets save both fields and Variation. Starting-frame prompt metadata is supplied as reference context when available; existing video jobs retain their original snapshots. Each generated motion description remains paired with its source frame through parallel completion and retries. Audio instructions depend on the selected video model supporting audio generation.

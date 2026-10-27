@@ -14,7 +14,7 @@ export default function PromptContent({
         <>
           <section className="prompt-section fixed">
             <h3>
-              Fixed image instructions <small>Copied verbatim</small>
+              Fixed instructions <small>Copied verbatim</small>
             </h3>
             <pre aria-label="Fixed instructions verbatim">
               {parts.fixedInstructions}
@@ -32,7 +32,7 @@ export default function PromptContent({
           <details className="exact-prompt">
             <summary>Exact combined prompt</summary>
             <textarea
-              aria-label="Exact image prompt"
+              aria-label="Exact combined prompt"
               readOnly
               rows={8}
               value={prompt}

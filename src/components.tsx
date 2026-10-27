@@ -377,7 +377,9 @@ export function Inspector({
       </dl>
       {asset.prompt && asset.promptParts && (
         <details className="asset-prompt-details">
-          <summary>View full image prompt</summary>
+          <summary>
+            View full {asset.kind === "reaction" ? "video" : "image"} prompt
+          </summary>
           <PromptContent prompt={asset.prompt} parts={asset.promptParts} />
         </details>
       )}

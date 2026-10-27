@@ -20,7 +20,9 @@ export const IMAGE_PROMPT =
 export const IMAGE_FIXED_INSTRUCTIONS =
   "Create a realistic casual UGC smartphone selfie frame. Use ordinary phone-video camera quality, natural skin texture, slightly imperfect framing, and physically plausible lighting. The person looks into the camera with a naturally surprised expression. No glamour retouching, cinematic grading, text, captions, watermarks, interfaces, or logos.";
 export const VIDEO_PROMPT =
-  "The person reacts with [delighted surprise/curious disbelief/an excited smile], small natural head movements, looking at the camera. Handheld smartphone footage, authentic and candid.";
+  "Invent one specific, realistic sequence of silent character movements for the supplied starting frame. Choose actions that suit the visible setting, posture, and character. Show delighted surprise, curious disbelief, and an excited smile, as if the person has just discovered something interesting and cannot wait to share it. Describe the timing of subtle facial expressions, head movements, eye contact, and optional natural hand gestures within the clip duration. Preserve the starting frame identity, appearance, clothing, and environment; do not invent or redescribe them. No speech, lip-sync, exaggerated acting, or incompatible movements. Return only the concrete motion description, respecting the fixed video instructions.";
+export const VIDEO_FIXED_INSTRUCTIONS =
+  "Animate the provided starting frame into one continuous, unedited, self-recorded smartphone video, vertical 9:16, at real-time speed. Preserve the person's identity, appearance, clothing, setting, and lighting from the starting frame. The person remains silent while showing natural, happy surprise and an eager desire to share their discovery with the viewer. No spoken words, lip-sync, narration, music, or added sound effects. Use only subtle location-appropriate ambient sound, with the character of an iPhone default microphone recording in this exact location at this exact distance. No description or redesign of the person or people, no visible camera, no crew reflections, no cuts or transitions. No flicker in teeth, jewelry, clothing patterns, or hair texture; no face melting, background warping, or sudden lighting changes. Raw, unedited smartphone footage as it would look uploaded straight to TikTok.";
 export function newProject(): Project {
   const now = new Date().toISOString();
   return {
@@ -38,6 +40,8 @@ export function newProject(): Project {
     imagePromptModel: "openai/gpt-4.1-mini",
     imageAspectRatio: "9:16",
     videoPrompt: VIDEO_PROMPT,
+    videoFixedInstructions: VIDEO_FIXED_INSTRUCTIONS,
+    videoVariation: 50,
     videoCount: 1,
     videoModel: "bytedance/seedance-1.5-pro-i2v",
     videoPromptModel: "openai/gpt-4.1-mini",

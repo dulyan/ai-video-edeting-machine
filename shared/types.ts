@@ -87,6 +87,8 @@ export interface Project {
   imagePromptModel?: string;
   imageAspectRatio?: string;
   videoPrompt: string;
+  videoFixedInstructions?: string;
+  videoVariation?: number;
   videoCount: number;
   videoModel: string;
   videoPromptModel?: string;

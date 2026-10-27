@@ -10,8 +10,9 @@ const IMAGE_DESCRIPTION_SYSTEM =
 export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   const { mode, count, prompt, model, duration, frameIds } = job.input;
   const total = mode === "image" ? count : count * frameIds.length;
-  const splitImage =
-    mode === "image" && job.input.promptFormat === "split-image-v1";
+  const splitPrompt =
+    (mode === "image" && job.input.promptFormat === "split-image-v1") ||
+    (mode === "video" && job.input.promptFormat === "split-video-v1");
   const fixedInstructions: string = job.input.fixedInstructions ?? "";
   const definition: Model =
     job.input.promptModelDefinition ||
@@ -26,7 +27,7 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
       .filter((j) => j.batchId === job.batchId && j.kind === mode)
       .sort((a, b) => (a.input.sequence || 0) - (b.input.sequence || 0))
       .map((j) => j.input.prompt);
-  const descriptions: string[] = splitImage
+  const descriptions: string[] = splitPrompt
     ? [
         ...(job.generatedDescriptions ||
           prompts.map((p) =>
@@ -36,8 +37,11 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
           )),
       ]
     : [];
+  const generatedFrameIds: (string | null)[] = [
+    ...(job.input.generatedFrameIds || []),
+  ];
   const seen = new Set(
-    (splitImage ? descriptions : prompts).map((p) =>
+    (splitPrompt ? descriptions : prompts).map((p) =>
       p.replace(/\s+/g, " ").trim().toLowerCase(),
     ),
   );
@@ -58,7 +62,7 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
     promptStartedAt: new Date().toISOString(),
     promptFinishedAt: undefined,
     promptRequests: requests,
-    ...(splitImage ? { generatedDescriptions: descriptions } : {}),
+    ...(splitPrompt ? { generatedDescriptions: descriptions } : {}),
   });
   while (
     prompts.length < total &&
@@ -70,8 +74,24 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
       total - prompts.length,
       total + Math.max(3, Math.ceil(total * 0.25)) - calls,
     );
+    const pendingFrames =
+      mode === "video" && splitPrompt
+        ? frameIds.flatMap((id: string | null) =>
+            Array.from(
+              {
+                length: Math.max(
+                  0,
+                  job.input.count -
+                    generatedFrameIds.filter((saved) => saved === id).length,
+                ),
+              },
+              () => id,
+            ),
+          )
+        : [];
     const result = await Promise.allSettled(
-      Array.from({ length: count }, async () => {
+      Array.from({ length: count }, async (_, offset) => {
+        const sourceId = pendingFrames[offset];
         const release = await textSlot(signal);
         calls++;
         const request: PromptRequest = {
@@ -84,22 +104,53 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
           patchJob(job.id, {
             promptRequests: requests.slice(-12).map((r) => ({ ...r })),
             prompts: [...prompts],
+            ...(mode === "video" && splitPrompt
+              ? {
+                  input: {
+                    ...job.input,
+                    generatedFrameIds: [...generatedFrameIds],
+                  },
+                }
+              : {}),
             progress: Math.round((prompts.length / total) * 100),
-            ...(splitImage ? { generatedDescriptions: [...descriptions] } : {}),
+            ...(splitPrompt
+              ? { generatedDescriptions: [...descriptions] }
+              : {}),
           });
         let lastDraft = 0,
           candidate = false;
         save();
         try {
           await streamPrompts(
-            splitImage
-              ? IMAGE_DESCRIPTION_SYSTEM
+            splitPrompt
+              ? mode === "video"
+                ? IMAGE_DESCRIPTION_SYSTEM.replaceAll(
+                    "readOnlyImageInstructions",
+                    "readOnlyVideoInstructions",
+                  ).replaceAll("image", "video") +
+                  " Describe only concrete movements and their timing within durationSeconds. startingFrameContext is reference context only: preserve its identity and setting without redescribing them. Do not claim to see a frame when context is absent; use movements compatible with the supplied starting frame."
+                : IMAGE_DESCRIPTION_SYSTEM
               : 'Resolve the supplied generic image/video brief into ONE complete, distinct production prompt. Follow ONLY the variation or randomness instructions already in that brief. Preserve all fixed requirements; do not invent randomization rules. The brief describes the requested media, not the format of your chat response. Honor its scene/content rules inside the output prompt, even if it mentions FINAL OUTPUT or asks to generate an image. Your chat response must be exactly one JSON object {"prompt":"complete resolved production prompt"}. Escape newlines inside the string. No commentary. Do not repeat any prompt in avoid.',
             JSON.stringify(
-              splitImage
+              splitPrompt
                 ? {
                     textModelInstructions: prompt,
-                    readOnlyImageInstructions: fixedInstructions,
+                    [mode === "image"
+                      ? "readOnlyImageInstructions"
+                      : "readOnlyVideoInstructions"]: fixedInstructions,
+                    ...(mode === "video"
+                      ? {
+                          durationSeconds: duration,
+                          startingFrameContext: (() => {
+                            const frame = get("assets", sourceId);
+                            return (
+                              frame?.promptParts?.generatedDescription ||
+                              frame?.prompt ||
+                              ""
+                            );
+                          })(),
+                        }
+                      : {}),
                     variationLevel: job.input.variation ?? 50,
                     count: 1,
                     variation: request.id,
@@ -125,8 +176,9 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
                 return;
               }
               seen.add(normalized);
-              if (splitImage) {
+              if (splitPrompt) {
                 descriptions.push(text);
+                if (mode === "video") generatedFrameIds.push(sourceId);
                 prompts.push(
                   assembleImagePrompt({
                     fixedInstructions,
@@ -185,7 +237,7 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
         modelInputs: job.input.modelInputs,
         modelDefinition: job.input.modelDefinition,
         prompt: resolved,
-        ...(splitImage
+        ...(splitPrompt
           ? {
               promptParts: {
                 fixedInstructions,
@@ -198,7 +250,11 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
         sequence: i + 1,
         aspectRatio: job.input.aspectRatio,
         sourceId:
-          mode === "video" ? frameIds[Math.floor(i / count)] : undefined,
+          mode === "video"
+            ? splitPrompt
+              ? generatedFrameIds[i]
+              : frameIds[Math.floor(i / count)]
+            : undefined,
       },
       job.batchId,
       `${job.id}-${i}`,
@@ -210,6 +266,6 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
     prompts,
     draftText: "",
     promptFinishedAt: new Date().toISOString(),
-    ...(splitImage ? { generatedDescriptions: descriptions } : {}),
+    ...(splitPrompt ? { generatedDescriptions: descriptions } : {}),
   });
 }
