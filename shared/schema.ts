@@ -1,5 +1,16 @@
 import { z } from "zod";
 import { RATIOS } from "./ratios.ts";
+export const referencePosesSchema = z.union([
+  z.string().max(20000),
+  z
+    .array(z.string().max(20000))
+    .max(1000)
+    .refine(
+      (poses) => poses.reduce((sum, pose) => sum + pose.length, 0) <= 20000,
+      "Reference poses must contain at most 20000 characters in total",
+    ),
+]);
+
 const text = z.string().max(20000),
   id = z.string().max(200),
   ids = z.array(id).max(1000);
@@ -58,7 +69,7 @@ export const projectSchema = z.object({
   skipped: z.array(z.number().int().min(0).max(8)).max(9),
   imagePrompt: text,
   imageFixedInstructions: text.optional(),
-  imageReferencePoses: text.optional(),
+  imageReferencePoses: referencePosesSchema.optional(),
   imageVariation: z.number().int().min(0).max(100).optional(),
   imageCount: z.number().int().min(1).max(1000),
   imageModel: id,

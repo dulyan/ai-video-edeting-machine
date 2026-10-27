@@ -387,3 +387,35 @@ test("server restart preserves projects, resets expiring sessions, and retains s
     1,
   );
 });
+
+test("separate reference poses persist multiline entries in projects and presets", async () => {
+  const poses = [
+    "  Raised brows.\r\nHands near chest.  ",
+    "Head tilt.\nWarm closed-mouth smile.",
+  ];
+  assert.equal(
+    (
+      await api("/projects/" + project.id, "PATCH", {
+        imageReferencePoses: poses,
+      })
+    ).status,
+    200,
+  );
+  const preset = {
+    id: "separate-poses",
+    name: "Separate poses",
+    mode: "image",
+    prompt: "Detailed person",
+    referencePoses: poses,
+  };
+  assert.equal((await api("/presets/" + preset.id, "PUT", preset)).status, 200);
+  const saved = (await api("/state")).data;
+  assert.deepEqual(
+    saved.projects.find((p: any) => p.id === project.id).imageReferencePoses,
+    poses,
+  );
+  assert.deepEqual(
+    saved.presets.find((p: any) => p.id === preset.id).referencePoses,
+    poses,
+  );
+});

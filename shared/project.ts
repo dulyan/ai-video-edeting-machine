@@ -34,7 +34,7 @@ export function newProject(): Project {
     skipped: [],
     imagePrompt: IMAGE_PROMPT,
     imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
-    imageReferencePoses: "",
+    imageReferencePoses: [],
     imageVariation: 50,
     imageCount: 4,
     imageModel: "black-forest-labs/flux-1.1-pro-t2i",

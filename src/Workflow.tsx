@@ -1,3 +1,4 @@
+import ReferencePoses from "./ReferencePoses.tsx";
 import { reactionInstructions } from "../shared/reaction.ts";
 import { useEffect, useState } from "react";
 import {
@@ -268,19 +269,12 @@ export function Generation({
         </Field>
         {image && (
           <>
-            <Field
-              label="Reference poses"
-              hint="List poses, expressions, emotional intent, and actions for inspiration, one per line. Every unique description considers this list while respecting the fixed image instructions."
-            >
-              <textarea
-                rows={6}
-                value={p.imageReferencePoses ?? ""}
-                placeholder="Add your reference poses here, one per line."
-                onChange={(e) =>
-                  update({ imageReferencePoses: e.target.value })
-                }
-              />
-            </Field>
+            <ReferencePoses
+              value={p.imageReferencePoses}
+              onChange={(imageReferencePoses) =>
+                update({ imageReferencePoses })
+              }
+            />
             <VariationControl
               value={p.imageVariation ?? 50}
               onChange={(imageVariation) => update({ imageVariation })}
@@ -1708,13 +1702,10 @@ export function Outline({ p, w, update, inspect }: Props) {
               onChange={(e) => update({ imagePrompt: e.target.value })}
             />
           </Field>
-          <Field label="Starting-frame reference poses">
-            <textarea
-              rows={3}
-              value={p.imageReferencePoses ?? ""}
-              onChange={(e) => update({ imageReferencePoses: e.target.value })}
-            />
-          </Field>
+          <ReferencePoses
+            value={p.imageReferencePoses}
+            onChange={(imageReferencePoses) => update({ imageReferencePoses })}
+          />
           <Field label="Fixed starting-frame image instructions">
             <textarea
               rows={3}

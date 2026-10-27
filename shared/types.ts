@@ -1,3 +1,4 @@
+import type { ReferencePoses } from "./reference-poses.ts";
 export type Span = "whole" | "reaction" | "demo";
 export type HookStyle =
   "Text" | "Snapchat" | "IMG" | "Text Wall" | "Green screen";
@@ -81,7 +82,7 @@ export interface Project {
   skipped: number[];
   imagePrompt: string;
   imageFixedInstructions?: string;
-  imageReferencePoses?: string;
+  imageReferencePoses?: ReferencePoses;
   imageVariation?: number;
   imageCount: number;
   imageModel: string;
@@ -112,7 +113,7 @@ export interface Project {
   rowOverrides: Record<string, Partial<RenderRow>>;
 }
 export interface Job {
-  referencePoses?: string;
+  referencePoses?: ReferencePoses;
   promptStartedAt?: string;
   promptFinishedAt?: string;
   promptRequests?: PromptRequest[];
@@ -155,7 +156,7 @@ export interface PromptRequest {
   outputTokens?: number;
 }
 export interface PromptPreset {
-  referencePoses?: string;
+  referencePoses?: ReferencePoses;
   id: string;
   name: string;
   mode: "image" | "video";
@@ -164,7 +165,7 @@ export interface PromptPreset {
   variation?: number;
 }
 export interface PromptParts {
-  referencePoses?: string;
+  referencePoses?: ReferencePoses;
   enforcedInstructions?: string;
   fixedInstructions: string;
   generatedDescription: string;

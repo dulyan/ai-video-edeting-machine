@@ -4328,3 +4328,19 @@ progress {
 .starting-frame-grid .asset-visual {
   aspect-ratio: 3 / 4;
 }
+
+.reference-poses-editor {
+  min-width: 0;
+}
+.reference-pose-entry {
+  padding: 14px;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.reference-pose-entry .field {
+  margin-bottom: 8px;
+}
+.reference-pose-entry textarea {
+  width: 100%;
+}

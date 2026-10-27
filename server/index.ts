@@ -1,3 +1,5 @@
+import { generationPoses } from "../shared/reference-poses.ts";
+import { referencePosesSchema } from "../shared/schema.ts";
 import { reactionInputs, reactionInstructions } from "../shared/reaction.ts";
 import "dotenv/config";
 import Fastify from "fastify";
@@ -185,7 +187,7 @@ app.put("/api/presets/:id", async (req) => {
       mode: z.enum(["image", "video"]),
       prompt: z.string().min(1).max(20000),
       fixedInstructions: z.string().max(20000).optional(),
-      referencePoses: z.string().max(20000).optional(),
+      referencePoses: referencePosesSchema.optional(),
       variation: z.number().int().min(0).max(100).optional(),
     })
     .parse(req.body);
@@ -459,7 +461,7 @@ app.post("/api/generate", async (req) => {
         ? {
             promptFormat: "split-image-v1",
             fixedInstructions: p.imageFixedInstructions || "",
-            referencePoses: p.imageReferencePoses ?? "",
+            referencePoses: generationPoses(p.imageReferencePoses),
             variation: p.imageVariation ?? 50,
           }
         : {
