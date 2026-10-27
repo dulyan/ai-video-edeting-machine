@@ -38,6 +38,16 @@ export default function PromptContent({
               <pre>{parts.enforcedInstructions}</pre>
             </section>
           )}
+          {parts.referencePoses && (
+            <details className="exact-prompt">
+              <summary>Reference poses used as inspiration</summary>
+              <pre>{parts.referencePoses}</pre>
+              <p>
+                The text model used this list to describe the pose. The list
+                itself is not appended to the image prompt.
+              </p>
+            </details>
+          )}
           <details className="exact-prompt">
             <summary>Exact combined prompt</summary>
             <textarea

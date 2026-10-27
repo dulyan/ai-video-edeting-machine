@@ -125,11 +125,16 @@ test("fixed image instructions, paired presets, and variation settings round tri
   const fixed = "  Camera rules:\r\n\tNo text or logos.  \n";
   const result = await api(`/projects/${project.id}`, "PATCH", {
     imageFixedInstructions: fixed,
+    imageReferencePoses: "  Head tilt.\r\nRaised brows.  ",
     imageVariation: 0,
   });
   assert.equal(result.status, 200);
   let saved = (await api("/state")).data;
   assert.equal(saved.projects[0].imageFixedInstructions, fixed);
+  assert.equal(
+    saved.projects[0].imageReferencePoses,
+    "  Head tilt.\r\nRaised brows.  ",
+  );
   assert.equal(saved.projects[0].imageVariation, 0);
   const preset = {
     id: "paired-image",
@@ -137,6 +142,7 @@ test("fixed image instructions, paired presets, and variation settings round tri
     mode: "image",
     prompt: "Invent a detailed person and a coherent scene.",
     fixedInstructions: fixed,
+    referencePoses: "  Head tilt.\r\nRaised brows.  ",
     variation: 100,
   };
   assert.equal((await api("/presets/" + preset.id, "PUT", preset)).status, 200);

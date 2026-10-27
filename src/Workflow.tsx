@@ -86,7 +86,7 @@ export function Naming({ p, update }: Props) {
         />
       </Field>
       <Button variant="black" onClick={() => update({ step: 1 })}>
-        Continue to first frames <ArrowRight size={18} />
+        Continue to starting frames <ArrowRight size={18} />
       </Button>
     </section>
   );
@@ -150,7 +150,7 @@ export function Generation({
               {image ? "01 / THE STARTING POINT" : "02 / BRING IT TO LIFE"}
             </span>
             <h3>
-              {image ? "Generate first frames" : "Generate reaction videos"}
+              {image ? "Generate starting frames" : "Generate reaction videos"}
             </h3>
           </div>
           <span className="icon-disc">
@@ -183,8 +183,7 @@ export function Generation({
               update(
                 image
                   ? {
-                      imagePrompt:
-                        "Invent a different, highly specific everyday adult and lived-in setting for each output. Describe their natural appearance, casually chosen clothing, ordinary personal details, and plausible surroundings in rich detail. Choose all details yourself and keep the scene coherent with the fixed image instructions.",
+                      imagePrompt: IMAGE_PROMPT,
                       imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
                       imageVariation: 50,
                     }
@@ -218,6 +217,7 @@ export function Generation({
                           imageFixedInstructions:
                             preset.fixedInstructions ?? "",
                           imageVariation: preset.variation ?? 50,
+                          imageReferencePoses: preset.referencePoses ?? "",
                         }
                       : {
                           videoPrompt: reactionInstructions(
@@ -268,6 +268,19 @@ export function Generation({
         </Field>
         {image && (
           <>
+            <Field
+              label="Reference poses"
+              hint="List poses, expressions, emotional intent, and actions for inspiration, one per line. Every unique description considers this list while respecting the fixed image instructions."
+            >
+              <textarea
+                rows={6}
+                value={p.imageReferencePoses ?? ""}
+                placeholder="Add your reference poses here, one per line."
+                onChange={(e) =>
+                  update({ imageReferencePoses: e.target.value })
+                }
+              />
+            </Field>
             <VariationControl
               value={p.imageVariation ?? 50}
               onChange={(imageVariation) => update({ imageVariation })}
@@ -327,6 +340,9 @@ export function Generation({
                         p.videoPrompt,
                         p.videoFixedInstructions,
                       ),
+                  ...(image
+                    ? { referencePoses: p.imageReferencePoses ?? "" }
+                    : {}),
                   fixedInstructions:
                     (image ? p.imageFixedInstructions : "") ?? "",
                   variation:
@@ -355,7 +371,7 @@ export function Generation({
           />
         )}
         <h3 className="generation-phase-heading">
-          2. Generate {image ? "first frames" : "reaction clips"}
+          2. Generate {image ? "starting frames" : "reaction clips"}
         </h3>
         <div className="form-columns">
           <ModelPicker
@@ -439,9 +455,9 @@ export function Generation({
         <Quantity
           label={
             image
-              ? "How many first frames"
+              ? "How many starting frames"
               : needsFrames
-                ? "Videos per first frame"
+                ? "Videos per starting frame"
                 : "How many videos"
           }
           value={image ? p.imageCount : p.videoCount}
@@ -524,7 +540,7 @@ export function Generation({
               (a) => frameScope === "all" || a.projectId === p.id,
             ) && (
               <p>
-                No starting frames here yet. Generate them in First frames or
+                No starting frames here yet. Generate them in Starting frames or
                 choose All projects.
               </p>
             )}
@@ -545,7 +561,7 @@ export function Generation({
           {w.busy ||
             (jobs.length > 0
               ? "Batch in progress"
-              : `Generate ${amount} ${image ? "first frames" : "reaction clips"}`)}
+              : `Generate ${amount} ${image ? "starting frames" : "reaction clips"}`)}
           <ArrowUpRight size={17} />
         </Button>
         <button
@@ -565,7 +581,7 @@ export function Generation({
       <section className="generation-results">
         <div className="section-heading">
           <h3>
-            {image ? "Your first frames" : "Reaction clips"}{" "}
+            {image ? "Your starting frames" : "Reaction clips"}{" "}
             <span className="count-badge">{assets.length}</span>
           </h3>
           {assets.length > 0 && (
@@ -628,11 +644,11 @@ export function Generation({
           </div>
         ) : !batch ? (
           <EmptyState
-            title={image ? "No first frames yet" : "No reaction clips yet"}
+            title={image ? "No starting frames yet" : "No reaction clips yet"}
             description={
               image
                 ? "Unique prompts and frame previews will appear here as the batch runs. Completed frames are saved to this project and the Image Library."
-                : "Turn your first frames into expressive reaction clips. Each result is saved to this project and your Video Library."
+                : "Turn your starting frames into expressive reaction clips. Each result is saved to this project and your Video Library."
             }
             icon={image ? "image" : "film"}
           />
@@ -640,7 +656,9 @@ export function Generation({
         <UploadZone
           compact
           kind={image ? "image" : "video"}
-          label={image ? "Or upload first frames" : "Or upload reaction clips"}
+          label={
+            image ? "Or upload starting frames" : "Or upload reaction clips"
+          }
           onFiles={(files) =>
             void w.act("Uploading", () =>
               w.upload(files, image ? "image" : "reaction", p.id),
@@ -1683,14 +1701,21 @@ export function Outline({ p, w, update, inspect }: Props) {
       <details className="card outline-details">
         <summary>Edit prompts & product information</summary>
         <div className="form-columns">
-          <Field label="First-frame text-model instructions">
+          <Field label="Starting-frame text-model instructions">
             <textarea
               rows={3}
               value={p.imagePrompt}
               onChange={(e) => update({ imagePrompt: e.target.value })}
             />
           </Field>
-          <Field label="Fixed first-frame image instructions">
+          <Field label="Starting-frame reference poses">
+            <textarea
+              rows={3}
+              value={p.imageReferencePoses ?? ""}
+              onChange={(e) => update({ imageReferencePoses: e.target.value })}
+            />
+          </Field>
+          <Field label="Fixed starting-frame image instructions">
             <textarea
               rows={3}
               value={p.imageFixedInstructions ?? ""}

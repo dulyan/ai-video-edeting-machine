@@ -29,6 +29,8 @@ const textModel = MODELS.find((m) => m.id === "openai/gpt-4.1-mini")!,
   )!;
 const fixed =
   "  CAMERA:\r\n\tPhone-video quality. 😮\r\n\r\nNo logos. Keep these spaces.  \n";
+const referencePoses =
+  "  Raised brows and a warm closed-mouth smile.\r\nA small head tilt with one hand near the chest.  ";
 const descriptions = [
   "A 43-year-old woman with a round face, flyaway auburn hair and a faded olive sweatshirt, in a lived-in kitchen. Late-afternoon window light falls from her left beside a chipped mug and folded dish towel.",
   "A 61-year-old man with salt-and-pepper stubble, rectangular glasses and a worn blue cardigan in a small home office. A desk lamp softly lights his right cheek; books, a charging cable and an unfinished cup of tea sit behind him.",
@@ -49,6 +51,7 @@ function input(count = 4, variation = 50, fixedInstructions = fixed) {
     aspectRatio: "1:1",
     modelInputs: { aspect_ratio: "1:1" },
     promptFormat: "split-image-v1",
+    referencePoses,
     fixedInstructions,
     variation,
   };
@@ -125,6 +128,8 @@ test("four image prompts preserve the exact fixed block, show only generated det
     for (const body of textRequests) {
       const message = JSON.parse(body.messages[1].content);
       assert.equal(message.readOnlyImageInstructions, fixed);
+      assert.equal(message.referencePoses, referencePoses);
+      assert(body.messages[0].content.includes("SINGLE still-image moment"));
       assert.equal(message.textModelInstructions, input().prompt);
       assert.equal(message.variationLevel, 50);
       assert(
@@ -142,6 +147,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
     assert.equal(children.length, 4);
     for (const child of children) {
       assert.equal(child.input.promptParts.fixedInstructions, fixed);
+      assert.equal(child.input.promptParts.referencePoses, referencePoses);
       assert.equal(
         child.input.prompt,
         assembleImagePrompt(child.input.promptParts),
@@ -157,6 +163,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
     assert.equal(assets.length, 4);
     for (const asset of assets) {
       assert.equal(asset.promptParts?.fixedInstructions, fixed);
+      assert.equal(asset.promptParts?.referencePoses, referencePoses);
       assert.equal(asset.prompt, assembleImagePrompt(asset.promptParts!));
       assert(asset.prompt!.startsWith(fixed + "\n\n"));
       assert(imageRequests.some((b) => b.prompt === asset.prompt));
@@ -168,6 +175,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
     );
     const publicJob = state().jobs.find((j) => j.id === job.id)!;
     assert.equal(publicJob.fixedInstructions, fixed);
+    assert.equal(publicJob.referencePoses, referencePoses);
     assert.deepEqual(
       publicJob.generatedDescriptions,
       prepared.generatedDescriptions,
@@ -225,6 +233,11 @@ test("split-image retries preserve completed prompts and snapshotted fixed text 
   );
   assert.equal(get("jobs", job.id)?.prompts?.[0], first);
   assert.equal(get("jobs", job.id)?.generatedDescriptions?.length, 2);
+  assert(
+    children.every(
+      (j) => j.input.promptParts.referencePoses === referencePoses,
+    ),
+  );
   globalThis.fetch = original;
 });
 test("variation endpoints change only text-model diversity guidance; specificity and fixed constraints remain mandatory", async () => {
@@ -290,9 +303,11 @@ test("empty fixed text and whitespace-only fixed text assemble predictably, whil
   const legacy = newProject();
   delete legacy.imageFixedInstructions;
   delete legacy.imageVariation;
+  delete legacy.imageReferencePoses;
   const parsed = projectSchema.parse(legacy);
   assert.equal(parsed.imagePrompt, legacy.imagePrompt);
   assert.equal(parsed.imageFixedInstructions, undefined);
+  assert.equal(parsed.imageReferencePoses, undefined);
   assert.equal(
     projectSchema.safeParse({ ...legacy, imageVariation: 101 }).success,
     false,

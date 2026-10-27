@@ -71,7 +71,7 @@ export default function GenerationProgress({
           }
         >
           <strong>
-            2. {batch.mode === "image" ? "First frames" : "Reaction clips"}
+            2. {batch.mode === "image" ? "Starting frames" : "Reaction clips"}
           </strong>
           <span>
             {saved} / {total} saved
@@ -181,6 +181,7 @@ export default function GenerationProgress({
                           batch.generatedDescriptions?.[index] !== undefined
                             ? {
                                 fixedInstructions: batch.fixedInstructions,
+                                referencePoses: batch.referencePoses,
                                 generatedDescription:
                                   batch.generatedDescriptions[index],
                               }

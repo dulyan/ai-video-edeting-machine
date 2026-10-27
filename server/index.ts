@@ -185,6 +185,7 @@ app.put("/api/presets/:id", async (req) => {
       mode: z.enum(["image", "video"]),
       prompt: z.string().min(1).max(20000),
       fixedInstructions: z.string().max(20000).optional(),
+      referencePoses: z.string().max(20000).optional(),
       variation: z.number().int().min(0).max(100).optional(),
     })
     .parse(req.body);
@@ -415,12 +416,12 @@ app.post("/api/generate", async (req) => {
           .filter((a) => a.projectId === p.id && a.kind === "image")
           .map((a) => a.id);
   if (needsFrames && !frameIds.length)
-    throw new Error("Generate or select at least one first-frame image");
+    throw new Error("Generate or select at least one starting-frame image");
   if (
     needsFrames &&
     frameIds.some((id) => !get("assets", id)?.mime.startsWith("image/"))
   )
-    throw new Error("Choose valid first-frame images");
+    throw new Error("Choose valid starting-frame images");
   const aspectRatio =
     (mode === "image" ? p.imageAspectRatio : p.videoAspectRatio) || "9:16";
   let inputs = ratioInputs(
@@ -441,7 +442,7 @@ app.post("/api/generate", async (req) => {
   return addJob(
     p.id,
     "prepare",
-    `Prepare ${mode === "image" || !needsFrames ? count : count * frameIds.length} ${mode === "image" ? "first frames" : "reactions"}`,
+    `Prepare ${mode === "image" || !needsFrames ? count : count * frameIds.length} ${mode === "image" ? "starting frames" : "reactions"}`,
     {
       mode,
       count,
@@ -458,6 +459,7 @@ app.post("/api/generate", async (req) => {
         ? {
             promptFormat: "split-image-v1",
             fixedInstructions: p.imageFixedInstructions || "",
+            referencePoses: p.imageReferencePoses ?? "",
             variation: p.imageVariation ?? 50,
           }
         : {

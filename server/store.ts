@@ -139,6 +139,8 @@ export function state(): AppState {
         ? (j.input.fixedInstructions ?? "")
         : undefined,
       promptParts: j.input.promptParts,
+      referencePoses:
+        j.input.mode === "image" ? j.input.referencePoses : undefined,
       prompts:
         j.prompts ||
         (j.kind === "prepare"
