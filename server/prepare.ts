@@ -1,3 +1,4 @@
+import { reactionConstraints } from "../shared/reaction.ts";
 import type { Job, Model, PromptRequest } from "../shared/types.ts";
 import { textSlot } from "./text-slots.ts";
 import { addJob, all, get, patchJob } from "./store.ts";
@@ -13,6 +14,9 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
     const promptParts = {
       fixedInstructions: job.input.fixedInstructions ?? "",
       generatedDescription: prompt,
+      enforcedInstructions: reactionConstraints(
+        job.input.reactionAudio ?? "silent",
+      ),
     };
     const combined = assembleImagePrompt(promptParts);
     frameIds.forEach((sourceId: string, frameIndex: number) => {
@@ -29,6 +33,7 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
             prompt: combined,
             promptParts,
             sourceId,
+            reactionAudio: job.input.reactionAudio ?? "silent",
             duration,
             sequence,
             aspectRatio: job.input.aspectRatio,

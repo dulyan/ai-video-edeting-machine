@@ -451,12 +451,111 @@ test("direct reaction animation uses selected frames and exact guidance without 
       .map((j) => j.input.sourceId),
     ["frame-a", "frame-a", "frame-b", "frame-b"],
   );
-  for (const child of children)
-    assert.equal(child.input.prompt, fixed + "\n\n" + job.input.prompt);
+  for (const child of children) {
+    assert.equal(
+      child.input.prompt,
+      assembleImagePrompt(child.input.promptParts),
+    );
+    assert.equal(child.input.promptParts.fixedInstructions, fixed);
+    assert.equal(child.input.reactionAudio, "silent");
+    assert(
+      child.input.prompt.endsWith(child.input.promptParts.enforcedInstructions),
+    );
+    assert(child.input.prompt.includes("no repeated jaw opening"));
+  }
   assert.equal(get("jobs", job.id)?.status, "completed");
   assert.equal(
     state().jobs.find((j) => j.id === job.id)?.fixedInstructions,
     fixed,
   );
   globalThis.fetch = original;
+});
+
+test("reaction provider payload matches its preview and returned audio is removed before saving", async () => {
+  const fixture = path.join(mediaDir, "provider-reaction.mp4");
+  await run(ffmpeg, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=blue:s=96x160:r=24:d=1",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:duration=1",
+    "-c:v",
+    "libx264",
+    "-c:a",
+    "aac",
+    "-shortest",
+    fixture,
+  ]);
+  const bytes = await readFile(fixture);
+  const { reactionConstraints } = await import("../shared/reaction.ts");
+  const { probe } = await import("../server/render.ts");
+  const promptParts = {
+    fixedInstructions: fixed,
+    generatedDescription: "Silent happy surprise.",
+    enforcedInstructions: reactionConstraints(),
+  };
+  const prompt = assembleImagePrompt(promptParts);
+  const job = addJob("silent-pipeline", "video", "Reaction test", {
+    model: "video-test",
+    modelDefinition: {
+      id: "video-test",
+      name: "Test",
+      kind: "video",
+      schema: { properties: { generate_audio: { type: "boolean" } } },
+    },
+    modelInputs: { generate_audio: false },
+    prompt,
+    promptParts,
+    reactionAudio: "silent",
+  });
+  const download = mock.method(https, "request", ((
+    _u: unknown,
+    _o: unknown,
+    cb: any,
+  ) => {
+    const req: any = new EventEmitter();
+    req.setTimeout = () => req;
+    req.end = () => {
+      const res: any = new PassThrough();
+      res.statusCode = 200;
+      res.headers = { "content-type": "video/mp4" };
+      cb(res);
+      res.end(bytes);
+    };
+    return req;
+  }) as any);
+  let sent: any;
+  globalThis.fetch = async (_url, options) => {
+    if (options?.method === "POST") {
+      sent = JSON.parse(String(options.body));
+      return Response.json({ task_id: "silent-fixture" });
+    }
+    return Response.json({
+      status: "SUCCESS",
+      outputs: ["https://8.8.8.8/reaction.mp4"],
+    });
+  };
+  try {
+    await processJob(job);
+    assert.equal(
+      get("jobs", job.id)?.status,
+      "completed",
+      get("jobs", job.id)?.error,
+    );
+    const asset = get("assets", job.id)!;
+    assert.equal(sent.prompt, prompt);
+    assert.equal(sent.generate_audio, false);
+    assert.equal(asset.prompt, prompt);
+    assert.deepEqual(asset.promptParts, promptParts);
+    assert.equal((await probe(path.join(mediaDir, asset.key))).hasAudio, false);
+  } finally {
+    download.mock.restore();
+    globalThis.fetch = original;
+  }
 });

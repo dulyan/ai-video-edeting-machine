@@ -1,3 +1,4 @@
+import { reactionInputs } from "../shared/reaction.ts";
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
@@ -419,11 +420,13 @@ app.post("/api/generate", async (req) => {
     throw new Error("Choose valid first-frame images");
   const aspectRatio =
     (mode === "image" ? p.imageAspectRatio : p.videoAspectRatio) || "9:16";
-  const inputs = ratioInputs(
+  let inputs = ratioInputs(
     chosenModel,
     aspectRatio,
     p.modelInputs?.[model] || {},
   );
+  if (mode === "video")
+    inputs = reactionInputs(chosenModel, inputs, p.videoAudio ?? "silent");
   modelPayload(
     chosenModel,
     prompt,
@@ -456,6 +459,7 @@ app.post("/api/generate", async (req) => {
           }
         : {
             promptFormat: "direct-video-v1",
+            reactionAudio: p.videoAudio ?? "silent",
             fixedInstructions: p.videoFixedInstructions ?? "",
             variation: p.videoVariation ?? 50,
           }),

@@ -416,6 +416,22 @@ export function Generation({
             )
           }
         />
+        {!image && (
+          <Field
+            label="Reaction audio"
+            hint="Silent removes all generated audio. Ambient requests room tone, but the model may still generate voices. Neither setting guarantees perfect mouth movements."
+          >
+            <select
+              value={p.videoAudio ?? "silent"}
+              onChange={(e) =>
+                update({ videoAudio: e.target.value as "silent" | "ambient" })
+              }
+            >
+              <option value="silent">Silent ? no audio</option>
+              <option value="ambient">Ambient audio ? model generated</option>
+            </select>
+          </Field>
+        )}
         <ModelOptions
           model={model}
           p={p}

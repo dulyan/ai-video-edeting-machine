@@ -1,3 +1,4 @@
+import { removeReactionAudio } from "./reaction-audio.ts";
 import path from "node:path";
 import { prepareGeneration } from "./prepare.ts";
 import { conformMedia } from "./conform.ts";
@@ -126,6 +127,12 @@ export async function processJob(job: Job) {
               controller.signal,
             );
             if (conformed) copied = { ...copied, ...conformed };
+          }
+          if (job.kind === "video" && job.input.reactionAudio === "silent") {
+            copied = {
+              ...copied,
+              ...(await removeReactionAudio(file, controller.signal)),
+            };
           }
           const metadata = await probe(file);
           const asset: Asset = {

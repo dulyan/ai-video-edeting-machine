@@ -29,6 +29,14 @@ export default function PromptContent({
             <h3>Generated description</h3>
             <pre>{parts.generatedDescription}</pre>
           </section>
+          {parts.enforcedInstructions && (
+            <section className="prompt-section">
+              <h3>
+                Reaction requirements <small>Applied by the app</small>
+              </h3>
+              <pre>{parts.enforcedInstructions}</pre>
+            </section>
+          )}
           <details className="exact-prompt">
             <summary>Exact combined prompt</summary>
             <textarea

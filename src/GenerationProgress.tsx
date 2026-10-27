@@ -175,14 +175,16 @@ export default function GenerationProgress({
                       setFullPrompt({
                         prompt: prompts[index],
                         parts:
-                          batch.fixedInstructions !== undefined &&
+                          child?.promptParts ||
+                          asset?.promptParts ||
+                          (batch.fixedInstructions !== undefined &&
                           batch.generatedDescriptions?.[index] !== undefined
                             ? {
                                 fixedInstructions: batch.fixedInstructions,
                                 generatedDescription:
                                   batch.generatedDescriptions[index],
                               }
-                            : child?.promptParts || asset?.promptParts,
+                            : undefined),
                       })
                     }
                   >

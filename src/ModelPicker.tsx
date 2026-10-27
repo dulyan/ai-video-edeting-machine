@@ -1,3 +1,4 @@
+import { REACTION_AUDIO_FIELDS } from "../shared/reaction.ts";
 import { useEffect, useState } from "react";
 import type { Model, ModelField, Project } from "../shared/types.ts";
 import { MODELS } from "../shared/models.ts";
@@ -111,6 +112,12 @@ export function ModelOptions({
   const inputs = p.modelInputs?.[model.id] || {};
   const fields = Object.entries(model.schema?.properties || {}).filter(
     ([name, field]) =>
+      !(
+        autoFrame &&
+        (name === "task_type" ||
+          ((p.videoAudio ?? "silent") === "silent" &&
+            REACTION_AUDIO_FIELDS.includes(name)))
+      ) &&
       ![
         "model",
         "prompt",

@@ -87,6 +87,7 @@ export interface Project {
   imagePromptModel?: string;
   imageAspectRatio?: string;
   videoPrompt: string;
+  videoAudio?: "silent" | "ambient";
   videoFixedInstructions?: string;
   videoVariation?: number;
   videoCount: number;
@@ -160,6 +161,7 @@ export interface PromptPreset {
   variation?: number;
 }
 export interface PromptParts {
+  enforcedInstructions?: string;
   fixedInstructions: string;
   generatedDescription: string;
 }
