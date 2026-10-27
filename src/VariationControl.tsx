@@ -12,7 +12,7 @@ export default function VariationControl({
   return (
     <Field
       label="Variation"
-      hint="Controls how broadly the invented details differ. Every value still requires highly specific, detailed descriptions consistent with the fixed image instructions."
+      hint="Controls how broadly the invented details differ. Every value still requires highly specific, detailed descriptions consistent with the fixed instructions."
     >
       <div className="variation-control">
         <output htmlFor={id}>
