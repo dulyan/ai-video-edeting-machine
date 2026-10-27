@@ -546,7 +546,7 @@ test("reaction provider payload matches its preview and returned audio is remove
     assert.equal(
       get("jobs", job.id)?.status,
       "completed",
-      get("jobs", job.id)?.error,
+      get("jobs", job.id)?.error || "Expected completed reaction",
     );
     const asset = get("assets", job.id)!;
     assert.equal(sent.prompt, prompt);
