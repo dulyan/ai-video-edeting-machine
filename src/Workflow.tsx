@@ -427,8 +427,8 @@ export function Generation({
                 update({ videoAudio: e.target.value as "silent" | "ambient" })
               }
             >
-              <option value="silent">Silent ? no audio</option>
-              <option value="ambient">Ambient audio ? model generated</option>
+              <option value="silent">Silent (no audio)</option>
+              <option value="ambient">Ambient audio (model generated)</option>
             </select>
           </Field>
         )}
