@@ -4302,3 +4302,29 @@ progress {
 .asset-prompt-details {
   margin: 14px 0 20px;
 }
+
+.starting-frame-library {
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 20px;
+  min-width: 0;
+}
+.frame-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.starting-frame-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-height: 620px;
+  overflow-y: auto;
+}
+.starting-frame-grid .asset-card {
+  min-width: 0;
+}
+.starting-frame-grid .asset-visual {
+  aspect-ratio: 3 / 4;
+}

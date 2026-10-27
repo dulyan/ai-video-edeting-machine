@@ -385,7 +385,7 @@ app.post("/api/generate", async (req) => {
   const promptModelDefinition = catalog.find(
     (m) => m.id === promptModelId && m.kind === "text" && m.active !== false,
   );
-  if (!promptModelDefinition)
+  if (mode === "image" && !promptModelDefinition)
     throw new Error("Choose an available text model for unique prompts");
   const existing = all("jobs").some(
     (j) =>
@@ -400,6 +400,10 @@ app.post("/api/generate", async (req) => {
   const needsFrames =
     mode === "video" &&
     Object.keys(chosenModel.schema?.properties || {}).some(isAutoFrameField);
+  if (mode === "video" && !needsFrames)
+    throw new Error(
+      "Choose an image-to-video model that accepts a starting frame",
+    );
   const frameIds =
     p.frameSelectionExplicit || p.frameIds.length
       ? p.frameIds
@@ -451,7 +455,7 @@ app.post("/api/generate", async (req) => {
             variation: p.imageVariation ?? 50,
           }
         : {
-            promptFormat: "split-video-v1",
+            promptFormat: "direct-video-v1",
             fixedInstructions: p.videoFixedInstructions ?? "",
             variation: p.videoVariation ?? 50,
           }),

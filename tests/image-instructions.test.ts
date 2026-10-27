@@ -426,3 +426,37 @@ test("split video prompts keep frame context paired across out-of-order completi
   );
   globalThis.fetch = original;
 });
+
+test("direct reaction animation uses selected frames and exact guidance without calling a text model", async () => {
+  const job = addJob("direct-reactions", "prepare", "Prepare reactions", {
+    ...input(2),
+    mode: "video",
+    promptFormat: "direct-video-v1",
+    frameIds: ["frame-a", "frame-b"],
+    duration: 8,
+    prompt: "Silent delighted surprise. Small hand gestures.",
+  });
+  globalThis.fetch = async () => {
+    throw new Error("No text-model request allowed");
+  };
+  await prepareGeneration(job);
+  await prepareGeneration(get("jobs", job.id)!);
+  const children = all("jobs").filter(
+    (j) => j.batchId === job.batchId && j.kind === "video",
+  );
+  assert.equal(children.length, 4);
+  assert.deepEqual(
+    [...children]
+      .sort((a, b) => a.input.sequence - b.input.sequence)
+      .map((j) => j.input.sourceId),
+    ["frame-a", "frame-a", "frame-b", "frame-b"],
+  );
+  for (const child of children)
+    assert.equal(child.input.prompt, fixed + "\n\n" + job.input.prompt);
+  assert.equal(get("jobs", job.id)?.status, "completed");
+  assert.equal(
+    state().jobs.find((j) => j.id === job.id)?.fixedInstructions,
+    fixed,
+  );
+  globalThis.fetch = original;
+});

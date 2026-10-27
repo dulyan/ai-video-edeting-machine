@@ -9,6 +9,46 @@ const IMAGE_DESCRIPTION_SYSTEM =
 
 export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   const { mode, count, prompt, model, duration, frameIds } = job.input;
+  if (mode === "video" && job.input.promptFormat === "direct-video-v1") {
+    const promptParts = {
+      fixedInstructions: job.input.fixedInstructions ?? "",
+      generatedDescription: prompt,
+    };
+    const combined = assembleImagePrompt(promptParts);
+    frameIds.forEach((sourceId: string, frameIndex: number) => {
+      for (let variant = 0; variant < count; variant++) {
+        const sequence = frameIndex * count + variant + 1;
+        addJob(
+          job.projectId,
+          "video",
+          "Reaction " + sequence,
+          {
+            model,
+            modelDefinition: job.input.modelDefinition,
+            modelInputs: job.input.modelInputs,
+            prompt: combined,
+            promptParts,
+            sourceId,
+            duration,
+            sequence,
+            aspectRatio: job.input.aspectRatio,
+            seed: Math.floor(Math.random() * 2147483646),
+          },
+          job.batchId,
+          job.id + "-" + (sequence - 1),
+        );
+      }
+    });
+    patchJob(job.id, {
+      status: "completed",
+      progress: 100,
+      targetCount: frameIds.length * count,
+      prompts: Array(frameIds.length * count).fill(combined),
+      generatedDescriptions: Array(frameIds.length * count).fill(prompt),
+      promptFinishedAt: new Date().toISOString(),
+    });
+    return;
+  }
   const total = mode === "image" ? count : count * frameIds.length;
   const splitPrompt =
     (mode === "image" && job.input.promptFormat === "split-image-v1") ||

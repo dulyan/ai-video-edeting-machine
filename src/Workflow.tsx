@@ -99,8 +99,8 @@ export function Generation({
   mode,
 }: { mode: "image" | "video" } & Props) {
   const { models, setModels } = useModels(w.connected);
-  const [showSources, setShowSources] = useState(false),
-    [presetName, setPresetName] = useState("");
+  const [presetName, setPresetName] = useState("");
+  const [frameScope, setFrameScope] = useState("project");
   const image = mode === "image",
     assets = w.data.assets.filter(
       (a) => a.projectId === p.id && a.kind === (image ? "image" : "reaction"),
@@ -239,11 +239,11 @@ export function Generation({
           </Field>
         )}
         <Field
-          label="Text-model instructions"
+          label={image ? "Text-model instructions" : "Movement guidance"}
           hint={
             image
               ? "Tell the text model what to invent, how detailed it should be, and what should differ between outputs."
-              : "Tell the text model what movements, expressions, and timing to invent while preserving the starting frame."
+              : "Sent directly to the image-to-video model with each selected starting frame. Describe movements and expressions without redescribing the person."
           }
         >
           <textarea
@@ -261,16 +261,18 @@ export function Generation({
         </Field>
         {
           <>
-            <VariationControl
-              value={(image ? p.imageVariation : p.videoVariation) ?? 50}
-              onChange={(variation) =>
-                update(
-                  image
-                    ? { imageVariation: variation }
-                    : { videoVariation: variation },
-                )
-              }
-            />
+            {image && (
+              <VariationControl
+                value={(image ? p.imageVariation : p.videoVariation) ?? 50}
+                onChange={(variation) =>
+                  update(
+                    image
+                      ? { imageVariation: variation }
+                      : { videoVariation: variation },
+                  )
+                }
+              />
+            )}
             <Field
               label={
                 image ? "Fixed image instructions" : "Fixed video instructions"
@@ -295,8 +297,9 @@ export function Generation({
               />
             </Field>
             <p className="prompt-assembly-note">
-              The text model generates the unique description. The app combines
-              it with your fixed instructions without rewriting them.
+              {image
+                ? "The text model generates the unique description. The app combines it with your fixed instructions without rewriting them."
+                : "Each selected starting frame is animated directly by the image-to-video model. Fixed video instructions and movement guidance are sent together without a text-model pass."}
             </p>
             {(image ? p.imageFixedInstructions : p.videoFixedInstructions) ===
               undefined && (
@@ -340,24 +343,36 @@ export function Generation({
             Save preset
           </Button>
         </div>
-        <ModelPicker
-          label="Text model for unique prompts"
-          models={models.filter((m) => m.kind === "text")}
-          value={
-            (image ? p.imagePromptModel : p.videoPromptModel) ||
-            "openai/gpt-4.1-mini"
-          }
-          onChange={(id) =>
-            update(image ? { imagePromptModel: id } : { videoPromptModel: id })
-          }
-        />
+        {image && (
+          <ModelPicker
+            label="Text model for unique prompts"
+            models={models.filter((m) => m.kind === "text")}
+            value={
+              (image ? p.imagePromptModel : p.videoPromptModel) ||
+              "openai/gpt-4.1-mini"
+            }
+            onChange={(id) =>
+              update(
+                image ? { imagePromptModel: id } : { videoPromptModel: id },
+              )
+            }
+          />
+        )}
         <h3 className="generation-phase-heading">
           2. Generate {image ? "first frames" : "reaction clips"}
         </h3>
         <div className="form-columns">
           <ModelPicker
             label={image ? "Text-to-image model" : "Image-to-video model"}
-            models={models.filter(image ? isTextToImage : isImageToVideo)}
+            models={models.filter(
+              image
+                ? isTextToImage
+                : (m) =>
+                    isImageToVideo(m) &&
+                    Object.keys(m.schema?.properties || {}).some(
+                      isAutoFrameField,
+                    ),
+            )}
             value={image ? p.imageModel : p.videoModel}
             onChange={(id) => {
               const next = models.find((m) => m.id === id);
@@ -423,40 +438,89 @@ export function Generation({
             update(image ? { imageCount: value } : { videoCount: value })
           }
         />
-        {needsFrames && (
-          <button
-            className="source-summary"
-            onClick={() => setShowSources(!showSources)}
-          >
-            <ImageIcon size={17} />
-            <span>
-              <strong>{chosenFrames.length} first frames</strong> ×{" "}
-              {p.videoCount} variations = {amount} reaction clips
-            </span>
-            <SlidersHorizontal size={16} />
-          </button>
-        )}
-        {showSources && (
-          <div className="source-picker">
-            {frames.map((a) => (
-              <label key={a.id}>
-                <input
-                  type="checkbox"
-                  checked={chosenFrames.includes(a.id)}
-                  onChange={() =>
-                    update({
-                      frameIds: toggle(chosenFrames, a.id),
-                      frameSelectionExplicit: true,
-                    })
-                  }
-                />
-                {a.name}
-              </label>
-            ))}
-            {!frames.length && (
-              <small>Upload an image or generate first frames first.</small>
+        {!image && (
+          <section className="starting-frame-library">
+            <h3>
+              Choose starting frames{" "}
+              <span className="count-badge">
+                {chosenFrames.length} selected
+              </span>
+            </h3>
+            <p>
+              Each selected image becomes the starting frame of {p.videoCount}{" "}
+              reaction {p.videoCount === 1 ? "video" : "videos"}.
+            </p>
+            <Field label="Starting-frame library">
+              <select
+                value={frameScope}
+                onChange={(e) => setFrameScope(e.target.value)}
+              >
+                <option value="project">This project</option>
+                <option value="all">All projects</option>
+              </select>
+            </Field>
+            <div className="frame-selection-actions">
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  update({
+                    frameIds: [
+                      ...new Set([
+                        ...chosenFrames,
+                        ...frames
+                          .filter(
+                            (a) => frameScope === "all" || a.projectId === p.id,
+                          )
+                          .map((a) => a.id),
+                      ]),
+                    ],
+                    frameSelectionExplicit: true,
+                  })
+                }
+              >
+                Select all starting frames
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  update({ frameIds: [], frameSelectionExplicit: true })
+                }
+              >
+                Clear selection
+              </Button>
+            </div>
+            <div className="starting-frame-grid">
+              {frames
+                .filter((a) => frameScope === "all" || a.projectId === p.id)
+                .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                .map((a) => (
+                  <AssetCard
+                    key={a.id}
+                    asset={a}
+                    selected={chosenFrames.includes(a.id)}
+                    onSelect={() =>
+                      update({
+                        frameIds: toggle(chosenFrames, a.id),
+                        frameSelectionExplicit: true,
+                      })
+                    }
+                    onInspect={inspect}
+                  />
+                ))}
+            </div>
+            {!frames.some(
+              (a) => frameScope === "all" || a.projectId === p.id,
+            ) && (
+              <p>
+                No starting frames here yet. Generate them in First frames or
+                choose All projects.
+              </p>
             )}
-          </div>
+            <p className="source-summary">
+              {chosenFrames.length} selected starting frames ? {p.videoCount}{" "}
+              videos per frame = {amount} reaction clips
+            </p>
+          </section>
         )}
         <Button
           variant="primary"
@@ -1623,7 +1687,7 @@ export function Outline({ p, w, update, inspect }: Props) {
               }
             />
           </Field>
-          <Field label="Reaction text-model instructions">
+          <Field label="Reaction movement guidance">
             <textarea
               rows={3}
               value={p.videoPrompt}
@@ -1638,10 +1702,6 @@ export function Outline({ p, w, update, inspect }: Props) {
             onChange={(e) => update({ videoFixedInstructions: e.target.value })}
           />
         </Field>
-        <VariationControl
-          value={p.videoVariation ?? 50}
-          onChange={(videoVariation) => update({ videoVariation })}
-        />
         <VariationControl
           value={p.imageVariation ?? 50}
           onChange={(imageVariation) => update({ imageVariation })}

@@ -131,9 +131,11 @@ export function state(): AppState {
           : undefined),
       sequence: sequence(j),
       aspectRatio: j.input.aspectRatio,
-      fixedInstructions: ["split-image-v1", "split-video-v1"].includes(
-        j.input.promptFormat,
-      )
+      fixedInstructions: [
+        "split-image-v1",
+        "split-video-v1",
+        "direct-video-v1",
+      ].includes(j.input.promptFormat)
         ? (j.input.fixedInstructions ?? "")
         : undefined,
       promptParts: j.input.promptParts,
