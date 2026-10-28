@@ -1,6 +1,4 @@
-import FreezeLipsControls from "./FreezeLipsControls.tsx";
-import { supportsFreeze } from "../shared/freeze-lips.ts";
-import { reactionInstructions } from "../shared/reaction.ts";
+import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { useEffect, useState } from "react";
 import {
   Sparkles,
@@ -39,6 +37,8 @@ import {
   excludedCount,
   effectiveProject,
   IMAGE_PROMPT,
+  VIDEO_FIXED_INSTRUCTIONS,
+  reactionPromptSettings,
   IMAGE_FIXED_INSTRUCTIONS,
   VIDEO_PROMPT,
   SPANS,
@@ -103,6 +103,7 @@ export function Generation({
   const { models, setModels } = useModels(w.connected);
   const [presetName, setPresetName] = useState("");
   const [frameScope, setFrameScope] = useState("project");
+  const videoSettings = reactionPromptSettings(p);
   const image = mode === "image",
     assets = w.data.assets.filter(
       (a) => a.projectId === p.id && a.kind === (image ? "image" : "reaction"),
@@ -172,8 +173,8 @@ export function Generation({
                     }
                   : {
                       videoPrompt: VIDEO_PROMPT,
-                      videoFixedInstructions: "",
-                      videoVariation: 50,
+                      videoFixedInstructions: VIDEO_FIXED_INSTRUCTIONS,
+                      videoPromptMode: "randomized",
                     },
               )
             }
@@ -192,9 +193,9 @@ export function Generation({
                   : {
                       videoPrompt:
                         VIDEO_PROMPT +
-                        "\n\nBegin with curious disbelief and gradually transition to a delighted smile.",
-                      videoFixedInstructions: "",
-                      videoVariation: 50,
+                        "\n\nVary the timing: begin with curious disbelief before the chosen surprise gesture.",
+                      videoFixedInstructions: VIDEO_FIXED_INSTRUCTIONS,
+                      videoPromptMode: "randomized",
                     },
               )
             }
@@ -221,12 +222,10 @@ export function Generation({
                           imageVariation: preset.variation ?? 50,
                         }
                       : {
-                          videoPrompt: reactionInstructions(
-                            preset.prompt,
-                            preset.fixedInstructions,
-                          ),
-                          videoFixedInstructions: "",
-                          videoVariation: preset.variation ?? 50,
+                          videoPrompt: preset.prompt,
+                          videoFixedInstructions:
+                            preset.fixedInstructions ?? "",
+                          videoPromptMode: "randomized",
                         },
                   );
               }}
@@ -243,25 +242,21 @@ export function Generation({
           </Field>
         )}
         <Field
-          label={image ? "Text-model instructions" : "Video instructions"}
+          label="Text-model instructions"
           hint={
             image
               ? "Tell the text model what to invent, how detailed it should be, and what should differ between outputs."
-              : "Sent directly to the image-to-video model with each selected starting frame. Describe movements and expressions without redescribing the person."
+              : "Tell the text model which gestures, expressions, and optional short Russian phrases to invent for each video."
           }
         >
           <textarea
             className="prompt-input"
-            value={
-              image
-                ? p.imagePrompt
-                : reactionInstructions(p.videoPrompt, p.videoFixedInstructions)
-            }
+            value={image ? p.imagePrompt : videoSettings.videoPrompt}
             onChange={(e) =>
               update(
                 image
                   ? { imagePrompt: e.target.value }
-                  : { videoPrompt: e.target.value, videoFixedInstructions: "" },
+                  : { ...videoSettings, videoPrompt: e.target.value },
               )
             }
             rows={6}
@@ -300,10 +295,28 @@ export function Generation({
           </>
         )}
         {!image && (
-          <p className="prompt-assembly-note">
-            The same instructions are sent directly to the image-to-video model
-            for every selected starting frame. No unique prompt generation.
-          </p>
+          <>
+            <Field
+              label="Fixed video instructions"
+              hint="Copied verbatim into every final video prompt, including whitespace and line breaks."
+            >
+              <textarea
+                rows={7}
+                value={videoSettings.videoFixedInstructions}
+                onChange={(e) =>
+                  update({
+                    ...videoSettings,
+                    videoFixedInstructions: e.target.value,
+                  })
+                }
+              />
+            </Field>
+            <p className="prompt-assembly-note">
+              One unique reaction is generated per output, then randomly
+              assigned to a selected starting frame. The fixed instructions are
+              prepended unchanged.
+            </p>
+          </>
         )}
         <div className="save-prompt-row">
           <input
@@ -322,14 +335,11 @@ export function Generation({
                   id: crypto.randomUUID(),
                   name: presetName.trim(),
                   mode,
-                  prompt: image
-                    ? p.imagePrompt
-                    : reactionInstructions(
-                        p.videoPrompt,
-                        p.videoFixedInstructions,
-                      ),
+                  prompt: image ? p.imagePrompt : videoSettings.videoPrompt,
                   fixedInstructions:
-                    (image ? p.imageFixedInstructions : "") ?? "",
+                    (image
+                      ? p.imageFixedInstructions
+                      : videoSettings.videoFixedInstructions) ?? "",
                   variation:
                     (image ? p.imageVariation : p.videoVariation) ?? 50,
                 });
@@ -340,7 +350,7 @@ export function Generation({
             Save preset
           </Button>
         </div>
-        {image && (
+        {
           <ModelPicker
             label="Text model for unique prompts"
             models={models.filter((m) => m.kind === "text")}
@@ -354,7 +364,7 @@ export function Generation({
               )
             }
           />
-        )}
+        }
         <h3 className="generation-phase-heading">
           2. Generate {image ? "starting frames" : "reaction clips"}
         </h3>
@@ -372,37 +382,32 @@ export function Generation({
             )}
             value={image ? p.imageModel : p.videoModel}
             onChange={(id) => {
-              const next = models.find((m) => m.id === id);
               update(
                 image
                   ? { imageModel: id }
                   : {
                       videoModel: id,
-                      videoDuration: next?.durations?.includes(p.videoDuration)
-                        ? p.videoDuration
-                        : next?.durations?.[0] || 8,
+                      videoDuration: outputDuration(p.videoDuration),
                     },
               );
             }}
           />
-          {!image &&
-            (model?.schema?.properties?.duration ||
-              model?.schema?.properties?.seconds) && (
-              <Field label="Clip duration">
-                <select
-                  value={p.videoDuration}
-                  onChange={(e) =>
-                    update({ videoDuration: Number(e.target.value) })
-                  }
-                >
-                  {(model?.durations || [p.videoDuration]).map((n) => (
-                    <option key={n} value={n}>
-                      {n === -1 ? "Auto duration" : `${n} seconds`}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
+          {!image && (
+            <Field label="Clip duration">
+              <select
+                value={outputDuration(p.videoDuration)}
+                onChange={(e) =>
+                  update({ videoDuration: Number(e.target.value) })
+                }
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n} seconds
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
         </div>
         <RatioPicker
           model={model}
@@ -413,23 +418,24 @@ export function Generation({
             )
           }
         />
+        {!image &&
+          model &&
+          providerDuration(model, outputDuration(p.videoDuration)) >
+            outputDuration(p.videoDuration) && (
+            <p className="info-note">
+              This model generates{" "}
+              {providerDuration(model, outputDuration(p.videoDuration))}{" "}
+              seconds. The saved clip is trimmed to{" "}
+              {outputDuration(p.videoDuration)} seconds; provider billing uses
+              the generated duration.
+            </p>
+          )}
         {!image && (
-          <Field
-            label="Reaction audio"
-            hint="Silent removes all generated audio. Ambient requests room tone, but the model may still generate voices. Neither setting guarantees perfect mouth movements."
-          >
-            <select
-              value={p.videoAudio ?? "silent"}
-              onChange={(e) =>
-                update({ videoAudio: e.target.value as "silent" | "ambient" })
-              }
-            >
-              <option value="silent">Silent (no audio)</option>
-              <option value="ambient">Ambient audio (model generated)</option>
-            </select>
-          </Field>
+          <p className="muted-text">
+            Audio is enabled where supported. The generated reaction may include
+            a short Russian phrase or no speech.
+          </p>
         )}
-        {!image && <FreezeLipsControls model={model} p={p} update={update} />}
         <ModelOptions
           model={model}
           p={p}
@@ -522,13 +528,6 @@ export function Generation({
                   />
                 ))}
             </div>
-            {supportsFreeze(model) && (p.videoFreezeLips ?? true) && (
-              <p className="info-note">
-                {
-                  "\u{1F4A1} Tip: For best results, ensure the character's mouth is completely closed in the source image."
-                }
-              </p>
-            )}
             {!frames.some(
               (a) => frameScope === "all" || a.projectId === p.id,
             ) && (
@@ -1710,22 +1709,31 @@ export function Outline({ p, w, update, inspect }: Props) {
               }
             />
           </Field>
-          <Field label="Reaction video instructions">
+          <Field label="Reaction text-model instructions">
             <textarea
               rows={3}
-              value={reactionInstructions(
-                p.videoPrompt,
-                p.videoFixedInstructions,
-              )}
+              value={reactionPromptSettings(p).videoPrompt}
               onChange={(e) =>
                 update({
+                  ...reactionPromptSettings(p),
                   videoPrompt: e.target.value,
-                  videoFixedInstructions: "",
                 })
               }
             />
           </Field>
         </div>
+        <Field label="Fixed reaction video instructions">
+          <textarea
+            rows={3}
+            value={reactionPromptSettings(p).videoFixedInstructions}
+            onChange={(e) =>
+              update({
+                ...reactionPromptSettings(p),
+                videoFixedInstructions: e.target.value,
+              })
+            }
+          />
+        </Field>
         <VariationControl
           value={p.imageVariation ?? 50}
           onChange={(imageVariation) => update({ imageVariation })}

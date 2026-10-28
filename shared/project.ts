@@ -20,9 +20,20 @@ export const IMAGE_PROMPT =
 export const IMAGE_FIXED_INSTRUCTIONS =
   "Create one realistic starting frame for a casual UGC smartphone selfie video. Use the accompanying generated description for the specific person, clothing, home, season, expression, emotional intent, posture, and action.\n\nShow one fictional Russian adult of Slavic heritage, aged 23-32, who is handsome or beautiful, athletic, fit, stylish, well groomed, and affluent. They are inside their own stylish, lived-in home, preparing to leave for the gym. Keep their appearance and surroundings natural and physically believable.\n\nMANDATORY EXPRESSION: The person is happy, pleasantly surprised, and visibly excited to share something interesting with the viewer, while maintaining a gentle CLOSED-LIP smile. The mouth is completely shut. Upper and lower lips gently touch along their full meeting line, with no opening, gap, or visible teeth. Lips must look relaxed and natural, not strained or pursed. No parted lips, open-mouth surprise, gasping, laughing, speaking, or speech-shaped mouth.\n\nExpress surprise and anticipation through engaged eyes, naturally raised eyebrows, subtle cheek expression, head angle, posture, and plausible gestures. Maintain warm direct engagement with the phone lens. Let the generated description vary these details while preserving the mandatory expression and closed mouth.\n\nUse a front-facing smartphone selfie viewpoint near eye level, at normal conversational distance. Frame the head to upper chest with casual headroom. Any visible hand gesture or action must fit this framing and be compatible with holding the phone outside the frame. No visible phone or camera, extra hands, impossible anatomy, collage, or multiple moments.\n\nKeep the gym-preparation context, stylish clothing, home details, season, and lighting coherent. Use plausible window light or household fixtures, natural skin texture, mild phone compression, subtle noise, softened fine detail, and slightly imperfect exposure.\n\nNo glamour retouching, studio lighting, cinematic grading, dramatic bokeh, artificial HDR, excessive sharpening, captions, text, watermarks, social-media interfaces, borders, readable labels, or prominent logos. Follow the app's selected aspect ratio.";
 export const VIDEO_PROMPT =
-  "Animate the supplied starting frame into one continuous, unedited, self-recorded smartphone video at real-time speed.\n\nChoose one specific, realistic sequence of character actions that suits the existing setting, posture, and character. Show delighted surprise, curious disbelief, and a warm excited smile, as if the person has just discovered something interesting. Convey eagerness entirely through nonverbal reactions.\n\nUse a natural progression of subtle facial expressions, eyebrow movements, head movements, eye contact, and optional hand gestures within the selected clip duration. Keep gestures physically plausible and compatible with holding a phone for a selfie recording.\n\nThe person must not speak, whisper, narrate, mouth words, or lip-sync. Do not simulate a conversation or form syllables. Keep the lips gently together or in a small relaxed smile. Avoid repeated jaw opening, talking-like mouth movements, laughter, gasps, and other vocalizations. Express surprise through the eyes, eyebrows, smile, head, and hands instead of speech.\n\nPreserve the starting frame's identity, appearance, clothing, environment, and lighting. Do not redesign the person or scene. No exaggerated acting, repetitive movements, or abrupt gestures.\n\nKeep a believable handheld selfie perspective. No visible camera, crew reflections, cuts, transitions, face melting, background warping, sudden lighting changes, or flickering teeth, jewelry, clothing patterns, or hair texture. Raw, natural smartphone footage with no captions, watermarks, or cinematic effects.\n\nApply these instructions directly to the animation. Do not return a written description or generate a separate prompt. Use this same guidance for every selected starting frame.";
+  "Invent one fresh, specific reaction lasting no more than five seconds. Describe only character actions, facial expression, emotional intent, timing, and optional spoken words. Preserve the supplied starting frame identity, clothing, environment, and camera viewpoint without redescribing them.\n\nThe person reacts with excitement and surprise as if they have just read an interesting caption at the center of the screen. They must use their FREE HAND for one clear gesture: point their index finger toward the center of the video, reach to the back of their head, sweep an open hand across the center of the frame, bring a hand to their face in shock, or another realistic gesture that unmistakably signals excitement and surprise. Invent variations in gesture direction, timing, head movement, gaze, and facial expression. Keep the other hand consistent with holding the phone outside the frame. Do not generate captions or text; these will be added later.\n\nRandomly choose either a short spoken Russian reaction or an expressive reaction without speech. Spoken reactions must be ONLY in Russian and contain ONE TO THREE WORDS TOTAL for the entire video. Examples: «Вот это да», «Ух ты», «Ничего себе». Invent other natural one-to-three-word Russian expressions of excitement or surprise. No extra dialogue, narration, second utterance, or non-Russian speech. Allow natural synchronized lip movements when speaking. For a reaction without speech, the person may open their mouth and raise their eyebrows in excitement.\n\nKeep one coherent, plausible gesture and optional brief utterance within the clip duration. Avoid complicated action sequences, impossible hand positions, obstructing the face for the whole clip, or changing the scene. Make each generated reaction different.\n\nFollow the Fixed video instructions without repeating or rewriting them. Return only the unique motion and speech instructions. End with exactly one speech declaration: Speech: «the Russian phrase» or Speech: none. Do not leave choices, alternatives, or placeholders in the result.";
 export const VIDEO_FIXED_INSTRUCTIONS =
-  "Animate the provided starting frame into one continuous, unedited, self-recorded smartphone video, vertical 9:16, at real-time speed. Preserve the person's identity, appearance, clothing, setting, and lighting from the starting frame. The person remains silent while showing natural, happy surprise without speaking or mouthing words. Keep the mouth relaxed; no syllabic lip or jaw movements. No spoken words, lip-sync, narration, music, or added sound effects. Use only subtle location-appropriate ambient sound, with the character of an iPhone default microphone recording in this exact location at this exact distance. No description or redesign of the person or people, no visible camera, no crew reflections, no cuts or transitions. No flicker in teeth, jewelry, clothing patterns, or hair texture; no face melting, background warping, or sudden lighting changes. Raw, unedited smartphone footage as it would look uploaded straight to TikTok.";
+  "Animate the provided starting frame into one continuous, unedited, self recorded smartphone video, vertical 9:16, real time speed, of the person in the frame naturally acting surprised. No description of the person or people, no visible camera, no crew reflections. No flicker in teeth, jewelry, clothing patterns, or hair texture. No face melting, no background warping, no sudden lighting changes. Make the sound as if it was recorded on iPhone default microphone in this exact location at this exact distance to the phone. Raw unedited smartphone footage as it would look uploaded straight to TikTok.";
+export function reactionPromptSettings(p: Project) {
+  return {
+    videoPromptMode: "randomized" as const,
+    videoPrompt:
+      p.videoPromptMode === "randomized" ? p.videoPrompt : VIDEO_PROMPT,
+    videoFixedInstructions:
+      p.videoPromptMode === "randomized"
+        ? (p.videoFixedInstructions ?? "")
+        : VIDEO_FIXED_INSTRUCTIONS,
+  };
+}
 export function newProject(): Project {
   const now = new Date().toISOString();
   return {
@@ -40,16 +51,16 @@ export function newProject(): Project {
     imagePromptModel: "openai/gpt-4.1-mini",
     imageAspectRatio: "9:16",
     videoPrompt: VIDEO_PROMPT,
-    videoAudio: "silent",
-    videoFreezeLips: true,
-    videoMatchEndFrame: true,
-    videoFixedInstructions: "",
-    videoVariation: 50,
+    videoPromptMode: "randomized",
+    videoAudio: "generated",
+    videoFreezeLips: false,
+    videoMatchEndFrame: false,
+    videoFixedInstructions: VIDEO_FIXED_INSTRUCTIONS,
     videoCount: 1,
     videoModel: "bytedance/seedance-1.5-pro-i2v",
     videoPromptModel: "openai/gpt-4.1-mini",
     videoAspectRatio: "9:16",
-    videoDuration: 8,
+    videoDuration: 5,
     frameIds: [],
     reactionIds: [],
     demoIds: [],

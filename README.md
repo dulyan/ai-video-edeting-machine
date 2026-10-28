@@ -111,16 +111,14 @@ Tests cover the four-dimensional Cartesian product, skipped dimensions, random-t
 
 React/Vite frontend · Fastify API · SQLite durable queue · private S3-compatible or disk media storage · Siray text/image/video adapters · FFmpeg compositor. No credentials, project data, or generated media are committed to Git.
 
-Reaction videos animate selected starting frames directly with the image-to-video model, using unchanged fixed video instructions plus movement guidance. There is no text-model pass. The visible thumbnail library supports current-project/all-project scopes, individual selection, select all, and clear selection. Videos per frame determines the output count. Existing jobs retain their original snapshots. Audio instructions depend on the selected video model supporting audio generation.
-
-Silent reaction mode is the default for new generation requests, including existing projects without an audio preference. It adds visible nonverbal performance constraints, disables documented audio toggles where supported, and strips any provider audio before saving the clip. Ambient mode retains model-generated sound and cannot guarantee absence of voices. Existing completed clips and job snapshots are not rewritten.
-
-Reaction videos use one shared Video instructions field. Legacy project/preset fixed and movement fields are combined in their original order so no instructions disappear; editing saves the combined value in the single field. Every selected frame uses the same shared prompt, plus the visible reaction requirements. No text-model pass is performed.
 
 
 
-Freeze Lips / No Talking applies only to google/google-omni-1.1-flash-i2v and alibaba/wan-3.0-i2v, defaults on, and snapshots its model-specific prompt rules per batch. Negative prompts and CFG=4 are sent only when supported by that model schema; otherwise avoidance terms stay in the positive prompt and the UI explains unsupported controls. Wan end_image defaults to the same per-job source image; Google currently exposes no end-frame field. Wan prompt expansion is disabled while freeze is enabled. Silent audio also disables Wan audio_enable. This app uses Siray REST requests through generationPayload, not client.run().
+
+
 
 Reference-pose generation has been removed from the current Starting frames workflow. New split-image-v2 batches do not send or save reference lists, even if an older project or preset contains one. The text-model and fixed-image defaults now describe randomly invented expressions, emotional intent, posture, and actions, while requiring a happy, pleasantly surprised, excited expression and a gentle closed-lip smile. Pre-removal batches alone retain their snapshotted reference behavior for safe resumption.
 
 Workspace sessions persist across backend restarts for their existing seven-day lifetime. Only token hashes are stored in the private SQLite auth_sessions table; changing the workspace password or encryption key invalidates them, and logout revokes them immediately. After upgrading from in-memory sessions, existing browser tokens require one sign-in.
+
+Reaction videos use split-video-v2: a selectable text model generates one unique action/optional Russian utterance per output. Fixed video instructions are preserved verbatim. Descriptions are randomly assigned to source frames with the requested count per frame; assignments and partial prompts survive retries. Speech declarations allow only Russian and at most three words. Native audio is enabled where supported; no application silence, freeze-lips, CFG override, or automatic matching end frame is applied. Outputs are capped at five seconds; models with longer minimum generations are supported by trimming, with a visible billing-duration note. Pre-change projects display the new randomized defaults until edited; old jobs keep their snapshots.

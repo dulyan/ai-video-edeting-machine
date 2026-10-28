@@ -89,7 +89,8 @@ export interface Project {
   imagePromptModel?: string;
   imageAspectRatio?: string;
   videoPrompt: string;
-  videoAudio?: "silent" | "ambient";
+  videoPromptMode?: "randomized";
+  videoAudio?: "silent" | "ambient" | "generated";
   videoFreezeLips?: boolean;
   videoMatchEndFrame?: boolean;
   videoFixedInstructions?: string;

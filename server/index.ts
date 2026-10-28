@@ -1,11 +1,8 @@
+import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
+import { reactionPromptSettings } from "../shared/project.ts";
 import { createSession, validSession, revokeSession } from "./sessions.ts";
-import {
-  freezeInputs,
-  supportsFreeze,
-  endFrameField,
-} from "../shared/freeze-lips.ts";
 import { referencePosesSchema } from "../shared/schema.ts";
-import { reactionInputs, reactionInstructions } from "../shared/reaction.ts";
+import { reactionInputs } from "../shared/reaction.ts";
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
@@ -374,9 +371,7 @@ app.post("/api/generate", async (req) => {
   }
   const count = mode === "image" ? p.imageCount : p.videoCount,
     prompt =
-      mode === "image"
-        ? p.imagePrompt
-        : reactionInstructions(p.videoPrompt, p.videoFixedInstructions),
+      mode === "image" ? p.imagePrompt : reactionPromptSettings(p).videoPrompt,
     model = mode === "image" ? p.imageModel : p.videoModel;
   if (!prompt.trim()) throw new Error("Enter a prompt first");
   const catalog = await getCatalog();
@@ -393,7 +388,7 @@ app.post("/api/generate", async (req) => {
   const promptModelDefinition = catalog.find(
     (m) => m.id === promptModelId && m.kind === "text" && m.active !== false,
   );
-  if (mode === "image" && !promptModelDefinition)
+  if (!promptModelDefinition)
     throw new Error("Choose an available text model for unique prompts");
   const existing = all("jobs").some(
     (j) =>
@@ -433,29 +428,17 @@ app.post("/api/generate", async (req) => {
     p.modelInputs?.[model] || {},
   );
   if (mode === "video")
-    inputs = reactionInputs(chosenModel, inputs, p.videoAudio ?? "silent");
-  if (mode === "video")
-    inputs = freezeInputs(
-      chosenModel,
-      inputs,
-      p.videoFreezeLips ?? true,
-      p.videoMatchEndFrame ?? true,
-    );
+    inputs = reactionInputs(chosenModel, inputs, "generated");
+  const limit = outputDuration(p.videoDuration);
+  const nativeDuration =
+    mode === "video" ? providerDuration(chosenModel, limit) : undefined;
   modelPayload(
     chosenModel,
     prompt,
     1,
-    mode === "video" ? p.videoDuration : undefined,
+    nativeDuration,
     needsFrames ? "first-frame" : undefined,
-    mode === "video"
-      ? freezeInputs(
-          chosenModel,
-          inputs,
-          p.videoFreezeLips ?? true,
-          p.videoMatchEndFrame ?? true,
-          "first-frame",
-        )
-      : inputs,
+    inputs,
   );
   return addJob(
     p.id,
@@ -466,7 +449,8 @@ app.post("/api/generate", async (req) => {
       count,
       prompt,
       model,
-      duration: p.videoDuration,
+      duration: nativeDuration,
+      ...(mode === "video" ? { outputDuration: limit } : {}),
       frameIds: needsFrames ? frameIds : [null],
       modelInputs: inputs,
       modelDefinition: chosenModel,
@@ -480,16 +464,11 @@ app.post("/api/generate", async (req) => {
             variation: p.imageVariation ?? 50,
           }
         : {
-            promptFormat: "direct-video-v1",
-            reactionAudio: p.videoAudio ?? "silent",
-            freezeLips:
-              supportsFreeze(chosenModel) && (p.videoFreezeLips ?? true),
-            matchEndFrame:
-              supportsFreeze(chosenModel) &&
-              !!endFrameField(chosenModel) &&
-              (p.videoMatchEndFrame ?? true),
-            fixedInstructions: "",
-            variation: p.videoVariation ?? 50,
+            promptFormat: "split-video-v2",
+            reactionAudio: "generated",
+            freezeLips: false,
+            matchEndFrame: false,
+            fixedInstructions: reactionPromptSettings(p).videoFixedInstructions,
           }),
     },
   );

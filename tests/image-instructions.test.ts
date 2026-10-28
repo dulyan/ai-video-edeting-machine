@@ -709,3 +709,126 @@ test("pre-removal reference-pose batches retain their original snapshots when re
     globalThis.fetch = original;
   }
 });
+
+test("randomized reaction pipeline preserves speech audio, fixed prompts, and the five-second output cap", async () => {
+  const { reactionInputs } = await import("../shared/reaction.ts");
+  const { probe } = await import("../server/render.ts");
+  const model = MODELS.find((m) => m.id === "alibaba/wan-3.0-i2v")!;
+  const fixture = path.join(mediaDir, "long-speaking-reaction.mp4");
+  await run(ffmpeg, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=blue:s=96x160:r=24:d=6",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:duration=6",
+    "-c:v",
+    "libx264",
+    "-c:a",
+    "aac",
+    "-shortest",
+    fixture,
+  ]);
+  const bytes = await readFile(fixture);
+  const sent: any[] = [];
+  let n = 0;
+  const job = addJob("spoken-pipeline", "prepare", "Random reactions", {
+    mode: "video",
+    promptFormat: "split-video-v2",
+    prompt: "Invent a free-hand gesture and a short Russian reaction.",
+    fixedInstructions: fixed,
+    model: model.id,
+    modelDefinition: model,
+    modelInputs: reactionInputs(
+      model,
+      { size: "720p", aspect_ratio: "9:16", audio_enable: false },
+      "generated",
+    ),
+    promptModel: textModel.id,
+    promptModelDefinition: textModel,
+    frameIds: ["freeze-source-red", "freeze-source-green"],
+    count: 1,
+    duration: 8,
+    outputDuration: 5,
+  });
+  const download = mock.method(https, "request", ((
+    _u: unknown,
+    _o: unknown,
+    cb: any,
+  ) => {
+    const req: any = new EventEmitter();
+    req.setTimeout = () => req;
+    req.end = () => {
+      const res: any = new PassThrough();
+      res.statusCode = 200;
+      res.headers = { "content-type": "video/mp4" };
+      cb(res);
+      res.end(bytes);
+    };
+    return req;
+  }) as any);
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes("/chat/completions"))
+      return Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                prompt:
+                  "Gesture " +
+                  n++ +
+                  ": points at the center and speaks. Speech: \u00ab\u0412\u043e\u0442 \u044d\u0442\u043e \u0434\u0430\u00bb",
+              }),
+            },
+          },
+        ],
+      });
+    if (options?.method === "POST") {
+      sent.push(JSON.parse(String(options.body)));
+      return Response.json({ task_id: "spoken-" + sent.length });
+    }
+    return Response.json({
+      status: "SUCCESS",
+      outputs: ["https://8.8.8.8/spoken.mp4"],
+    });
+  };
+  try {
+    await processJob(job);
+    assert.equal(get("jobs", job.id)?.status, "completed");
+    const children = all("jobs").filter(
+      (j) => j.batchId === job.batchId && j.kind === "video",
+    );
+    assert.equal(children.length, 2);
+    for (const child of children) {
+      await processJob(child);
+      assert.equal(
+        get("jobs", child.id)?.status,
+        "completed",
+        get("jobs", child.id)?.error || "Expected completion",
+      );
+      const payload = sent[sent.length - 1];
+      assert.equal(payload.audio_enable, true);
+      assert.equal(payload.end_image, undefined);
+      assert.equal(payload.negative_prompt, undefined);
+      assert.equal(
+        payload.prompt,
+        assembleImagePrompt(child.input.promptParts),
+      );
+      assert.equal(child.input.promptParts.enforcedInstructions, undefined);
+      const asset = get("assets", child.id)!;
+      const info = await probe(path.join(mediaDir, asset.key));
+      assert.equal(info.hasAudio, true);
+      assert(info.duration <= 5);
+      assert.equal(asset.prompt, payload.prompt);
+      assert.equal(asset.promptParts?.fixedInstructions, fixed);
+    }
+  } finally {
+    download.mock.restore();
+    globalThis.fetch = original;
+  }
+});

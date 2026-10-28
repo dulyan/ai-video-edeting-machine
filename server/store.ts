@@ -135,6 +135,7 @@ export function state(): AppState {
         "split-image-v1",
         "split-image-v2",
         "split-video-v1",
+        "split-video-v2",
         "direct-video-v1",
       ].includes(j.input.promptFormat)
         ? (j.input.fixedInstructions ?? "")

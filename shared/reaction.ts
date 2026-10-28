@@ -17,13 +17,17 @@ export function reactionConstraints(audio: "silent" | "ambient" = "silent") {
 export function reactionInputs(
   model: Model,
   inputs: Record<string, unknown>,
-  audio: "silent" | "ambient" = "silent",
+  audio: "silent" | "ambient" | "generated" = "silent",
 ) {
   const result = { ...inputs };
   const fields = model.schema?.properties || {};
   if (audio === "silent")
     for (const name of REACTION_AUDIO_FIELDS) {
       if (fields[name]?.type === "boolean") result[name] = false;
+    }
+  if (audio === "generated")
+    for (const name of REACTION_AUDIO_FIELDS) {
+      if (fields[name]?.type === "boolean") result[name] = true;
     }
   if (fields.task_type?.enum?.includes("image_to_video"))
     result.task_type = "image_to_video";

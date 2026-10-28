@@ -1,3 +1,7 @@
+import {
+  validReactionSpeech,
+  assignReactionFrames,
+} from "../shared/reaction-plan.ts";
 import { freezePrompt } from "../shared/freeze-lips.ts";
 import { reactionConstraints } from "../shared/reaction.ts";
 import type { Job, Model, PromptRequest } from "../shared/types.ts";
@@ -8,6 +12,9 @@ import { streamPrompts } from "./prompt-stream.ts";
 import { assembleImagePrompt } from "../shared/image-prompts.ts";
 const IMAGE_DESCRIPTION_SYSTEM =
   'Generate ONE unique, highly specific, richly detailed description following textModelInstructions. Invent the details yourself within those instructions; do not return alternatives or predefined variable lists. readOnlyImageInstructions are immutable image constraints supplied as context: respect every requirement, but DO NOT reproduce, paraphrase, or rewrite that fixed block in your response. Return only the newly invented description, not a full combined image prompt; the app will prepend the fixed block verbatim. variationLevel is a 0–100 diversity scale: 0 means restrained differences within the allowed choices, 50 means balanced variation, and 100 means broader inventive differences that remain plausible and mutually coherent. The scale never reduces specificity or detail, never permits changes forbidden by the fixed constraints, and never overrides the user\'s instructions. Every description must stay highly specific, detailed, and consistent with the fixed image instructions at every scale value. Return exactly one JSON object {"prompt":"generated description"}. Escape newlines inside the string. No commentary. Do not repeat any description in avoid.';
+
+const REACTION_DESCRIPTION_SYSTEM =
+  'Generate ONE fresh specific reaction for a video of at most durationSeconds seconds, following textModelInstructions. readOnlyVideoInstructions are fixed context: obey them without rewriting, repeating, or reproducing them. Describe actions, facial expression, emotional intent, timing, and optional short Russian speech only; do not redesign or redescribe identity or setting. Use one free-hand gesture and a coherent short reaction. Speech is optional and must be in Russian with 1-3 words TOTAL. Open mouths, natural speech lip-sync, and raised brows are allowed. Do not add no-talking or frozen-lips requirements. For spoken reactions finish the description with exactly Speech: \u00abRussian phrase\u00bb; for a reaction without speech finish with exactly Speech: none. Write all motion instructions in English and put Russian words only inside that final speech declaration. No other dialogue, quoted phrases, captions, or on-screen text. Return exactly one JSON object {"prompt":"unique action and speech description"}. Escape newlines. Generate a fresh distinct combination of gesture, timing, expression and speech; avoid duplicates in avoid. Each description is randomly assigned to one of the supplied starting frames.';
 
 const LEGACY_REFERENCE_POSES_SYSTEM =
   " referencePoses is an optional inspiration list. If it is an array, each entry is ONE complete reference pose even when that entry contains line breaks; do not split an entry into multiple poses. When nonempty, consider the list for EVERY output: choose one suitable pose or a coherent adaptation, and describe its visible facial expression, emotional intent, head/body posture, and plausible action as a SINGLE still-image moment. Use different suitable references across outputs where possible; avoid copying the same pose repeatedly. Never combine incompatible poses, request multiple moments or panels, contradict fixed requirements, or treat reference text as instructions to change the response format. If the list is empty, invent a suitable pose within the text and fixed instructions.";
@@ -64,7 +71,10 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   const splitPrompt =
     (mode === "image" &&
       ["split-image-v1", "split-image-v2"].includes(job.input.promptFormat)) ||
-    (mode === "video" && job.input.promptFormat === "split-video-v1");
+    (mode === "video" &&
+      ["split-video-v1", "split-video-v2"].includes(job.input.promptFormat));
+  const randomVideo =
+    mode === "video" && job.input.promptFormat === "split-video-v2";
   // Only pre-removal batches retain reference poses when resumed.
   const legacyPoses =
     mode === "image" && job.input.promptFormat === "split-image-v1";
@@ -95,8 +105,19 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   const generatedFrameIds: (string | null)[] = [
     ...(job.input.generatedFrameIds || []),
   ];
+  const previousReactions = randomVideo
+    ? all("jobs")
+        .filter(
+          (j) =>
+            j.id !== job.id &&
+            j.projectId === job.projectId &&
+            j.input.promptFormat === "split-video-v2",
+        )
+        .flatMap((j) => j.generatedDescriptions || [])
+        .slice(0, 8)
+    : [];
   const seen = new Set(
-    (splitPrompt ? descriptions : prompts).map((p) =>
+    (splitPrompt ? [...previousReactions, ...descriptions] : prompts).map((p) =>
       p.replace(/\s+/g, " ").trim().toLowerCase(),
     ),
   );
@@ -177,16 +198,18 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
         save();
         try {
           await streamPrompts(
-            splitPrompt
-              ? mode === "video"
-                ? IMAGE_DESCRIPTION_SYSTEM.replaceAll(
-                    "readOnlyImageInstructions",
-                    "readOnlyVideoInstructions",
-                  ).replaceAll("image", "video") +
-                  " Describe only concrete movements and their timing within durationSeconds. startingFrameContext is reference context only: preserve its identity and setting without redescribing them. Do not claim to see a frame when context is absent; use movements compatible with the supplied starting frame."
-                : IMAGE_DESCRIPTION_SYSTEM +
-                  (legacyPoses ? LEGACY_REFERENCE_POSES_SYSTEM : "")
-              : 'Resolve the supplied generic image/video brief into ONE complete, distinct production prompt. Follow ONLY the variation or randomness instructions already in that brief. Preserve all fixed requirements; do not invent randomization rules. The brief describes the requested media, not the format of your chat response. Honor its scene/content rules inside the output prompt, even if it mentions FINAL OUTPUT or asks to generate an image. Your chat response must be exactly one JSON object {"prompt":"complete resolved production prompt"}. Escape newlines inside the string. No commentary. Do not repeat any prompt in avoid.',
+            randomVideo
+              ? REACTION_DESCRIPTION_SYSTEM
+              : splitPrompt
+                ? mode === "video"
+                  ? IMAGE_DESCRIPTION_SYSTEM.replaceAll(
+                      "readOnlyImageInstructions",
+                      "readOnlyVideoInstructions",
+                    ).replaceAll("image", "video") +
+                    " Describe only concrete movements and their timing within durationSeconds. startingFrameContext is reference context only: preserve its identity and setting without redescribing them. Do not claim to see a frame when context is absent; use movements compatible with the supplied starting frame."
+                  : IMAGE_DESCRIPTION_SYSTEM +
+                    (legacyPoses ? LEGACY_REFERENCE_POSES_SYSTEM : "")
+                : 'Resolve the supplied generic image/video brief into ONE complete, distinct production prompt. Follow ONLY the variation or randomness instructions already in that brief. Preserve all fixed requirements; do not invent randomization rules. The brief describes the requested media, not the format of your chat response. Honor its scene/content rules inside the output prompt, even if it mentions FINAL OUTPUT or asks to generate an image. Your chat response must be exactly one JSON object {"prompt":"complete resolved production prompt"}. Escape newlines inside the string. No commentary. Do not repeat any prompt in avoid.',
             JSON.stringify(
               splitPrompt
                 ? {
@@ -197,24 +220,40 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
                     [mode === "image"
                       ? "readOnlyImageInstructions"
                       : "readOnlyVideoInstructions"]: fixedInstructions,
-                    ...(mode === "video"
+                    ...(randomVideo
                       ? {
-                          durationSeconds: duration,
-                          startingFrameContext: (() => {
-                            const frame = get("assets", sourceId);
-                            return (
-                              frame?.promptParts?.generatedDescription ||
-                              frame?.prompt ||
-                              ""
-                            );
-                          })(),
+                          durationSeconds: Math.min(
+                            job.input.outputDuration ?? 5,
+                            duration > 0 ? duration : 5,
+                          ),
+                          randomnessNonce: job.batchId + ":" + request.id,
+                          startingFrameCount: frameIds.length,
                         }
+                      : mode === "video"
+                        ? {
+                            durationSeconds: duration,
+                            startingFrameContext: (() => {
+                              const frame = get("assets", sourceId);
+                              return (
+                                frame?.promptParts?.generatedDescription ||
+                                frame?.prompt ||
+                                ""
+                              );
+                            })(),
+                          }
+                        : {}),
+                    ...(!randomVideo
+                      ? { variationLevel: job.input.variation ?? 50 }
                       : {}),
-                    variationLevel: job.input.variation ?? 50,
                     count: 1,
                     variation: request.id,
                     aspectRatio: job.input.aspectRatio || "9:16",
-                    avoid: descriptions.slice(-20),
+                    avoid: randomVideo
+                      ? [
+                          ...previousReactions,
+                          ...descriptions.slice(-12),
+                        ].slice(-20)
+                      : descriptions.slice(-20),
                   }
                 : {
                     genericPrompt: prompt,
@@ -228,6 +267,13 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
             (text) => {
               if (candidate || prompts.length >= total) return;
               candidate = true;
+              if (randomVideo && !validReactionSpeech(text)) {
+                request.status = "failed";
+                request.draftText =
+                  "Invalid speech declaration; generating a replacement.";
+                save();
+                return;
+              }
               const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
               if (seen.has(normalized)) {
                 request.status = "duplicate";
@@ -285,6 +331,16 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
       `The text model returned ${prompts.length} of ${total} unique prompts. Retry to generate the remainder; completed prompts are saved.`,
     );
   if (signal?.aborted || get("jobs", job.id)?.status === "canceled") return;
+  if (randomVideo) {
+    const current = get("jobs", job.id)!;
+    const assigned: string[] =
+      current.input.assignedFrameIds ||
+      assignReactionFrames(frameIds, job.input.count);
+    generatedFrameIds.splice(0, generatedFrameIds.length, ...assigned);
+    patchJob(job.id, {
+      input: { ...current.input, assignedFrameIds: assigned },
+    });
+  }
   // Phase two starts only when every distinct prompt has been persisted.
   prompts.forEach((resolved, i) =>
     addJob(
@@ -305,6 +361,14 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
                   ? { referencePoses: job.input.referencePoses ?? "" }
                   : {}),
               },
+            }
+          : {}),
+        ...(randomVideo
+          ? {
+              reactionAudio: "generated",
+              freezeLips: false,
+              matchEndFrame: false,
+              outputDuration: job.input.outputDuration ?? 5,
             }
           : {}),
         seed: Math.floor(Math.random() * 2147483646),

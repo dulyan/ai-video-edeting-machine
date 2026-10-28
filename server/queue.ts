@@ -1,3 +1,4 @@
+import { limitReactionDuration } from "./reaction-duration.ts";
 import { freezeInputs } from "../shared/freeze-lips.ts";
 import { removeReactionAudio } from "./reaction-audio.ts";
 import path from "node:path";
@@ -148,6 +149,15 @@ export async function processJob(job: Job) {
               ...(await removeReactionAudio(file, controller.signal)),
             };
           }
+          if (job.kind === "video" && job.input.outputDuration)
+            copied = {
+              ...copied,
+              ...(await limitReactionDuration(
+                file,
+                job.input.outputDuration,
+                controller.signal,
+              )),
+            };
           const metadata = await probe(file);
           const asset: Asset = {
             id,
