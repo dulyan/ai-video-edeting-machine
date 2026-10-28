@@ -109,11 +109,18 @@ export function useWorkspace() {
         }
         await sync();
       })
-      .catch(() => {});
+      .catch((e) => {
+        if (alive)
+          notify(
+            /Sign in/.test(e.message)
+              ? "Your workspace sign-in expired. Open Settings and reconnect."
+              : "Could not connect to the backend. Check the connection in Settings.",
+          );
+      });
     return () => {
       alive = false;
     };
-  }, [sync]);
+  }, [sync, notify]);
   useEffect(() => {
     if (!connected) return;
     const controller = new AbortController();
@@ -124,6 +131,9 @@ export function useWorkspace() {
         } catch (e) {
           if (controller.signal.aborted) return;
           if (/Sign in/.test((e as Error).message)) {
+            notify(
+              "Your workspace sign-in expired. Open Settings and reconnect.",
+            );
             setConnected(false);
             return;
           }
@@ -144,7 +154,7 @@ export function useWorkspace() {
       }
     })();
     return () => controller.abort();
-  }, [connected, refresh, acceptState]);
+  }, [connected, refresh, acceptState, notify]);
   function updateProject(id: string, patch: Partial<Project>) {
     setData((prev) => ({
       ...prev,

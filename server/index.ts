@@ -1,3 +1,4 @@
+import { createSession, validSession, revokeSession } from "./sessions.ts";
 import {
   freezeInputs,
   supportsFreeze,
@@ -11,7 +12,7 @@ import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import staticFiles from "@fastify/static";
-import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createWriteStream, createReadStream } from "node:fs";
 import { stat, unlink, open } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
@@ -77,7 +78,6 @@ await app.register(multipart, {
 });
 await app.register(rateLimit, { max: 500, timeWindow: "1 minute" });
 await app.register(staticFiles, { root: mediaDir, serve: false });
-const sessions = new Map<string, number>();
 app.addHook("onRequest", async (req, reply) => {
   // Support already-open older frontends that sent JSON headers on bodyless actions.
   if (
@@ -101,9 +101,7 @@ app.addHook("onRequest", async (req, reply) => {
     return;
   if (!process.env.APP_PASSWORD) return;
   const token = req.headers.authorization?.replace(/^Bearer /, "") || "";
-  const expiry = sessions.get(token);
-  if (!expiry || expiry < Date.now()) {
-    sessions.delete(token);
+  if (!validSession(token)) {
     await reply.code(401).send({ error: "Sign in to your workspace" });
   }
 });
@@ -140,13 +138,12 @@ app.post(
       actual = createHash("sha256").update(password).digest();
     if (process.env.APP_PASSWORD && !timingSafeEqual(expected, actual))
       return reply.code(401).send({ error: "Incorrect workspace password" });
-    const token = randomBytes(32).toString("hex");
-    sessions.set(token, Date.now() + 7 * 24 * 3600000);
+    const token = createSession();
     return { token };
   },
 );
 app.post("/api/logout", (req) => {
-  sessions.delete(req.headers.authorization?.replace(/^Bearer /, "") || "");
+  revokeSession(req.headers.authorization?.replace(/^Bearer /, "") || "");
   return { ok: true };
 });
 app.get("/api/state", () => state());

@@ -370,11 +370,10 @@ test("uploaded media renders through the durable API queue and downloads private
     "PK",
   );
 });
-test("server restart preserves projects, resets expiring sessions, and retains scopes", async () => {
+test("server restart preserves projects, authenticated sessions, and scopes", async () => {
   await stop();
   await start();
-  assert.equal((await api("/state")).status, 401);
-  token = (await api("/login", "POST", { password })).data.token;
+  assert.equal((await api("/state")).status, 200);
   const p = (await api("/state")).data.projects.find(
     (p: any) => p.id === project.id,
   );
@@ -439,5 +438,21 @@ test("freeze-lips and matching-end-frame settings persist and validate", async (
     (await api("/projects/" + project.id, "PATCH", { videoFreezeLips: "yes" }))
       .status,
     400,
+  );
+});
+
+test("logout revokes a persistent session and a new sign-in reconnects", async () => {
+  const previous = token;
+  assert.equal((await api("/logout", "POST")).status, 200);
+  assert.equal((await api("/state")).status, 401);
+  token = (await api("/login", "POST", { password })).data.token;
+  assert.equal((await api("/state")).status, 200);
+  assert.equal(
+    (
+      await fetch(base + "/state", {
+        headers: { Authorization: "Bearer " + previous },
+      })
+    ).status,
+    401,
   );
 });
