@@ -1,3 +1,5 @@
+import FreezeLipsControls from "./FreezeLipsControls.tsx";
+import { supportsFreeze } from "../shared/freeze-lips.ts";
 import ReferencePoses from "./ReferencePoses.tsx";
 import { reactionInstructions } from "../shared/reaction.ts";
 import { useEffect, useState } from "react";
@@ -438,6 +440,7 @@ export function Generation({
             </select>
           </Field>
         )}
+        {!image && <FreezeLipsControls model={model} p={p} update={update} />}
         <ModelOptions
           model={model}
           p={p}
@@ -530,6 +533,13 @@ export function Generation({
                   />
                 ))}
             </div>
+            {supportsFreeze(model) && (p.videoFreezeLips ?? true) && (
+              <p className="info-note">
+                {
+                  "\u{1F4A1} Tip: For best results, ensure the character's mouth is completely closed in the source image."
+                }
+              </p>
+            )}
             {!frames.some(
               (a) => frameScope === "all" || a.projectId === p.id,
             ) && (

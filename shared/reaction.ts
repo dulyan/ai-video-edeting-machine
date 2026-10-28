@@ -4,6 +4,7 @@ export const REACTION_AUDIO_FIELDS = [
   "enable_audio",
   "with_audio",
   "audio_enabled",
+  "audio_enable",
 ];
 export function reactionConstraints(audio: "silent" | "ambient" = "silent") {
   return (

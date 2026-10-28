@@ -1,3 +1,4 @@
+import { freezeInputs } from "../shared/freeze-lips.ts";
 import { getSecret } from "./store.ts";
 import { MODELS } from "../shared/models.ts";
 import { modelPayload } from "../shared/catalog.ts";
@@ -68,8 +69,22 @@ export function generationPayload(
   image?: string,
   inputs: Record<string, unknown> = {},
   catalog: Model[] = MODELS,
+  controls: { freezeLips?: boolean; matchEndFrame?: boolean } = {},
 ) {
   const model = catalog.find((m) => m.id === modelId);
   if (!model) throw new Error("Unsupported model");
-  return modelPayload(model, prompt, seed, duration, image, inputs);
+  return modelPayload(
+    model,
+    prompt,
+    seed,
+    duration,
+    image,
+    freezeInputs(
+      model,
+      inputs,
+      controls.freezeLips,
+      controls.matchEndFrame,
+      image,
+    ),
+  );
 }

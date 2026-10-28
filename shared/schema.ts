@@ -77,6 +77,8 @@ export const projectSchema = z.object({
   imageAspectRatio: z.enum(RATIOS).optional(),
   videoPrompt: text,
   videoAudio: z.enum(["silent", "ambient"]).optional(),
+  videoFreezeLips: z.boolean().optional(),
+  videoMatchEndFrame: z.boolean().optional(),
   videoFixedInstructions: text.optional(),
   videoVariation: z.number().int().min(0).max(100).optional(),
   videoCount: z.number().int().min(1).max(100),

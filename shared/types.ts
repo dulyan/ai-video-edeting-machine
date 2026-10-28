@@ -90,6 +90,8 @@ export interface Project {
   imageAspectRatio?: string;
   videoPrompt: string;
   videoAudio?: "silent" | "ambient";
+  videoFreezeLips?: boolean;
+  videoMatchEndFrame?: boolean;
   videoFixedInstructions?: string;
   videoVariation?: number;
   videoCount: number;

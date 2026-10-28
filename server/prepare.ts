@@ -1,3 +1,4 @@
+import { freezePrompt } from "../shared/freeze-lips.ts";
 import { reactionConstraints } from "../shared/reaction.ts";
 import type { Job, Model, PromptRequest } from "../shared/types.ts";
 import { textSlot } from "./text-slots.ts";
@@ -14,9 +15,9 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
     const promptParts = {
       fixedInstructions: job.input.fixedInstructions ?? "",
       generatedDescription: prompt,
-      enforcedInstructions: reactionConstraints(
-        job.input.reactionAudio ?? "silent",
-      ),
+      enforcedInstructions:
+        reactionConstraints(job.input.reactionAudio ?? "silent") +
+        freezePrompt(job.input.modelDefinition, job.input.freezeLips === true),
     };
     const combined = assembleImagePrompt(promptParts);
     frameIds.forEach((sourceId: string, frameIndex: number) => {
@@ -34,6 +35,8 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
             promptParts,
             sourceId,
             reactionAudio: job.input.reactionAudio ?? "silent",
+            freezeLips: job.input.freezeLips === true,
+            matchEndFrame: job.input.matchEndFrame === true,
             duration,
             sequence,
             aspectRatio: job.input.aspectRatio,

@@ -1,3 +1,9 @@
+import {
+  supportsFreeze,
+  cfgField,
+  endFrameField,
+  WAN_I2V,
+} from "../shared/freeze-lips.ts";
 import { REACTION_AUDIO_FIELDS } from "../shared/reaction.ts";
 import { useEffect, useState } from "react";
 import type { Model, ModelField, Project } from "../shared/types.ts";
@@ -112,6 +118,13 @@ export function ModelOptions({
   const inputs = p.modelInputs?.[model.id] || {};
   const fields = Object.entries(model.schema?.properties || {}).filter(
     ([name, field]) =>
+      !(
+        autoFrame &&
+        supportsFreeze(model) &&
+        ((name === endFrameField(model) && (p.videoMatchEndFrame ?? true)) ||
+          (model.id === WAN_I2V && name === cfgField(model)) ||
+          (name === "prompt_expansion_enable" && (p.videoFreezeLips ?? true)))
+      ) &&
       !(
         autoFrame &&
         (name === "task_type" ||

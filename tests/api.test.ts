@@ -419,3 +419,25 @@ test("separate reference poses persist multiline entries in projects and presets
     poses,
   );
 });
+
+test("freeze-lips and matching-end-frame settings persist and validate", async () => {
+  assert.equal(
+    (
+      await api("/projects/" + project.id, "PATCH", {
+        videoFreezeLips: true,
+        videoMatchEndFrame: false,
+      })
+    ).status,
+    200,
+  );
+  const saved = (await api("/state")).data.projects.find(
+    (p: any) => p.id === project.id,
+  );
+  assert.equal(saved.videoFreezeLips, true);
+  assert.equal(saved.videoMatchEndFrame, false);
+  assert.equal(
+    (await api("/projects/" + project.id, "PATCH", { videoFreezeLips: "yes" }))
+      .status,
+    400,
+  );
+});

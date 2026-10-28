@@ -573,3 +573,110 @@ test("reaction provider payload matches its preview and returned audio is remove
     globalThis.fetch = original;
   }
 });
+
+test("freeze settings and per-frame end images reach Siray exactly as previewed", async () => {
+  const model = MODELS.find((m) => m.id === "alibaba/wan-3.0-i2v")!;
+  const ids = ["freeze-source-red", "freeze-source-green"];
+  for (const [i, id] of ids.entries()) {
+    await run(ffmpeg, [
+      "-y",
+      "-v",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=" + (i ? "green" : "red") + ":s=48x48",
+      "-frames:v",
+      "1",
+      path.join(mediaDir, id + ".png"),
+    ]);
+    put("assets", {
+      id,
+      key: id + ".png",
+      kind: "image",
+      projectId: "freeze-integration",
+      name: id,
+      mime: "image/png",
+      createdAt: new Date().toISOString(),
+      size: 1,
+    });
+  }
+  const parent = addJob("freeze-integration", "prepare", "Freeze reactions", {
+    mode: "video",
+    promptFormat: "direct-video-v1",
+    model: model.id,
+    modelDefinition: model,
+    modelInputs: { size: "720p", aspect_ratio: "9:16", audio_enable: false },
+    prompt: "Original instructions",
+    fixedInstructions: "",
+    frameIds: ids,
+    count: 1,
+    duration: 8,
+    freezeLips: true,
+    matchEndFrame: true,
+    reactionAudio: "silent",
+  });
+  await prepareGeneration(parent);
+  const bytes = await readFile(path.join(mediaDir, "provider-reaction.mp4"));
+  const download = mock.method(https, "request", ((
+    _u: unknown,
+    _o: unknown,
+    cb: any,
+  ) => {
+    const req: any = new EventEmitter();
+    req.setTimeout = () => req;
+    req.end = () => {
+      const res: any = new PassThrough();
+      res.statusCode = 200;
+      res.headers = { "content-type": "video/mp4" };
+      cb(res);
+      res.end(bytes);
+    };
+    return req;
+  }) as any);
+  const sent: any[] = [];
+  globalThis.fetch = async (_url, options) => {
+    if (options?.method === "POST") {
+      sent.push(JSON.parse(String(options.body)));
+      return Response.json({ task_id: "freeze-" + sent.length });
+    }
+    return Response.json({
+      status: "SUCCESS",
+      outputs: ["https://8.8.8.8/freeze.mp4"],
+    });
+  };
+  try {
+    const children = all("jobs").filter(
+      (j) => j.batchId === parent.batchId && j.kind === "video",
+    );
+    assert.equal(children.length, 2);
+    for (const child of children) {
+      assert.equal(child.input.freezeLips, true);
+      assert.equal(child.input.matchEndFrame, true);
+      await processJob(child);
+      assert.equal(
+        get("jobs", child.id)?.status,
+        "completed",
+        get("jobs", child.id)?.error || "Expected completion",
+      );
+      const body = sent[sent.length - 1];
+      assert.equal(body.image, body.end_image);
+      assert.equal(body.prompt, child.input.prompt);
+      assert.equal(body.prompt, assembleImagePrompt(child.input.promptParts));
+      assert(body.prompt.includes("(mouth closed:1.3)"));
+      assert.equal(body.prompt_expansion_enable, false);
+      const source = await readFile(
+        path.join(mediaDir, child.input.sourceId + ".png"),
+      );
+      assert.equal(
+        body.image,
+        "data:image/png;base64," + source.toString("base64"),
+      );
+      assert.equal(get("assets", child.id)?.prompt, body.prompt);
+    }
+    assert.notEqual(sent[0].end_image, sent[1].end_image);
+  } finally {
+    download.mock.restore();
+    globalThis.fetch = original;
+  }
+});

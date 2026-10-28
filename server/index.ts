@@ -1,3 +1,8 @@
+import {
+  freezeInputs,
+  supportsFreeze,
+  endFrameField,
+} from "../shared/freeze-lips.ts";
 import { generationPoses } from "../shared/reference-poses.ts";
 import { referencePosesSchema } from "../shared/schema.ts";
 import { reactionInputs, reactionInstructions } from "../shared/reaction.ts";
@@ -433,13 +438,28 @@ app.post("/api/generate", async (req) => {
   );
   if (mode === "video")
     inputs = reactionInputs(chosenModel, inputs, p.videoAudio ?? "silent");
+  if (mode === "video")
+    inputs = freezeInputs(
+      chosenModel,
+      inputs,
+      p.videoFreezeLips ?? true,
+      p.videoMatchEndFrame ?? true,
+    );
   modelPayload(
     chosenModel,
     prompt,
     1,
     mode === "video" ? p.videoDuration : undefined,
     needsFrames ? "first-frame" : undefined,
-    inputs,
+    mode === "video"
+      ? freezeInputs(
+          chosenModel,
+          inputs,
+          p.videoFreezeLips ?? true,
+          p.videoMatchEndFrame ?? true,
+          "first-frame",
+        )
+      : inputs,
   );
   return addJob(
     p.id,
@@ -467,6 +487,12 @@ app.post("/api/generate", async (req) => {
         : {
             promptFormat: "direct-video-v1",
             reactionAudio: p.videoAudio ?? "silent",
+            freezeLips:
+              supportsFreeze(chosenModel) && (p.videoFreezeLips ?? true),
+            matchEndFrame:
+              supportsFreeze(chosenModel) &&
+              !!endFrameField(chosenModel) &&
+              (p.videoMatchEndFrame ?? true),
             fixedInstructions: "",
             variation: p.videoVariation ?? 50,
           }),

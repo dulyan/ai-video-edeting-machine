@@ -1,3 +1,4 @@
+import { freezeInputs } from "../shared/freeze-lips.ts";
 import { removeReactionAudio } from "./reaction-audio.ts";
 import path from "node:path";
 import { prepareGeneration } from "./prepare.ts";
@@ -74,8 +75,21 @@ export async function processJob(job: Job) {
           job.input.seed,
           job.input.duration,
           source ? await assetDataURL(source) : undefined,
-          await materializeInputs(job.input.modelInputs || {}),
+          await materializeInputs(
+            job.input.modelDefinition
+              ? freezeInputs(
+                  job.input.modelDefinition,
+                  job.input.modelInputs || {},
+                  job.input.freezeLips === true,
+                  job.input.matchEndFrame === true,
+                )
+              : job.input.modelInputs || {},
+          ),
           job.input.modelDefinition ? [job.input.modelDefinition] : undefined,
+          {
+            freezeLips: job.input.freezeLips === true,
+            matchEndFrame: job.input.matchEndFrame === true,
+          },
         );
         const response = await siray(
           job.kind === "image"
