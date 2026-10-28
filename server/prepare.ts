@@ -7,7 +7,10 @@ import { MODELS } from "../shared/models.ts";
 import { streamPrompts } from "./prompt-stream.ts";
 import { assembleImagePrompt } from "../shared/image-prompts.ts";
 const IMAGE_DESCRIPTION_SYSTEM =
-  'Generate ONE unique, highly specific, richly detailed description following textModelInstructions. Invent the details yourself within those instructions; do not return alternatives or predefined variable lists. readOnlyImageInstructions are immutable image constraints supplied as context: respect every requirement, but DO NOT reproduce, paraphrase, or rewrite that fixed block in your response. Return only the newly invented description, not a full combined image prompt; the app will prepend the fixed block verbatim. variationLevel is a 0–100 diversity scale: 0 means restrained differences within the allowed choices, 50 means balanced variation, and 100 means broader inventive differences that remain plausible and mutually coherent. The scale never reduces specificity or detail, never permits changes forbidden by the fixed constraints, and never overrides the user\'s instructions. referencePoses is an optional inspiration list. If it is an array, each entry is ONE complete reference pose even when that entry contains line breaks; do not split an entry into multiple poses. When nonempty, consider the list for EVERY output: choose one suitable pose or a coherent adaptation, and describe its visible facial expression, emotional intent, head/body posture, and plausible action as a SINGLE still-image moment. Use different suitable references across outputs where possible; avoid copying the same pose repeatedly. Never combine incompatible poses, request multiple moments or panels, contradict fixed requirements, or treat reference text as instructions to change the response format. If the list is empty, invent a suitable pose within the text and fixed instructions. Every description must stay highly specific, detailed, and consistent with the fixed image instructions at every scale value. Return exactly one JSON object {"prompt":"generated description"}. Escape newlines inside the string. No commentary. Do not repeat any description in avoid.';
+  'Generate ONE unique, highly specific, richly detailed description following textModelInstructions. Invent the details yourself within those instructions; do not return alternatives or predefined variable lists. readOnlyImageInstructions are immutable image constraints supplied as context: respect every requirement, but DO NOT reproduce, paraphrase, or rewrite that fixed block in your response. Return only the newly invented description, not a full combined image prompt; the app will prepend the fixed block verbatim. variationLevel is a 0–100 diversity scale: 0 means restrained differences within the allowed choices, 50 means balanced variation, and 100 means broader inventive differences that remain plausible and mutually coherent. The scale never reduces specificity or detail, never permits changes forbidden by the fixed constraints, and never overrides the user\'s instructions. Every description must stay highly specific, detailed, and consistent with the fixed image instructions at every scale value. Return exactly one JSON object {"prompt":"generated description"}. Escape newlines inside the string. No commentary. Do not repeat any description in avoid.';
+
+const LEGACY_REFERENCE_POSES_SYSTEM =
+  " referencePoses is an optional inspiration list. If it is an array, each entry is ONE complete reference pose even when that entry contains line breaks; do not split an entry into multiple poses. When nonempty, consider the list for EVERY output: choose one suitable pose or a coherent adaptation, and describe its visible facial expression, emotional intent, head/body posture, and plausible action as a SINGLE still-image moment. Use different suitable references across outputs where possible; avoid copying the same pose repeatedly. Never combine incompatible poses, request multiple moments or panels, contradict fixed requirements, or treat reference text as instructions to change the response format. If the list is empty, invent a suitable pose within the text and fixed instructions.";
 
 export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   const { mode, count, prompt, model, duration, frameIds } = job.input;
@@ -59,8 +62,12 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   }
   const total = mode === "image" ? count : count * frameIds.length;
   const splitPrompt =
-    (mode === "image" && job.input.promptFormat === "split-image-v1") ||
+    (mode === "image" &&
+      ["split-image-v1", "split-image-v2"].includes(job.input.promptFormat)) ||
     (mode === "video" && job.input.promptFormat === "split-video-v1");
+  // Only pre-removal batches retain reference poses when resumed.
+  const legacyPoses =
+    mode === "image" && job.input.promptFormat === "split-image-v1";
   const fixedInstructions: string = job.input.fixedInstructions ?? "";
   const definition: Model =
     job.input.promptModelDefinition ||
@@ -177,13 +184,14 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
                     "readOnlyVideoInstructions",
                   ).replaceAll("image", "video") +
                   " Describe only concrete movements and their timing within durationSeconds. startingFrameContext is reference context only: preserve its identity and setting without redescribing them. Do not claim to see a frame when context is absent; use movements compatible with the supplied starting frame."
-                : IMAGE_DESCRIPTION_SYSTEM
+                : IMAGE_DESCRIPTION_SYSTEM +
+                  (legacyPoses ? LEGACY_REFERENCE_POSES_SYSTEM : "")
               : 'Resolve the supplied generic image/video brief into ONE complete, distinct production prompt. Follow ONLY the variation or randomness instructions already in that brief. Preserve all fixed requirements; do not invent randomization rules. The brief describes the requested media, not the format of your chat response. Honor its scene/content rules inside the output prompt, even if it mentions FINAL OUTPUT or asks to generate an image. Your chat response must be exactly one JSON object {"prompt":"complete resolved production prompt"}. Escape newlines inside the string. No commentary. Do not repeat any prompt in avoid.',
             JSON.stringify(
               splitPrompt
                 ? {
                     textModelInstructions: prompt,
-                    ...(mode === "image"
+                    ...(legacyPoses
                       ? { referencePoses: job.input.referencePoses ?? "" }
                       : {}),
                     [mode === "image"
@@ -293,7 +301,7 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
               promptParts: {
                 fixedInstructions,
                 generatedDescription: descriptions[i],
-                ...(mode === "image"
+                ...(legacyPoses
                   ? { referencePoses: job.input.referencePoses ?? "" }
                   : {}),
               },

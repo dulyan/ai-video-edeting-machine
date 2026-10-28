@@ -121,8 +121,8 @@ test("native negative prompt, CFG and end frames are mapped when the model schem
   assert.equal(freezePrompt(other, true), "");
 });
 test("starting-frame defaults require touching lips without changing reaction defaults", () => {
-  assert(IMAGE_PROMPT.includes("upper and lower lips touching"));
+  assert(IMAGE_PROMPT.includes("upper and lower lips gently touching"));
   assert(
-    IMAGE_FIXED_INSTRUCTIONS.includes("upper and lower lips firmly together"),
+    IMAGE_FIXED_INSTRUCTIONS.includes("Upper and lower lips gently touch"),
   );
 });

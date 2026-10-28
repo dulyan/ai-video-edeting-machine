@@ -1,6 +1,5 @@
 import FreezeLipsControls from "./FreezeLipsControls.tsx";
 import { supportsFreeze } from "../shared/freeze-lips.ts";
-import ReferencePoses from "./ReferencePoses.tsx";
 import { reactionInstructions } from "../shared/reaction.ts";
 import { useEffect, useState } from "react";
 import {
@@ -220,7 +219,6 @@ export function Generation({
                           imageFixedInstructions:
                             preset.fixedInstructions ?? "",
                           imageVariation: preset.variation ?? 50,
-                          imageReferencePoses: preset.referencePoses ?? "",
                         }
                       : {
                           videoPrompt: reactionInstructions(
@@ -271,12 +269,6 @@ export function Generation({
         </Field>
         {image && (
           <>
-            <ReferencePoses
-              value={p.imageReferencePoses}
-              onChange={(imageReferencePoses) =>
-                update({ imageReferencePoses })
-              }
-            />
             <VariationControl
               value={p.imageVariation ?? 50}
               onChange={(imageVariation) => update({ imageVariation })}
@@ -336,9 +328,6 @@ export function Generation({
                         p.videoPrompt,
                         p.videoFixedInstructions,
                       ),
-                  ...(image
-                    ? { referencePoses: p.imageReferencePoses ?? "" }
-                    : {}),
                   fixedInstructions:
                     (image ? p.imageFixedInstructions : "") ?? "",
                   variation:
@@ -1712,10 +1701,6 @@ export function Outline({ p, w, update, inspect }: Props) {
               onChange={(e) => update({ imagePrompt: e.target.value })}
             />
           </Field>
-          <ReferencePoses
-            value={p.imageReferencePoses}
-            onChange={(imageReferencePoses) => update({ imageReferencePoses })}
-          />
           <Field label="Fixed starting-frame image instructions">
             <textarea
               rows={3}

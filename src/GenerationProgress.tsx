@@ -181,7 +181,6 @@ export default function GenerationProgress({
                           batch.generatedDescriptions?.[index] !== undefined
                             ? {
                                 fixedInstructions: batch.fixedInstructions,
-                                referencePoses: batch.referencePoses,
                                 generatedDescription:
                                   batch.generatedDescriptions[index],
                               }

@@ -52,7 +52,7 @@ function input(count = 4, variation = 50, fixedInstructions = fixed) {
     frameIds: [null],
     aspectRatio: "1:1",
     modelInputs: { aspect_ratio: "1:1" },
-    promptFormat: "split-image-v1",
+    promptFormat: "split-image-v2",
     referencePoses,
     fixedInstructions,
     variation,
@@ -130,8 +130,8 @@ test("four image prompts preserve the exact fixed block, show only generated det
     for (const body of textRequests) {
       const message = JSON.parse(body.messages[1].content);
       assert.equal(message.readOnlyImageInstructions, fixed);
-      assert.deepEqual(message.referencePoses, referencePoses);
-      assert(body.messages[0].content.includes("SINGLE still-image moment"));
+      assert.equal(message.referencePoses, undefined);
+      assert(!body.messages[0].content.includes("referencePoses"));
       assert.equal(message.textModelInstructions, input().prompt);
       assert.equal(message.variationLevel, 50);
       assert(
@@ -149,7 +149,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
     assert.equal(children.length, 4);
     for (const child of children) {
       assert.equal(child.input.promptParts.fixedInstructions, fixed);
-      assert.deepEqual(child.input.promptParts.referencePoses, referencePoses);
+      assert.equal(child.input.promptParts.referencePoses, undefined);
       assert.equal(
         child.input.prompt,
         assembleImagePrompt(child.input.promptParts),
@@ -165,7 +165,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
     assert.equal(assets.length, 4);
     for (const asset of assets) {
       assert.equal(asset.promptParts?.fixedInstructions, fixed);
-      assert.deepEqual(asset.promptParts?.referencePoses, referencePoses);
+      assert.equal(asset.promptParts?.referencePoses, undefined);
       assert.equal(asset.prompt, assembleImagePrompt(asset.promptParts!));
       assert(asset.prompt!.startsWith(fixed + "\n\n"));
       assert(imageRequests.some((b) => b.prompt === asset.prompt));
@@ -177,7 +177,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
     );
     const publicJob = state().jobs.find((j) => j.id === job.id)!;
     assert.equal(publicJob.fixedInstructions, fixed);
-    assert.deepEqual(publicJob.referencePoses, referencePoses);
+    assert.equal(publicJob.referencePoses, undefined);
     assert.deepEqual(
       publicJob.generatedDescriptions,
       prepared.generatedDescriptions,
@@ -236,7 +236,7 @@ test("split-image retries preserve completed prompts and snapshotted fixed text 
   assert.equal(get("jobs", job.id)?.prompts?.[0], first);
   assert.equal(get("jobs", job.id)?.generatedDescriptions?.length, 2);
   for (const child of children)
-    assert.deepEqual(child.input.promptParts.referencePoses, referencePoses);
+    assert.equal(child.input.promptParts.referencePoses, undefined);
   globalThis.fetch = original;
 });
 test("variation endpoints change only text-model diversity guidance; specificity and fixed constraints remain mandatory", async () => {
@@ -677,6 +677,35 @@ test("freeze settings and per-frame end images reach Siray exactly as previewed"
     assert.notEqual(sent[0].end_image, sent[1].end_image);
   } finally {
     download.mock.restore();
+    globalThis.fetch = original;
+  }
+});
+
+test("pre-removal reference-pose batches retain their original snapshots when resumed", async () => {
+  const settings = { ...input(1), promptFormat: "split-image-v1" };
+  const job = addJob(
+    "legacy-poses",
+    "prepare",
+    "Legacy starting frames",
+    settings,
+  );
+  let context: any;
+  globalThis.fetch = async (_url, options) => {
+    context = JSON.parse(JSON.parse(String(options?.body)).messages[1].content);
+    return Response.json({
+      choices: [
+        { message: { content: JSON.stringify({ prompt: descriptions[0] }) } },
+      ],
+    });
+  };
+  try {
+    await prepareGeneration(job);
+    assert.deepEqual(context.referencePoses, referencePoses);
+    const child = all("jobs").find(
+      (j) => j.batchId === job.batchId && j.kind === "image",
+    )!;
+    assert.deepEqual(child.input.promptParts.referencePoses, referencePoses);
+  } finally {
     globalThis.fetch = original;
   }
 });

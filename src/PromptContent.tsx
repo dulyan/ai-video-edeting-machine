@@ -1,4 +1,3 @@
-import { formatPoses } from "../shared/reference-poses.ts";
 import { useState } from "react";
 import type { PromptParts } from "../shared/types.ts";
 export default function PromptContent({
@@ -38,16 +37,6 @@ export default function PromptContent({
               </h3>
               <pre>{parts.enforcedInstructions}</pre>
             </section>
-          )}
-          {formatPoses(parts.referencePoses) && (
-            <details className="exact-prompt">
-              <summary>Reference poses used as inspiration</summary>
-              <pre>{formatPoses(parts.referencePoses)}</pre>
-              <p>
-                The text model used this list to describe the pose. The list
-                itself is not appended to the image prompt.
-              </p>
-            </details>
           )}
           <details className="exact-prompt">
             <summary>Exact combined prompt</summary>

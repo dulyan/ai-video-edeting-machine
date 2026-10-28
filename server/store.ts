@@ -133,6 +133,7 @@ export function state(): AppState {
       aspectRatio: j.input.aspectRatio,
       fixedInstructions: [
         "split-image-v1",
+        "split-image-v2",
         "split-video-v1",
         "direct-video-v1",
       ].includes(j.input.promptFormat)
@@ -140,7 +141,9 @@ export function state(): AppState {
         : undefined,
       promptParts: j.input.promptParts,
       referencePoses:
-        j.input.mode === "image" ? j.input.referencePoses : undefined,
+        j.input.promptFormat === "split-image-v1"
+          ? j.input.referencePoses
+          : undefined,
       prompts:
         j.prompts ||
         (j.kind === "prepare"

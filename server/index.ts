@@ -3,7 +3,6 @@ import {
   supportsFreeze,
   endFrameField,
 } from "../shared/freeze-lips.ts";
-import { generationPoses } from "../shared/reference-poses.ts";
 import { referencePosesSchema } from "../shared/schema.ts";
 import { reactionInputs, reactionInstructions } from "../shared/reaction.ts";
 import "dotenv/config";
@@ -479,9 +478,8 @@ app.post("/api/generate", async (req) => {
       aspectRatio,
       ...(mode === "image"
         ? {
-            promptFormat: "split-image-v1",
+            promptFormat: "split-image-v2",
             fixedInstructions: p.imageFixedInstructions || "",
-            referencePoses: generationPoses(p.imageReferencePoses),
             variation: p.imageVariation ?? 50,
           }
         : {
