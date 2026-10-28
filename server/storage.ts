@@ -68,6 +68,10 @@ function signature(id: string, expires: number) {
     .update(`${id}:${expires}`)
     .digest("hex");
 }
+export function previewURL(asset: Asset, apiBase: string, thumbnail = false) {
+  const expires = Date.now() + 3600000;
+  return `${apiBase}/api/previews/${asset.id}?thumbnail=${thumbnail ? "1" : "0"}&expires=${expires}&signature=${signature((thumbnail ? "thumbnail:" : "preview:") + asset.id, expires)}`;
+}
 export async function mediaURL(asset: Asset, apiBase: string) {
   if (s3)
     return getSignedUrl(

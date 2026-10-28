@@ -174,6 +174,8 @@ export interface PromptParts {
   generatedDescription: string;
 }
 export interface AppState {
+  /** Monotonic, durable server snapshot version. Local drafts omit it. */
+  revision?: number;
   projects: Project[];
   products: Product[];
   assets: Asset[];

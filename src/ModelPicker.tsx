@@ -6,6 +6,7 @@ import { fieldDefault, isAutoFrameField } from "../shared/catalog.ts";
 import { request } from "./api.ts";
 import { Field } from "./components.tsx";
 import type { Workspace } from "./workspace.tsx";
+import type { ProjectUpdate } from "./workspace-sync.ts";
 
 export function useModels(connected: boolean) {
   const [models, setModels] = useState(MODELS);
@@ -104,7 +105,7 @@ export function ModelOptions({
   model?: Model;
   p: Project;
   w: Workspace;
-  update: (patch: Partial<Project>) => void;
+  update: (patch: ProjectUpdate) => void;
   autoFrame: boolean;
   managedRatio?: boolean;
 }) {
@@ -143,13 +144,19 @@ export function ModelOptions({
   const optional = fields.filter(
     ([name]) => !model.schema?.required?.includes(name),
   );
-  function patch(name: string, value: unknown) {
-    update({
+  function patch(name: string, value: unknown, append = false) {
+    update((latest) => ({
       modelInputs: {
-        ...p.modelInputs,
-        [model!.id]: { ...inputs, [name]: value },
+        ...latest.modelInputs,
+        [model!.id]: {
+          ...latest.modelInputs?.[model!.id],
+          [name]: append ? [...new Set([
+            ...(Array.isArray(latest.modelInputs?.[model!.id]?.[name]) ? latest.modelInputs![model!.id][name] as unknown[] : []),
+            ...(value as unknown[]),
+          ])] : value,
+        },
       },
-    });
+    }));
   }
   function control([name, field]: [string, ModelField]) {
     const value =
@@ -313,8 +320,9 @@ export function ModelOptions({
                   patch(
                     name,
                     field.type === "array"
-                      ? [...values, ...assets.map((a) => "asset:" + a.id)]
+                      ? assets.map((a) => "asset:" + a.id)
                       : "asset:" + assets[0].id,
+                    field.type === "array",
                   );
                 });
               }}

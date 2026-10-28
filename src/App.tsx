@@ -41,6 +41,7 @@ import {
 import { useWorkspace, type Workspace } from "./workspace.tsx";
 import {
   AssetCard,
+  AssetGrid,
   Button,
   EmptyState,
   Field,
@@ -57,6 +58,7 @@ import {
 } from "./Workflow.tsx";
 import { ModelPicker, useModels } from "./ModelPicker.tsx";
 import { backendURL, configureBackend, request } from "./api.ts";
+import type { ProjectUpdate } from "./workspace-sync.ts";
 type Page =
   "Studio" | "Projects" | "Image Library" | "Video Library" | "Settings";
 const stepSubtitles = [
@@ -393,11 +395,11 @@ function Library({
         <span className="muted-text">A home for every creation.</span>
       </div>
       {assets.length ? (
-        <div className="asset-grid full-library">
-          {assets.map((a) => (
+        <AssetGrid assets={assets} className="full-library">
+          {(a) => (
             <AssetCard key={a.id} asset={a} onInspect={inspect} />
-          ))}
-        </div>
+          )}
+        </AssetGrid>
       ) : (
         <section className="card">
           <EmptyState
@@ -441,7 +443,7 @@ export default function App() {
         <Loader2 className="spin" /> Opening your studio…
       </div>
     );
-  const update = (patch: Partial<Project>) => w.updateProject(p.id, patch),
+  const update = (patch: ProjectUpdate) => w.updateProject(p.id, patch),
     step = p.step;
   async function createProject() {
     const next = await w.addProject();
@@ -696,7 +698,7 @@ export default function App() {
                 </div>
                 <div className="autosave">
                   <span className="tiny-dot" />
-                  {w.connected ? "Saved to workspace" : "Draft saved locally"}
+                  {w.connected ? w.saving ? "Saving changes…" : "Saved to workspace" : "Draft saved locally"}
                 </div>
               </div>
               <div className="step-content" key={`${p.id}-${step}`}>

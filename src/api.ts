@@ -23,6 +23,7 @@ export async function request<T = any>(
     );
   const response = await fetch(`${backendURL}/api${path}`, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(options.body instanceof FormData || path.endsWith("/download") ? 180000 : 30000),
     headers: apiHeaders(options, token),
   });
   if (!response.ok) {
@@ -79,10 +80,19 @@ export async function watchState(
   }
 }
 const mediaCache = new Map<string, { url: string; expires: number }>();
-export async function mediaURL(id: string) {
-  const cached = mediaCache.get(`${backendURL}:${id}`);
+const mediaPending = new Map<string, Promise<string>>();
+export type MediaVariant = "original" | "preview" | "thumbnail";
+export async function mediaURL(id: string, variant: MediaVariant = "original") {
+  const key = `${backendURL}:${id}:${variant}`;
+  const cached = mediaCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.url;
-  const { url } = await request(`/assets/${encodeURIComponent(id)}/url`);
-  mediaCache.set(`${backendURL}:${id}`, { url, expires: Date.now() + 3000000 });
-  return url;
+  const pending = mediaPending.get(key);
+  if (pending) return pending;
+  const task = request(`/assets/${encodeURIComponent(id)}/url?variant=${variant}`).then(({url}) => {
+    if (mediaCache.size >= 256) mediaCache.delete(mediaCache.keys().next().value!);
+    mediaCache.set(key, { url, expires: Date.now() + 3000000 });
+    return url as string;
+  });
+  mediaPending.set(key, task);
+  try { return await task; } finally { mediaPending.delete(key); }
 }

@@ -77,6 +77,7 @@ test("private workspace requires authentication and rejects wrong passwords", as
   assert.equal((await api("/state")).status, 200);
 });
 test("projects persist and independent timing fields round trip", async () => {
+  const before = (await api("/state")).data.revision;
   project.hookModel = "anthropic/claude-sonnet-4.6";
   project.modelInputs = { [project.imageModel]: { aspect_ratio: "9:16" } };
   assert.equal(
@@ -96,6 +97,7 @@ test("projects persist and independent timing fields round trip", async () => {
     200,
   );
   const state = (await api("/state")).data;
+  assert(state.revision > before);
   assert.equal(state.projects[0].composition.hookSpan, "whole");
   assert.equal(state.projects[0].composition.musicSpan, "demo");
   assert.equal(state.projects[0].hookModel, project.hookModel);
@@ -264,13 +266,14 @@ test("invalid or expired media signatures cannot expose files", async () => {
     (await fetch(`${base}/media/nonexistent?expires=1&signature=no`)).status,
     403,
   );
+  assert.equal((await fetch(`${base}/previews/nonexistent?expires=1&signature=no`)).status, 403);
 });
 test("uploaded media renders through the durable API queue and downloads privately", async () => {
   async function fixture(name: string, args: string[]) {
     const file = path.join(dir, name);
     await new Promise<void>((resolve, reject) => {
       const child = spawn(
-        ffmpeg!,
+        process.env.FFMPEG_PATH || ffmpeg!,
         ["-y", "-v", "error", ...args, "-t", "0.5", file],
         { windowsHide: true },
       );
@@ -324,6 +327,22 @@ test("uploaded media renders through the durable API queue and downloads private
   const reaction = await upload(clip, "reaction", "video/mp4"),
     demo = await upload(clip, "demo", "video/mp4"),
     music = await upload(track, "music", "audio/mpeg");
+  const preview = await api(`/assets/${reaction.id}/url?variant=preview`);
+  const thumbnail = await api(`/assets/${reaction.id}/url?variant=thumbnail`);
+  assert(preview.data.url.includes("/api/previews/"));
+  const playback = await fetch(preview.data.url);
+  assert.equal(playback.status, 200, playback.ok ? "Preview served" : await playback.text());
+  assert(playback.headers.get("content-type")?.startsWith("video/mp4"));
+  await playback.arrayBuffer();
+  const still = await fetch(thumbnail.data.url);
+  assert.equal(still.status, 200);
+  assert(still.headers.get("content-type")?.startsWith("image/jpeg"));
+  await still.arrayBuffer();
+  // A video URL cannot be repurposed to request an unsigned thumbnail/original.
+  assert.equal((await fetch(preview.data.url.replace("thumbnail=0", "thumbnail=1"))).status, 403);
+  const range = await fetch(preview.data.url, {headers: {Range: "bytes=0-99"}});
+  assert.equal(range.status, 206);
+  assert.equal((await range.arrayBuffer()).byteLength, 100);
   const patch = {
     reactionIds: [reaction.id],
     demoIds: [demo.id],
@@ -371,9 +390,11 @@ test("uploaded media renders through the durable API queue and downloads private
   );
 });
 test("server restart preserves projects, authenticated sessions, and scopes", async () => {
+  const version = (await api("/state")).data.revision;
   await stop();
   await start();
   assert.equal((await api("/state")).status, 200);
+  assert.equal((await api("/state")).data.revision, version);
   const p = (await api("/state")).data.projects.find(
     (p: any) => p.id === project.id,
   );

@@ -10,28 +10,31 @@ import type { Asset, Project } from "../shared/types.ts";
 import { activeHooks } from "../shared/project.ts";
 import { outputResolution } from "../shared/ratios.ts";
 import { useMedia } from "./components.tsx";
-function KeyedPresenter({ asset, p }: { asset?: Asset; p: Project }) {
-  const url = useMedia(asset?.id),
+function KeyedPresenter({ asset, p, playing }: { asset?: Asset; p: Project; playing: boolean }) {
+  const url = useMedia(playing ? asset?.id : undefined, "preview"),
     video = useRef<HTMLVideoElement>(null),
     canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (!url) return;
-    let frame = 0,
+    let timer: ReturnType<typeof setTimeout>,
       alive = true;
     const v = video.current!,
       c = canvas.current!,
       ctx = c.getContext("2d", { willReadFrequently: true })!;
+    if (!ctx) return;
     const rgb = [1, 3, 5].map((i) =>
       parseInt(p.composition.keyColor.slice(i, i + 2), 16),
     );
     const draw = () => {
       if (!alive) return;
-      if (v.readyState >= 2) {
-        c.width = 270;
-        c.height = Math.max(
-          1,
-          Math.round((270 * v.videoHeight) / v.videoWidth),
-        );
+      if (document.hidden) { v.pause(); return; }
+      if (v.readyState >= 2 && v.videoWidth > 0 && v.videoHeight > 0) {
+        // Bound BOTH dimensions; extreme portrait footage must not allocate an
+        // enormous canvas. Process at most 15 frames/s, only during playback.
+        const scale = Math.min(1, 320 / Math.max(v.videoWidth, v.videoHeight));
+        const width = Math.max(1, Math.round(v.videoWidth * scale));
+        const height = Math.max(1, Math.round(v.videoHeight * scale));
+        if (c.width !== width || c.height !== height) { c.width = width; c.height = height; }
         ctx.drawImage(v, 0, 0, c.width, c.height);
         try {
           const pixels = ctx.getImageData(0, 0, c.width, c.height);
@@ -56,16 +59,20 @@ function KeyedPresenter({ asset, p }: { asset?: Asset; p: Project }) {
           }
           ctx.putImageData(pixels, 0, 0);
         } catch {
-          /* A bucket CORS setting may prevent a canvas preview; actual render still uses FFmpeg. */
+          // Stop retrying expensive readbacks if canvas access is unavailable.
+          return;
         }
       }
-      frame = requestAnimationFrame(draw);
+      timer = setTimeout(draw, 1000 / 15);
     };
     void v.play().catch(() => {});
     draw();
     return () => {
       alive = false;
-      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      v.pause();
+      v.removeAttribute("src");
+      v.load();
     };
   }, [
     url,
@@ -82,6 +89,7 @@ function KeyedPresenter({ asset, p }: { asset?: Asset; p: Project }) {
         loop
         muted
         playsInline
+        preload="none"
         className="canvas-source"
       />
       <canvas
@@ -102,7 +110,9 @@ export default function Preview({
   hookIndex?: number;
 }) {
   const [part, setPart] = useState<"reaction" | "demo">("reaction"),
-    [playing, setPlaying] = useState(false);
+    [playing, setPlaying] = useState(false),
+    [loaded, setLoaded] = useState(false),
+    [mediaError, setMediaError] = useState("");
   const video = useRef<HTMLVideoElement>(null),
     audio = useRef<HTMLAudioElement>(null);
   const c = p.composition,
@@ -115,22 +125,31 @@ export default function Preview({
         : p.reactionIds[0] || p.frameIds[0]
       : p.demoIds[0];
   const asset = assets.find((a) => a.id === chosen),
-    url = useMedia(chosen),
+    url = useMedia(asset?.mime.startsWith("image/") || loaded ? chosen : undefined, asset?.mime.startsWith("video/") ? "preview" : "original"),
     hookImage = useMedia(hook?.imageId),
-    music = useMedia(p.musicMode !== "none" ? p.musicIds[0] : undefined);
+    music = useMedia(loaded && p.musicMode !== "none" ? p.musicIds[0] : undefined);
   const showHook = c.hookSpan === "whole" || c.hookSpan === part,
     playMusic = c.musicSpan === "whole" || c.musicSpan === part;
+  useEffect(() => { setPlaying(false); setLoaded(false); setMediaError(""); }, [chosen]);
   useEffect(() => {
-    if (video.current) {
-      video.current.volume = Math.min(1, c.sourceVolume);
-      if (playing) void video.current.play().catch(() => setPlaying(false));
-      else video.current.pause();
+    const pause = () => { if (document.hidden) setPlaying(false); };
+    document.addEventListener("visibilitychange", pause);
+    return () => document.removeEventListener("visibilitychange", pause);
+  }, []);
+  useEffect(() => {
+    let active = true;
+    const v = video.current, a = audio.current;
+    if (v) {
+      v.volume = Math.min(1, Math.max(0, c.sourceVolume));
+      if (playing) void v.play().catch(() => { if (active) setPlaying(false); });
+      else v.pause();
     }
-    if (audio.current) {
-      audio.current.volume = Math.min(1, c.musicVolume);
-      if (playing && playMusic) void audio.current.play().catch(() => {});
-      else audio.current.pause();
+    if (a) {
+      a.volume = Math.min(1, Math.max(0, c.musicVolume));
+      if (playing && playMusic) void a.play().catch(() => {});
+      else a.pause();
     }
+    return () => { active = false; v?.pause(); a?.pause(); };
   }, [playing, part, url, music, c.musicVolume, c.sourceVolume, playMusic]);
   return (
     <aside className="preview-panel">
@@ -160,6 +179,8 @@ export default function Preview({
               className="preview-media"
               style={{ objectFit: c.fit }}
               playsInline
+              preload="none"
+              onError={() => { setPlaying(false); setMediaError("Preview unavailable. Try again or inspect the original from the library."); }}
               onEnded={() => {
                 if (part === "reaction" && p.demoIds.length) setPart("demo");
                 else setPlaying(false);
@@ -169,7 +190,7 @@ export default function Preview({
         ) : (
           <div className="preview-empty">
             <div className="preview-grid" />
-            <strong>Select a clip to preview</strong>
+            <strong>{asset ? loaded ? "Preparing lightweight preview…" : "Press Play to preview" : "Select a clip to preview"}</strong>
           </div>
         )}
         <span className="preview-top-label">
@@ -179,6 +200,7 @@ export default function Preview({
           <KeyedPresenter
             asset={assets.find((a) => a.id === c.presenterId)}
             p={p}
+            playing={playing}
           />
         )}
         {showHook &&
@@ -198,10 +220,10 @@ export default function Preview({
               {hook?.text || "Your hook text"}
             </div>
           ))}
-        {url && !asset?.mime.startsWith("image/") && (
+        {asset && !asset.mime.startsWith("image/") && (
           <button
             className="preview-play"
-            onClick={() => setPlaying(!playing)}
+            onClick={() => { setLoaded(true); setMediaError(""); setPlaying(!playing); }}
             aria-label={playing ? "Pause preview" : "Play preview"}
           >
             {playing ? <Pause size={18} /> : <Play size={18} />}
@@ -249,7 +271,9 @@ export default function Preview({
           {c.musicSpan === "whole" ? "whole video" : `${c.musicSpan} only`}
         </span>
       </div>
-      {music && <audio ref={audio} src={music} loop />}
+      <small className="muted-text">Lightweight preview, up to 2 minutes. Renders use the original files.</small>
+      {mediaError && <p role="status" className="inline-error">{mediaError}</p>}
+      {music && <audio ref={audio} src={music} loop preload="none" />}
     </aside>
   );
 }

@@ -22,6 +22,7 @@ import {
   get,
   put,
   state,
+  revision,
   addJob,
   patchJob,
   getSecret,
@@ -32,6 +33,7 @@ import {
 import {
   storeFile,
   mediaURL,
+  previewURL,
   validMediaSignature,
   s3,
   bucket,
@@ -49,6 +51,7 @@ import {
   ratioInputs,
 } from "../shared/ratios.ts";
 import { registerEvents } from "./events.ts";
+import { videoPreview } from "./previews.ts";
 import type { Asset, Project } from "../shared/types.ts";
 const app = Fastify({
   logger: {
@@ -91,7 +94,7 @@ app.addHook("onRequest", async (req, reply) => {
     delete req.headers["content-type"];
   if (
     req.method === "OPTIONS" ||
-    ["/api/health", "/api/login", "/api/media/:id"].includes(
+    ["/api/health", "/api/login", "/api/media/:id", "/api/previews/:id"].includes(
       req.routeOptions.url || "",
     )
   )
@@ -150,7 +153,7 @@ app.put("/api/projects/:id", async (req) => {
   const p = projectSchema.parse(req.body);
   if (p.id !== id) throw new Error("Project identifier mismatch");
   put("projects", { ...p, updatedAt: new Date().toISOString() });
-  return { ok: true };
+  return { ok: true, revision: revision() };
 });
 app.patch("/api/projects/:id", async (req) => {
   const id = (req.params as any).id,
@@ -168,14 +171,14 @@ app.patch("/api/projects/:id", async (req) => {
       updatedAt: new Date().toISOString(),
     }),
   );
-  return { ok: true };
+  return { ok: true, revision: revision() };
 });
 app.put("/api/products/:id", async (req) => {
   const p = productSchema.parse(req.body);
   if (p.id !== (req.params as any).id)
     throw new Error("Product identifier mismatch");
   put("products", p);
-  return { ok: true };
+  return { ok: true, revision: revision() };
 });
 app.put("/api/presets/:id", async (req) => {
   const p = z
@@ -192,7 +195,7 @@ app.put("/api/presets/:id", async (req) => {
   if (p.id !== (req.params as any).id)
     throw new Error("Preset identifier mismatch");
   put("presets", p);
-  return { ok: true };
+  return { ok: true, revision: revision() };
 });
 app.get("/api/settings", () => ({
   keyConfigured: !!getSecret("siray"),
@@ -307,7 +310,7 @@ app.post("/api/uploads", async (req) => {
       height: metadata.height,
     };
     await storeFile(temp, asset);
-    return asset;
+    return { ...asset, revision: revision() };
   } catch (error) {
     if (temp) await unlink(temp).catch(() => {});
     throw error;
@@ -316,13 +319,21 @@ app.post("/api/uploads", async (req) => {
 app.get("/api/assets/:id/url", async (req) => {
   const asset = get("assets", (req.params as any).id);
   if (!asset) throw new Error("Asset not found");
+  const base = process.env.PUBLIC_API_URL || `http://localhost:${process.env.PORT || 3001}`;
+  const variant = (req.query as any).variant;
   return {
-    url: await mediaURL(
-      asset,
-      process.env.PUBLIC_API_URL ||
-        `http://localhost:${process.env.PORT || 3001}`,
-    ),
+    url: asset.mime.startsWith("video/") && ["preview", "thumbnail"].includes(variant)
+      ? previewURL(asset, base, variant === "thumbnail") : await mediaURL(asset, base),
   };
+});
+app.get("/api/previews/:id", async (req, reply) => {
+  const id = (req.params as any).id, query = req.query as any;
+  const thumbnail = query.thumbnail === "1";
+  if (!validMediaSignature((thumbnail ? "thumbnail:" : "preview:") + id, query.expires || "", query.signature || ""))
+    return reply.code(403).send({ error: "Preview link expired" });
+  const asset = get("assets", id);
+  if (!asset) return reply.code(404).send({ error: "Asset not found" });
+  return reply.type(thumbnail ? "image/jpeg" : "video/mp4").sendFile(await videoPreview(asset, thumbnail));
 });
 app.get("/api/media/:id", async (req, reply) => {
   const id = (req.params as any).id,

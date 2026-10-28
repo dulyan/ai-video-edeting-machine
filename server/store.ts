@@ -39,6 +39,24 @@ export const db = new DatabaseSync(path.join(dataDir, "workspace.sqlite"));
 db.exec(
   "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS records (kind TEXT NOT NULL, id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(kind,id)); CREATE TABLE IF NOT EXISTS secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS migrations (version INTEGER PRIMARY KEY); INSERT OR IGNORE INTO migrations(version) VALUES(1);",
 );
+// Triggers participate in the same SQLite transaction as the record write,
+// including bulk operations. Versions survive restarts and order SSE/GET replies.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS workspace_revision (id INTEGER PRIMARY KEY CHECK(id=1), value INTEGER NOT NULL);
+  INSERT OR IGNORE INTO workspace_revision VALUES(1,0);
+  CREATE TRIGGER IF NOT EXISTS records_revision_insert AFTER INSERT ON records BEGIN
+    UPDATE workspace_revision SET value=value+1 WHERE id=1;
+  END;
+  CREATE TRIGGER IF NOT EXISTS records_revision_update AFTER UPDATE ON records BEGIN
+    UPDATE workspace_revision SET value=value+1 WHERE id=1;
+  END;
+  CREATE TRIGGER IF NOT EXISTS records_revision_delete AFTER DELETE ON records BEGIN
+    UPDATE workspace_revision SET value=value+1 WHERE id=1;
+  END;
+`);
+export function revision(): number {
+  return (db.prepare("SELECT value FROM workspace_revision WHERE id=1").get() as { value: number }).value;
+}
 type RecordMap = {
   projects: Project;
   products: Product;
@@ -108,6 +126,7 @@ export function state(): AppState {
     j.input.sequence ||
     (/-(\d+)$/.test(j.id) ? Number(j.id.match(/-(\d+)$/)![1]) + 1 : undefined);
   return {
+    revision: revision(),
     projects: all("projects"),
     products: all("products"),
     assets: all("assets"),

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { Asset, Span } from "../shared/types.ts";
 import { SPANS } from "../shared/project.ts";
-import { mediaURL } from "./api.ts";
+import { mediaURL, type MediaVariant } from "./api.ts";
 import PromptContent from "./PromptContent.tsx";
 export function Button({
   children,
@@ -170,22 +170,22 @@ export function UploadZone({
     </label>
   );
 }
-export function useMedia(id?: string) {
-  const [url, setURL] = useState("");
+export function useMedia(id?: string, variant: MediaVariant = "original") {
+  const key = `${id}:${variant}`;
+  const [media, setMedia] = useState({key: "", url: ""});
   useEffect(() => {
-    setURL("");
     if (!id) return;
     let active = true;
-    void mediaURL(id)
+    void mediaURL(id, variant)
       .then((url) => {
-        if (active) setURL(url);
+        if (active) setMedia({key, url});
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [id]);
-  return url;
+  }, [id, variant, key]);
+  return media.key === key ? media.url : "";
 }
 export function AssetMedia({
   asset,
@@ -198,17 +198,17 @@ export function AssetMedia({
   className?: string;
   muted?: boolean;
 }) {
-  const url = useMedia(asset.id);
+  const url = useMedia(asset.id, asset.mime.startsWith("video/") ? controls ? "preview" : "thumbnail" : "original");
   if (!url)
     return (
       <div className={`media-placeholder ${className}`}>
         <Loader2 className="spin" size={20} />
       </div>
     );
-  return asset.mime.startsWith("image/") ? (
+  return asset.mime.startsWith("image/") || (asset.mime.startsWith("video/") && !controls) ? (
     <img src={url} alt={asset.name} className={className} loading="lazy" />
   ) : asset.kind === "music" ? (
-    <audio src={url} controls />
+    <audio src={url} controls preload="none" />
   ) : (
     <video
       src={url}
@@ -216,7 +216,7 @@ export function AssetMedia({
       controls={controls}
       muted={muted}
       playsInline
-      preload="metadata"
+      preload="none"
     />
   );
 }
@@ -282,6 +282,24 @@ export function AssetCard({
       </div>
     </article>
   );
+}
+/** Keep large libraries from mounting hundreds of media elements at once. */
+export function AssetGrid({assets, className = "", children}: {
+  assets: Asset[];
+  className?: string;
+  children: (asset: Asset) => ReactNode;
+}) {
+  const [page, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(assets.length / 24));
+  const current = Math.min(page, pages - 1);
+  return <>
+    <div className={`asset-grid ${className}`}>{assets.slice(current * 24, (current + 1) * 24).map(children)}</div>
+    {pages > 1 && <div className="batch-actions" aria-label="Library pages">
+      <Button disabled={current === 0} onClick={() => setPage(current - 1)}>Previous page</Button>
+      <span>Page {current + 1} of {pages} · {assets.length} files</span>
+      <Button disabled={current === pages - 1} onClick={() => setPage(current + 1)}>Next page</Button>
+    </div>}
+  </>;
 }
 export function EmptyState({
   title,

@@ -1,0 +1,35 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { createHash } from "node:crypto";
+import type { Asset } from "../shared/types.ts";
+process.env.DATA_DIR = await mkdtemp(path.join(os.tmpdir(), "avem-preview-"));
+const {mediaDir, workDir, all} = await import("../server/store.ts");
+const {ffmpeg, ffprobe, run, probe} = await import("../server/render.ts");
+const {videoPreview} = await import("../server/previews.ts");
+
+test("video previews are bounded H.264/AAC, cached and deduplicated without altering originals or libraries", async () => {
+  const source = path.join(mediaDir, "large-source.mp4");
+  await run(ffmpeg, ["-y", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=1080x1920:r=30", "-f", "lavfi", "-i", "sine=frequency=440", "-t", "0.6", "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-pix_fmt", "yuv420p", "-c:a", "aac", source]);
+  const asset: Asset = {id:"large",key:"large-source.mp4",projectId:"p",kind:"reaction",name:"Large source",mime:"video/mp4",size:(await stat(source)).size,createdAt:""};
+  const original = createHash("sha256").update(await readFile(source)).digest("hex");
+  const [key, duplicate] = await Promise.all([videoPreview(asset),videoPreview(asset)]);
+  assert.equal(key, duplicate);
+  const file = path.join(mediaDir, key);
+  const meta = await probe(file);
+  assert(Math.max(meta.width,meta.height) <= 480);
+  assert(meta.hasAudio);
+  const codecs = JSON.parse(await run(ffprobe,["-v","error","-show_streams","-of","json",file])).streams;
+  assert.equal(codecs.find((s:any)=>s.codec_type==="video").codec_name,"h264");
+  assert.equal(codecs.find((s:any)=>s.codec_type==="audio").codec_name,"aac");
+  const cachedAt = (await stat(file)).mtimeMs;
+  assert.equal(await videoPreview(asset),key);
+  assert.equal((await stat(file)).mtimeMs,cachedAt);
+  const thumb = await videoPreview(asset,true), thumbnail = await probe(path.join(mediaDir,thumb));
+  assert(Math.max(thumbnail.width,thumbnail.height)<=240);
+  assert.equal(createHash("sha256").update(await readFile(source)).digest("hex"),original);
+  assert.deepEqual(await readdir(workDir),[]);
+  assert.deepEqual(all("assets"),[]);
+});

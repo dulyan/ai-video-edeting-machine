@@ -49,8 +49,10 @@ import { RatioPicker } from "./RatioPicker.tsx";
 import { isTextToImage, isImageToVideo } from "../shared/ratios.ts";
 import { isAutoFrameField } from "../shared/catalog.ts";
 import type { Workspace } from "./workspace.tsx";
+import type { ProjectUpdate } from "./workspace-sync.ts";
 import {
   AssetCard,
+  AssetGrid,
   Button,
   EmptyState,
   Field,
@@ -66,7 +68,7 @@ import VariationControl from "./VariationControl.tsx";
 type Props = {
   p: Project;
   w: Workspace;
-  update: (patch: Partial<Project>) => void;
+  update: (patch: ProjectUpdate) => void;
   inspect: (a: Asset) => void;
 };
 const toggle = (ids: string[], id: string) =>
@@ -509,11 +511,10 @@ export function Generation({
                 Clear selection
               </Button>
             </div>
-            <div className="starting-frame-grid">
-              {frames
+            <AssetGrid className="starting-frame-grid" assets={frames
                 .filter((a) => frameScope === "all" || a.projectId === p.id)
-                .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                .map((a) => (
+                .sort((a, b) => b.createdAt.localeCompare(a.createdAt))}>
+              {(a) => (
                   <AssetCard
                     key={a.id}
                     asset={a}
@@ -526,8 +527,8 @@ export function Generation({
                     }
                     onInspect={inspect}
                   />
-                ))}
-            </div>
+                )}
+            </AssetGrid>
             {!frames.some(
               (a) => frameScope === "all" || a.projectId === p.id,
             ) && (
@@ -614,8 +615,8 @@ export function Generation({
           />
         )}
         {previousAssets.length ? (
-          <div className="asset-grid">
-            {previousAssets.map((a) => (
+          <AssetGrid assets={previousAssets}>
+            {(a) => (
               <AssetCard
                 key={a.id}
                 asset={a}
@@ -632,8 +633,8 @@ export function Generation({
                 }
                 onInspect={inspect}
               />
-            ))}
-          </div>
+            )}
+          </AssetGrid>
         ) : !batch ? (
           <EmptyState
             title={image ? "No starting frames yet" : "No reaction clips yet"}
@@ -829,7 +830,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
     [next, setNext] = useState("");
   const c = p.composition,
     patch = (value: Partial<Composition>) =>
-      update({ composition: { ...c, ...value } }),
+      update((latest) => ({ composition: { ...latest.composition, ...value } })),
     product = w.data.products.find((x) => x.id === p.productId),
     hooks = p.hooks.filter((h) =>
       c.style === "IMG" ? h.imageId : h.text.trim(),
@@ -842,9 +843,9 @@ export function Hooks({ p, w, update, inspect }: Props) {
     );
   async function imageHooks(files: FileList) {
     const assets = await w.upload(files, "hook-image", p.id);
-    update({
+    update((latest) => ({
       hooks: [
-        ...p.hooks,
+        ...latest.hooks,
         ...assets.map((a) => ({
           id: crypto.randomUUID(),
           text: "",
@@ -852,7 +853,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
           createdAt: new Date().toISOString(),
         })),
       ],
-    });
+    }));
   }
   return (
     <>
@@ -1286,10 +1287,10 @@ export function LibraryChooser({
   const onUpload = (files: FileList) =>
     void w.act("Uploading media", async () => {
       const assets = await w.upload(files, kind, p.id);
-      update({
-        [key]: [...selected, ...assets.map((a) => a.id)],
+      update((latest) => ({
+        [key]: [...new Set([...latest[key], ...assets.map((a) => a.id)])],
         ...(kind === "music" ? { musicMode: "selected" } : {}),
-      });
+      }));
     });
   return (
     <div className={kind === "music" ? "music-layout" : ""}>
@@ -1436,24 +1437,24 @@ export function LibraryChooser({
           </span>
         </div>
         {assets.length ? (
-          <div className={`asset-grid ${kind === "music" ? "music-grid" : ""}`}>
-            {assets.map((a) => (
+          <AssetGrid assets={assets} className={kind === "music" ? "music-grid" : ""}>
+            {(a) => (
               <AssetCard
                 key={a.id}
                 asset={a}
                 selected={selected.includes(a.id)}
                 onSelect={() =>
-                  update({
-                    [key]: toggle(selected, a.id),
-                    ...(kind === "music" && p.musicMode === "none"
+                  update((latest) => ({
+                    [key]: toggle(latest[key], a.id),
+                    ...(kind === "music" && latest.musicMode === "none"
                       ? { musicMode: "selected" }
                       : {}),
-                  })
+                  }))
                 }
                 onInspect={inspect}
               />
-            ))}
-          </div>
+            )}
+          </AssetGrid>
         ) : (
           <EmptyState
             title={
@@ -1996,11 +1997,11 @@ export function Status({ p, w, update, inspect }: Props) {
         </Button>
       </div>
       {outputs.length ? (
-        <div className="asset-grid output-grid">
-          {outputs.map((a) => (
+        <AssetGrid assets={outputs} className="output-grid">
+          {(a) => (
             <AssetCard key={a.id} asset={a} onInspect={inspect} />
-          ))}
-        </div>
+          )}
+        </AssetGrid>
       ) : (
         <EmptyState
           title={
