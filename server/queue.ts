@@ -357,6 +357,11 @@ export function startQueue() {
 export function queueRender(p: Project) {
   const batchId = crypto.randomUUID(),
     assets = Object.fromEntries(all("assets").map((a) => [a.id, a]));
+  for (const id of p.skipped.includes(6) || p.musicMode === "none" ? [] : p.musicIds) {
+    const offset = p.musicStartOffsets?.[id] ?? 0;
+    const duration = assets[id]?.duration;
+    if (!Number.isFinite(offset) || offset < 0 || (duration && offset >= duration)) throw new Error("Music start time must be within the selected track.");
+  }
   let count = 0;
   const total = combinationCount(p);
   if (total > 100000)
@@ -398,6 +403,7 @@ export function queueRender(p: Project) {
       {
         row,
         hook,
+        musicStartOffset: row.musicId ? (p.musicStartOffsets?.[row.musicId] ?? 0) : 0,
         composition: structuredClone(c),
         assets: Object.fromEntries(selected.map((id) => [id, assets[id]])),
       },

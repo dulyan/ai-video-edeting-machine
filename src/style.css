@@ -4323,3 +4323,6 @@ progress {
 .preview-hook-image.pos-upper-middle { top: 32%; transform: translateY(-50%); }
 .preview-hook-image.pos-lower-middle { top: 63%; transform: translateY(-50%); }
 .hook-row > input[type="checkbox"] { flex: 0 0 auto; width: 20px; height: 20px; accent-color: var(--accent); }
+
+.music-track-card { min-width: 0; }
+.music-track-card > .field { margin: 10px 4px 20px; }

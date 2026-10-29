@@ -118,6 +118,7 @@ export interface Project {
   reactionIds: string[];
   demoIds: string[];
   musicIds: string[];
+  musicStartOffsets?: Record<string, number>;
   musicMode: "selected" | "random" | "none";
   hooks: Hook[];
   hookCount: number;

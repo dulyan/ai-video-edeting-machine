@@ -451,3 +451,13 @@ test("text size is scaled from CSS em units rather than shrunk by ASS metrics",a
    assert((await stat(file)).size>1000);
  }
 });
+
+test("music seeking changes the audible source while preserving the music span",async()=>{
+ await asset("offset-track","music",["-f","lavfi","-t","1","-i","anullsrc=r=48000:cl=mono","-f","lavfi","-t","1","-i","sine=frequency=440:sample_rate=48000","-filter_complex","[0:a][1:a]concat=n=2:v=0:a=1[a]","-map","[a]","-c:a","libmp3lame"],2,"audio/mpeg");
+ for(const offset of [undefined,1]){
+  const p=newProject();p.composition.sourceVolume=0;p.composition.musicVolume=1;p.composition.musicSpan="demo";
+  const file=path.join(testDir,"seek-"+(offset??0)+".mp4");
+  await renderVideo({row:{id:"seek",hookId:null,reactionId:"reaction",demoId:"demo",musicId:"offset-track"},musicStartOffset:offset,composition:p.composition,assets},file,()=>{},undefined,[216,384]);
+  assert((await rms(file,.4))<.001);const demo=await rms(file,1.4);assert(offset===undefined?demo<.001:demo>.02);
+ }
+});

@@ -106,6 +106,7 @@ export const projectSchema = z.object({
   reactionIds: ids,
   demoIds: ids,
   musicIds: ids,
+  musicStartOffsets: z.record(id, z.number().finite().min(0).max(86400)).optional(),
   musicMode: z.enum(["selected", "random", "none"]),
   hooks: z.array(hookSchema).max(5000),
   hookCount: z.number().int().min(1).max(1000),

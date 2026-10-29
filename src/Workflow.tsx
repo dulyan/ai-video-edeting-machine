@@ -1455,8 +1455,7 @@ export function LibraryChooser({
         {assets.length ? (
           <AssetGrid assets={assets} className={kind === "music" ? "music-grid" : ""}>
             {(a) => (
-              <AssetCard
-                key={a.id}
+              <div key={a.id} className={kind === "music" ? "music-track-card" : undefined}><AssetCard
                 asset={a}
                 selected={selected.includes(a.id)}
                 onSelect={() =>
@@ -1469,6 +1468,13 @@ export function LibraryChooser({
                 }
                 onInspect={inspect}
               />
+              {kind === "music" && <Field label="Start at (seconds)" hint="0 starts from the beginning. Saved separately for this track in this project.">
+                <input aria-label={`Start time for ${a.name}`} type="number" min={0} max={a.duration ? Math.max(0,a.duration - 0.01) : 86400} step={0.1} value={p.musicStartOffsets?.[a.id] ?? 0} onChange={e => {
+                  const offset = Math.max(0,Math.min(a.duration ? Math.max(0,a.duration - 0.01) : 86400,Number(e.target.value) || 0));
+                  update(latest => ({musicStartOffsets:{...latest.musicStartOffsets,[a.id]:offset}}));
+                }} />
+              </Field>}
+              </div>
             )}
           </AssetGrid>
         ) : (

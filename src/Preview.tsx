@@ -130,6 +130,7 @@ export default function Preview({
     url = useMedia(asset?.mime.startsWith("image/") || loaded ? chosen : undefined),
     hookImage = useMedia(hook?.imageId),
     music = useMedia(loaded && p.musicMode !== "none" ? p.musicIds[0] : undefined);
+  const musicStartOffset = p.musicStartOffsets?.[p.musicIds[0]] ?? 0;
   const showHook = c.hookSpan === "whole" || c.hookSpan === part,
     playMusic = c.musicSpan === "whole" || c.musicSpan === part;
   useEffect(() => { setPlaying(false); setLoaded(false); setMediaError(""); }, [chosen]);
@@ -138,6 +139,14 @@ export default function Preview({
     document.addEventListener("visibilitychange", pause);
     return () => document.removeEventListener("visibilitychange", pause);
   }, []);
+  useEffect(() => {
+    const a = audio.current;
+    if (!a) return;
+    const seek = () => { a.currentTime = musicStartOffset; };
+    if (a.readyState >= 1) seek();
+    a.addEventListener("loadedmetadata", seek);
+    return () => a.removeEventListener("loadedmetadata", seek);
+  }, [music, musicStartOffset]);
   useEffect(() => {
     let active = true;
     const v = video.current, a = audio.current;

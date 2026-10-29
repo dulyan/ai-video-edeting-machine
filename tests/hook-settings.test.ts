@@ -46,3 +46,9 @@ test("five positions and persisted hook selections affect combinations",async()=
  saved.hooks[1].enabled=true;assert.equal(combinationCount(saved),4);
  assert(!projectSchema.safeParse({...p,composition:{...p.composition,reactionVolume:3}}).success);
 });
+
+test("music start offsets are optional and reject invalid seconds",()=>{
+ const p=newProject();assert(projectSchema.safeParse(p).success);
+ assert.equal(projectSchema.parse({...p,musicStartOffsets:{a:0,b:12.5}}).musicStartOffsets?.b,12.5);
+ for(const value of [-1,Infinity,NaN,86401])assert(!projectSchema.safeParse({...p,musicStartOffsets:{a:value}}).success);
+});

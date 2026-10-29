@@ -109,3 +109,14 @@ test("render snapshots retain text size, position, hook selection and segment vo
  p.composition.fontSize=20;p.composition.reactionVolume=1;
  assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.reactionVolume,0);assert.equal(job.input.composition.demoVolume,.65);
 });
+
+test("music offsets follow each chosen track and remain immutable",()=>{
+ const p=newProject();p.reactionIds=["offset-reaction"];p.musicIds=["offset-a","offset-b"];p.musicMode="selected";p.musicStartOffsets={"offset-a":1.5,"offset-b":3};
+ for(const id of [...p.reactionIds,...p.musicIds])put("assets",{id,key:id,name:id,kind:id==="offset-reaction"?"reaction":"music",projectId:p.id,mime:id==="offset-reaction"?"video/mp4":"audio/mpeg",size:1,duration:10,createdAt:""});
+ let batch=queueRender(p);let jobs=all("jobs").filter(j=>j.batchId===batch.batchId);
+ assert.equal(jobs.length,2);for(const job of jobs)assert.equal(job.input.musicStartOffset,p.musicStartOffsets[job.input.row.musicId]);
+ p.musicStartOffsets["offset-a"]=8;assert.equal(jobs.find(j=>j.input.row.musicId==="offset-a")!.input.musicStartOffset,1.5);
+ p.musicMode="random";batch=queueRender(p);jobs=all("jobs").filter(j=>j.batchId===batch.batchId);assert.equal(jobs.length,1);assert.equal(jobs[0].input.musicStartOffset,p.musicStartOffsets[jobs[0].input.row.musicId]);
+ delete p.musicStartOffsets;batch=queueRender(p);assert.equal(all("jobs").find(j=>j.batchId===batch.batchId)!.input.musicStartOffset,0);
+ p.musicStartOffsets={"offset-a":10};assert.throws(()=>queueRender(p),/Music start time/);
+});

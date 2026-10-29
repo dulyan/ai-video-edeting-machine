@@ -112,6 +112,7 @@ export function subtitleASS(
   return `[Script Info]\nScriptType: v4.00+\nPlayResX: ${w}\nPlayResY: ${h}\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Hook,${face?.family ?? "DejaVu Sans"},${font},&H00FFFFFF,&H00FFFFFF,${snapchat ? "&H80000000" : "&H00101010"},&H80000000,${face ? (face.weight >= 700 ? -1 : 0) : (snapchat ? 0 : -1)},0,0,0,100,100,0,0,${snapchat ? 3 : 1},${snapchat ? 10 : 2},0,5,50,50,50,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,${assTime(window[0])},${assTime(window[1])},Hook,,0,0,0,,{\\an5\\pos(${w / 2},${Math.round(y)})}${escaped}\n`;
 }
 export interface RenderSpec {
+  musicStartOffset?: number;
   row: RenderRow;
   hook?: Hook;
   composition: Composition;
@@ -316,7 +317,11 @@ export async function renderVideo(
     graph.push(`[0:a]anull[source]`);
     if (row.musicId && musicRange[1] > musicRange[0]) {
       const i = input++;
-      args.push("-stream_loop", "-1", "-i", await source(row.musicId));
+      const offset = spec.musicStartOffset ?? 0;
+      const musicFile = await source(row.musicId);
+      const duration = assets[row.musicId]?.duration || (await probe(musicFile)).duration;
+      if (!Number.isFinite(offset) || offset < 0 || (duration > 0 && offset >= duration)) throw new Error("Music start time must be within the selected track.");
+      args.push("-stream_loop", "-1", "-ss", String(offset), "-i", musicFile);
       graph.push(
         `[${i}:a]atrim=duration=${musicRange[1] - musicRange[0]},asetpts=PTS-STARTPTS,volume=${c.musicVolume},adelay=${Math.round(musicRange[0] * 1000)}:all=1[music]`,
       );
