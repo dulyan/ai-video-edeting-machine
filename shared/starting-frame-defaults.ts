@@ -27,6 +27,7 @@ No parted lips, open-mouth surprise, speech-shaped mouth, gasping, laughing, or 
 AVATAR GENERATION:
 Show one specific, believable fictional adult using the age, gender, and ethnicity in the unique scene details. Translate these into individual visual characteristics rather than repeating labels.
 The person is naturally handsome or beautiful, athletic, visibly fit, well groomed, stylish, and affluent, while retaining believable human imperfections.
+Make the person look as if they are on their way to the gym. Their clothing, grooming, hairstyle, and any visible accessories must match that situation: stylish, coordinated, practical athletic clothing or gym-ready layers appropriate to the season and weather. Any visible gym bag strap, headphones, or similar detail should feel natural and fit the crop. Keep their appearance believable for heading to a workout rather than a fashion shoot; do not add an accessory unless it fits the scene.
 Age should influence facial fullness, face shape, fine lines, skin texture, under-eye appearance, jawline, neck, hair density, hairline, greying, and facial hair where appropriate. Do not exaggerate age or give younger adults automatically flawless skin.
 Gender should inform natural presentation, grooming, hairstyle, facial hair where appropriate, and clothing without exaggerated stereotypes.
 Ethnicity should inform plausible appearance while respecting broad individual variation. Do not caricature ethnicity or exaggerate racial features.
