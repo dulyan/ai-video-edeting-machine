@@ -83,6 +83,7 @@ export interface Project {
   imagePrompt: string;
   imageFixedInstructions?: string;
   imageReferencePoses?: ReferencePoses;
+  /** Legacy project setting; new starting-frame batches always use diversity 100. */
   imageVariation?: number;
   imageCount: number;
   imageModel: string;

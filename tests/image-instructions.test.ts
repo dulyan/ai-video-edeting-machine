@@ -62,7 +62,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
   const p = newProject();
   p.imageFixedInstructions = fixed;
   put("projects", p);
-  const job = addJob(p.id, "prepare", "Prepare 4 first frames", input());
+  const job = addJob(p.id, "prepare", "Prepare 4 first frames", {...input(),promptFormat:"split-image-v3",variation:0});
   const fixture = path.join(mediaDir, "fixture.png");
   await run(ffmpeg, [
     "-y",
@@ -129,14 +129,17 @@ test("four image prompts preserve the exact fixed block, show only generated det
     );
     for (const body of textRequests) {
       const message = JSON.parse(body.messages[1].content);
-      assert.equal(message.readOnlyImageInstructions, fixed);
+      assert.equal(message.fixedImageInstructions, fixed);
       assert.equal(message.referencePoses, undefined);
       assert(!body.messages[0].content.includes("referencePoses"));
-      assert.equal(message.textModelInstructions, input().prompt);
-      assert.equal(message.variationLevel, 50);
+      assert.equal(message.randomElementsInstructions, input().prompt);
+      assert.equal(message.variationLevel, 100);
+      assert(Object.keys(message).indexOf("fixedImageInstructions") < Object.keys(message).indexOf("randomElementsInstructions"));
+      assert.equal(message.textModelInstructions,undefined);
+      assert.equal(message.readOnlyImageInstructions,undefined);
       assert(
         body.messages[0].content.includes(
-          "never reduces specificity or detail",
+          "never by widening a stated age range",
         ),
       );
       assert(body.messages[0].content.includes("DO NOT reproduce"));
@@ -169,6 +172,7 @@ test("four image prompts preserve the exact fixed block, show only generated det
       assert.equal(asset.prompt, assembleImagePrompt(asset.promptParts!));
       assert(asset.prompt!.startsWith(fixed + "\n\n"));
       assert(imageRequests.some((b) => b.prompt === asset.prompt));
+      assert(!asset.prompt!.includes(input().prompt));
     }
     assert(
       imageRequests.every(
@@ -187,12 +191,12 @@ test("four image prompts preserve the exact fixed block, show only generated det
     download.mock.restore();
   }
 });
-test("split-image retries preserve completed prompts and snapshotted fixed text without double-prefixing", async () => {
+for (const format of ["split-image-v2", "split-image-v3"]) test(`${format} retries preserve completed prompts and snapshotted fixed text without double-prefixing`, async () => {
   const job = addJob(
     "retry-project",
     "prepare",
     "Prepare 2 first frames",
-    input(2),
+    {...input(2),promptFormat:format},
   );
   const first = assembleImagePrompt({
     fixedInstructions: fixed,

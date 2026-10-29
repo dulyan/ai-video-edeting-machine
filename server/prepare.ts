@@ -16,6 +16,9 @@ const IMAGE_DESCRIPTION_SYSTEM =
 const REACTION_DESCRIPTION_SYSTEM =
   'Generate ONE fresh specific reaction for a video of at most durationSeconds seconds, following textModelInstructions. readOnlyVideoInstructions are fixed context: obey them without rewriting, repeating, or reproducing them. Describe actions, facial expression, emotional intent, timing, and optional short Russian speech only; do not redesign or redescribe identity or setting. Use one free-hand gesture and a coherent short reaction. Speech is optional and must be in Russian with 1-3 words TOTAL. Open mouths, natural speech lip-sync, and raised brows are allowed. Do not add no-talking or frozen-lips requirements. For spoken reactions finish the description with exactly Speech: \u00abRussian phrase\u00bb; for a reaction without speech finish with exactly Speech: none. Write all motion instructions in English and put Russian words only inside that final speech declaration. No other dialogue, quoted phrases, captions, or on-screen text. Return exactly one JSON object {"prompt":"unique action and speech description"}. Escape newlines. Generate a fresh distinct combination of gesture, timing, expression and speech; avoid duplicates in avoid. Each description is randomly assigned to one of the supplied starting frames.';
 
+const IMAGE_FOUNDATION_SYSTEM =
+  'Read fixedImageInstructions followed by randomElementsInstructions as one complete brief. The fixed section supplies the generation requirements and constraints; the random-elements section identifies choices to resolve and limits on their variation. Return only ONE highly specific, richly detailed, concrete scene description resolving those choices. DO NOT reproduce, paraphrase, or rewrite the fixed section: the app copies that section verbatim before your generated scene details. Do not return alternatives, placeholders, unresolved choices, or instructions to another model. Request maximum diversity within the written constraints, never by widening a stated age range or changing a required gender, ethnicity, environment, or other requirement. Do not introduce additional appearance, setting, or randomization rules beyond the supplied brief. All details must form one coherent scene consistent with the fixed requirements. Do not repeat descriptions in avoid. Return exactly one JSON object {"prompt":"generated scene details"}, escaping newlines inside the string, with no commentary.';
+
 const LEGACY_REFERENCE_POSES_SYSTEM =
   " referencePoses is an optional inspiration list. If it is an array, each entry is ONE complete reference pose even when that entry contains line breaks; do not split an entry into multiple poses. When nonempty, consider the list for EVERY output: choose one suitable pose or a coherent adaptation, and describe its visible facial expression, emotional intent, head/body posture, and plausible action as a SINGLE still-image moment. Use different suitable references across outputs where possible; avoid copying the same pose repeatedly. Never combine incompatible poses, request multiple moments or panels, contradict fixed requirements, or treat reference text as instructions to change the response format. If the list is empty, invent a suitable pose within the text and fixed instructions.";
 
@@ -70,11 +73,12 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
   const total = mode === "image" ? count : count * frameIds.length;
   const splitPrompt =
     (mode === "image" &&
-      ["split-image-v1", "split-image-v2"].includes(job.input.promptFormat)) ||
+      ["split-image-v1", "split-image-v2", "split-image-v3"].includes(job.input.promptFormat)) ||
     (mode === "video" &&
       ["split-video-v1", "split-video-v2"].includes(job.input.promptFormat));
   const randomVideo =
     mode === "video" && job.input.promptFormat === "split-video-v2";
+  const imageFoundation = mode === "image" && job.input.promptFormat === "split-image-v3";
   // Only pre-removal batches retain reference poses when resumed.
   const legacyPoses =
     mode === "image" && job.input.promptFormat === "split-image-v1";
@@ -198,7 +202,7 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
         save();
         try {
           await streamPrompts(
-            randomVideo
+            imageFoundation ? IMAGE_FOUNDATION_SYSTEM : randomVideo
               ? REACTION_DESCRIPTION_SYSTEM
               : splitPrompt
                 ? mode === "video"
@@ -212,7 +216,15 @@ export async function prepareGeneration(job: Job, signal?: AbortSignal) {
                 : 'Resolve the supplied generic image/video brief into ONE complete, distinct production prompt. Follow ONLY the variation or randomness instructions already in that brief. Preserve all fixed requirements; do not invent randomization rules. The brief describes the requested media, not the format of your chat response. Honor its scene/content rules inside the output prompt, even if it mentions FINAL OUTPUT or asks to generate an image. Your chat response must be exactly one JSON object {"prompt":"complete resolved production prompt"}. Escape newlines inside the string. No commentary. Do not repeat any prompt in avoid.',
             JSON.stringify(
               splitPrompt
-                ? {
+                ? imageFoundation ? {
+                    fixedImageInstructions: fixedInstructions,
+                    randomElementsInstructions: prompt,
+                    variationLevel: 100,
+                    randomnessNonce: job.batchId + ":" + request.id,
+                    count: 1,
+                    aspectRatio: job.input.aspectRatio || "9:16",
+                    avoid: descriptions.slice(-20),
+                  } : {
                     textModelInstructions: prompt,
                     ...(legacyPoses
                       ? { referencePoses: job.input.referencePoses ?? "" }

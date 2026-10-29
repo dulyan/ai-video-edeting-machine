@@ -492,9 +492,9 @@ app.post("/api/generate", async (req) => {
       aspectRatio,
       ...(mode === "image"
         ? {
-            promptFormat: "split-image-v2",
+            promptFormat: "split-image-v3",
             fixedInstructions: p.imageFixedInstructions || "",
-            variation: p.imageVariation ?? 50,
+            variation: 100,
           }
         : {
             promptFormat: "split-video-v2",

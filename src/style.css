@@ -4215,25 +4215,6 @@ progress {
   line-height: 1.65;
   margin: 0 0 20px;
 }
-.variation-control {
-  display: grid;
-  gap: 7px;
-}
-.variation-control output {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.variation-control > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.variation-control input[type="range"] {
-  width: 100%;
-}
 .prompt-content {
   display: grid;
   gap: 18px;

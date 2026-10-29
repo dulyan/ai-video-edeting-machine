@@ -64,7 +64,6 @@ import {
 } from "./components.tsx";
 import Preview from "./Preview.tsx";
 import { request } from "./api.ts";
-import VariationControl from "./VariationControl.tsx";
 type Props = {
   p: Project;
   w: Workspace;
@@ -171,7 +170,7 @@ export function Generation({
                   ? {
                       imagePrompt: IMAGE_PROMPT,
                       imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
-                      imageVariation: 50,
+                      imageVariation: 100,
                     }
                   : {
                       videoPrompt: VIDEO_PROMPT,
@@ -190,7 +189,7 @@ export function Generation({
                   ? {
                       imagePrompt: IMAGE_PROMPT,
                       imageFixedInstructions: IMAGE_FIXED_INSTRUCTIONS,
-                      imageVariation: 50,
+                      imageVariation: 100,
                     }
                   : {
                       videoPrompt:
@@ -221,7 +220,7 @@ export function Generation({
                           imagePrompt: preset.prompt,
                           imageFixedInstructions:
                             preset.fixedInstructions ?? "",
-                          imageVariation: preset.variation ?? 50,
+                          imageVariation: 100,
                         }
                       : {
                           videoPrompt: preset.prompt,
@@ -243,11 +242,19 @@ export function Generation({
             </select>
           </Field>
         )}
+        {image && <Field
+          label="Fixed image instructions"
+          hint="This wording begins every image prompt unchanged, including whitespace and line breaks."
+        >
+          <textarea rows={9} value={p.imageFixedInstructions ?? ""}
+            placeholder="Paste the fixed foundation for every image prompt."
+            onChange={(e)=>update({imageFixedInstructions:e.target.value})}/>
+        </Field>}
         <Field
-          label="Text-model instructions"
+          label={image ? "Random elements instructions" : "Text-model instructions"}
           hint={
             image
-              ? "Tell the text model what to invent, how detailed it should be, and what should differ between outputs."
+              ? "Describe which ages, genders, ethnicities, backgrounds, and other details should vary or be chosen automatically. Written limits are always respected."
               : "Tell the text model which gestures, expressions, and optional short Russian phrases to invent for each video."
           }
         >
@@ -266,30 +273,12 @@ export function Generation({
         </Field>
         {image && (
           <>
-            <VariationControl
-              value={p.imageVariation ?? 50}
-              onChange={(imageVariation) => update({ imageVariation })}
-            />
-            <Field
-              label="Fixed image instructions"
-              hint="This wording is copied exactly into every final image prompt, including its spacing and line breaks."
-            >
-              <textarea
-                rows={7}
-                value={p.imageFixedInstructions ?? ""}
-                placeholder="Paste the image instructions that should stay identical in every output."
-                onChange={(e) =>
-                  update({ imageFixedInstructions: e.target.value })
-                }
-              />
-            </Field>
             <p className="prompt-assembly-note">
-              The text model generates the unique description. The app combines
-              it with your fixed instructions without rewriting them.
+              Your fixed instructions begin every image prompt unchanged. The text model turns your random-elements instructions into unique scene details appended afterward.
             </p>
             {p.imageFixedInstructions === undefined && (
               <p className="info-note">
-                Your previous generic prompt is preserved above. Move any
+                Your previous generic prompt is preserved in Random elements instructions. Move any
                 wording you want copied verbatim into the fixed instructions
                 field.
               </p>
@@ -343,7 +332,7 @@ export function Generation({
                       ? p.imageFixedInstructions
                       : videoSettings.videoFixedInstructions) ?? "",
                   variation:
-                    (image ? p.imageVariation : p.videoVariation) ?? 50,
+                    image ? 100 : p.videoVariation ?? 50,
                 });
                 setPresetName("");
               })
@@ -1694,19 +1683,19 @@ export function Outline({ p, w, update, inspect }: Props) {
       <details className="card outline-details">
         <summary>Edit prompts & product information</summary>
         <div className="form-columns">
-          <Field label="Starting-frame text-model instructions">
-            <textarea
-              rows={3}
-              value={p.imagePrompt}
-              onChange={(e) => update({ imagePrompt: e.target.value })}
-            />
-          </Field>
           <Field label="Fixed starting-frame image instructions">
             <textarea
               rows={3}
               value={p.imageFixedInstructions ?? ""}
+              onChange={(e) => update({ imageFixedInstructions: e.target.value })}
+            />
+          </Field>
+          <Field label="Starting-frame random elements instructions">
+            <textarea
+              rows={3}
+              value={p.imagePrompt}
               onChange={(e) =>
-                update({ imageFixedInstructions: e.target.value })
+                update({ imagePrompt: e.target.value })
               }
             />
           </Field>
@@ -1735,10 +1724,6 @@ export function Outline({ p, w, update, inspect }: Props) {
             }
           />
         </Field>
-        <VariationControl
-          value={p.imageVariation ?? 50}
-          onChange={(imageVariation) => update({ imageVariation })}
-        />
         <div className="form-columns">
           <Field label="Text-to-image model">
             <select

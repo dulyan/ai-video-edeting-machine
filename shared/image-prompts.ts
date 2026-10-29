@@ -7,6 +7,3 @@ export function assembleImagePrompt(parts: PromptParts): string {
     ? base + "\n\n" + parts.enforcedInstructions
     : base;
 }
-export function variationLabel(value: number) {
-  return value < 34 ? "Restrained" : value < 67 ? "Balanced" : "Exploratory";
-}

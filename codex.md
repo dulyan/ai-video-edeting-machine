@@ -18,14 +18,15 @@ The main workflow has nine steps: Project name, Starting frames, Reaction videos
 
 ### Starting frames
 
-- Keep separate **Text-model instructions** and **Fixed image instructions** fields, a text-model selector, a text-to-image selector, output count, aspect ratio, and Variation setting.
-- The text model invents detailed, specific descriptions consistent with the fixed instructions. Variation controls breadth of invention, not descriptive detail.
+- Show **Fixed image instructions** first and **Random elements instructions** second, both plain text. Keep text/image model selectors, output count, and aspect ratio. Starting frames and Task outline have no Variation control.
+- New batches always request maximum diversity within the written constraints. The text model reads the fixed foundation followed by the random-elements brief, then returns only specific, detailed scene descriptions. Do not add hidden persona or setting restrictions.
 - Supply fixed instructions to the text model as read-only context; never ask it to rewrite or reproduce them.
 - Assemble the provider prompt deterministically: `fixedInstructions + "\n\n" + generatedDescription`. If the fixed field is empty, use the description alone. Preserve the fixed field's exact wording, whitespace, and line breaks.
 - Stream live descriptions and progress. All requested descriptions must finish before image jobs are submitted. Keep completed descriptions on failure and resume from checkpoints.
 - Save the exact assembled prompt and its source sections with each generated asset. The preview/copy action must match the actual provider prompt.
-- Presets save and restore both fields and Variation together.
-- New batches use `split-image-v2`. Reference-pose inputs have been removed; do not restore them or send stale reference lists from older projects.
+- Presets save and restore both fields together. Retain the legacy `imagePrompt` storage field for random-elements instructions; legacy variation values remain readable but do not reduce diversity for new batches.
+- New batches use `split-image-v3`; old v1/v2 batches retain their original prompt instructions and variation when resumed. Reference-pose inputs have been removed; do not restore them or send stale reference lists from older projects.
+- Built-in defaults are in `shared/starting-frame-defaults.ts`. The fixed block holds UGC style/camera/avatar/background/consistency/expression/negative requirements. The random-elements default automatically chooses adult age, gender, ethnicity, background, and other concrete details. Existing custom projects and presets are not overwritten; load UGC portrait to apply revised defaults.
 - Current default image instructions require a closed mouth, touching lips, and a gentle smile with a happy, pleasantly surprised, excited expression. These are editable prompt defaults, not hidden backend additions to every custom image prompt.
 
 ### Reaction videos

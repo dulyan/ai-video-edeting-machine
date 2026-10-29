@@ -153,6 +153,7 @@ export function state(): AppState {
       fixedInstructions: [
         "split-image-v1",
         "split-image-v2",
+        "split-image-v3",
         "split-video-v1",
         "split-video-v2",
         "direct-video-v1",
