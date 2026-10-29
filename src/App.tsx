@@ -42,6 +42,7 @@ import { useWorkspace, type Workspace } from "./workspace.tsx";
 import {
   AssetCard,
   AssetGrid,
+  UploadStatus,
   Button,
   EmptyState,
   Field,
@@ -57,7 +58,7 @@ import {
   Status,
 } from "./Workflow.tsx";
 import { ModelPicker, useModels } from "./ModelPicker.tsx";
-import { backendURL, configureBackend, request } from "./api.ts";
+import { backendURL, configureBackend, hasSession, request } from "./api.ts";
 import type { ProjectUpdate } from "./workspace-sync.ts";
 type Page =
   "Studio" | "Projects" | "Image Library" | "Video Library" | "Settings";
@@ -414,7 +415,7 @@ function Library({
 }
 export default function App() {
   const w = useWorkspace(),
-    [page, setPage] = useState<Page>("Studio"),
+    [page, setPage] = useState<Page>(backendURL === window.location.origin && !hasSession() ? "Settings" : "Studio"),
     [projectId, setProjectId] = useState(
       localStorage.getItem("avem.current") || "",
     ),
@@ -681,6 +682,7 @@ export default function App() {
           </div>
         </header>
         <main>
+          <UploadStatus progress={w.uploadProgress} onCancel={w.cancelUpload} onDismiss={w.dismissUpload}/>
           <div className="page-heading">
             <h1>{page === "Studio" ? p.name || "New project" : page}</h1>
           </div>

@@ -127,7 +127,7 @@ export default function Preview({
   const asset = assets.find((a) => a.id === chosen),
     url = useMedia(asset?.mime.startsWith("image/") || loaded ? chosen : undefined, asset?.mime.startsWith("video/") ? "preview" : "original"),
     hookImage = useMedia(hook?.imageId),
-    music = useMedia(loaded && p.musicMode !== "none" ? p.musicIds[0] : undefined);
+    music = useMedia(loaded && p.musicMode !== "none" ? p.musicIds[0] : undefined, "preview");
   const showHook = c.hookSpan === "whole" || c.hookSpan === part,
     playMusic = c.musicSpan === "whole" || c.musicSpan === part;
   useEffect(() => { setPlaying(false); setLoaded(false); setMediaError(""); }, [chosen]);

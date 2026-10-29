@@ -16,6 +16,7 @@ import type { Asset, Span } from "../shared/types.ts";
 import { SPANS } from "../shared/project.ts";
 import { mediaURL, type MediaVariant } from "./api.ts";
 import PromptContent from "./PromptContent.tsx";
+import { MUSIC_ACCEPT, type UploadProgress } from "../shared/uploads.ts";
 export function Button({
   children,
   variant = "default",
@@ -117,35 +118,39 @@ export function UploadZone({
   compact = false,
   label = "Upload media",
   description = "Drop files here, or click to browse",
+  disabled = false,
 }: {
   kind: string;
   onFiles: (files: FileList) => void;
   compact?: boolean;
   label?: string;
   description?: string;
+  disabled?: boolean;
 }) {
   const [drag, setDrag] = useState(false);
   return (
     <label
-      className={`upload-zone ${compact ? "compact" : ""} ${drag ? "drag" : ""}`}
+      className={`upload-zone ${compact ? "compact" : ""} ${drag ? "drag" : ""} ${disabled ? "disabled" : ""}`}
+      aria-disabled={disabled}
       onDragOver={(e) => {
         e.preventDefault();
-        setDrag(true);
+        if (!disabled) setDrag(true);
       }}
       onDragLeave={() => setDrag(false)}
       onDrop={(e) => {
         e.preventDefault();
         setDrag(false);
-        onFiles(e.dataTransfer.files);
+        if (!disabled) onFiles(e.dataTransfer.files);
       }}
     >
       <input
         type="file"
+        disabled={disabled}
         accept={
           kind === "image"
             ? "image/png,image/jpeg,image/webp"
             : kind === "music"
-              ? "audio/mpeg,audio/mp3"
+              ? MUSIC_ACCEPT
               : "video/mp4,video/webm,video/quicktime"
         }
         multiple
@@ -163,7 +168,7 @@ export function UploadZone({
         {kind === "image"
           ? "PNG, JPG, WEBP"
           : kind === "music"
-            ? "MP3 audio"
+            ? "MP3, WAV, M4A audio"
             : "MP4, MOV, WEBM"}{" "}
         · up to 100 MB each
       </span>
@@ -198,7 +203,7 @@ export function AssetMedia({
   className?: string;
   muted?: boolean;
 }) {
-  const url = useMedia(asset.id, asset.mime.startsWith("video/") ? controls ? "preview" : "thumbnail" : "original");
+  const url = useMedia(asset.id, asset.mime.startsWith("video/") ? controls ? "preview" : "thumbnail" : asset.kind === "music" ? "preview" : "original");
   if (!url)
     return (
       <div className={`media-placeholder ${className}`}>
@@ -414,4 +419,21 @@ export function SuccessPill({ children }: { children: ReactNode }) {
       {children}
     </span>
   );
+}
+export function UploadStatus({progress, onCancel, onDismiss}: {progress?:UploadProgress;onCancel:()=>void;onDismiss:()=>void}) {
+  if (!progress) return null;
+  return <section className="card upload-status" aria-label="Upload progress">
+    <div className="section-heading">
+      <strong>{progress.active ? "Uploading files" : progress.stopped ? "Upload stopped" : "Upload complete"}</strong>
+      <Button onClick={progress.active ? onCancel : onDismiss}>{progress.active ? "Stop upload" : "Dismiss upload summary"}</Button>
+    </div>
+    <progress max={progress.total || 1} value={progress.completed}/>
+    <p role="status">{progress.saved} saved · {progress.failed} failed · {Math.max(0,progress.total-progress.completed)} remaining</p>
+    {progress.currentFile && <p className="muted-text">{progress.currentFile}</p>}
+    {progress.stopped && <p className="muted-text">Saved files remain in the library. Check it before retrying a file whose upload was interrupted.</p>}
+    {!!progress.errors.length && <details><summary>View upload errors ({progress.errors.length})</summary>
+      <ul>{progress.errors.slice(0,20).map((error,index)=><li key={index}>{error.name}: {error.message}</li>)}</ul>
+      {progress.errors.length>20 && <p>Showing the first 20 errors.</p>}
+    </details>}
+  </section>;
 }

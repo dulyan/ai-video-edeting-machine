@@ -11,7 +11,7 @@ import rateLimit from "@fastify/rate-limit";
 import staticFiles from "@fastify/static";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createWriteStream, createReadStream } from "node:fs";
-import { stat, unlink, open } from "node:fs/promises";
+import { stat, statfs, unlink, open } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import path from "node:path";
 import { ZipArchive } from "archiver";
@@ -38,7 +38,7 @@ import {
   s3,
   bucket,
 } from "./storage.ts";
-import { startQueue, cancelJob, queueRender } from "./queue.ts";
+import { startQueue, stopQueue, cancelJob, queueRender } from "./queue.ts";
 import { probe } from "./render.ts";
 import { siray, chatJSON } from "./siray.ts";
 import { publicFetch } from "./network.ts";
@@ -52,20 +52,24 @@ import {
 } from "../shared/ratios.ts";
 import { registerEvents } from "./events.ts";
 import { videoPreview } from "./previews.ts";
+import { localApp, localOrigin, queueEnabled, allowedLocalRequest, healthIdentity, registerLocalApp } from "./local-app.ts";
+import { rotatingLog } from "./local-logging.ts";
 import type { Asset, Project } from "../shared/types.ts";
 const app = Fastify({
   logger: {
+    ...(localApp && process.env.LOCAL_LOG_FILE ? {stream:rotatingLog(process.env.LOCAL_LOG_FILE)} : {}),
     level: process.env.LOG_LEVEL || "info",
     redact: [
       "req.headers.authorization",
       "req.body.password",
       "req.body.apiKey",
+      "req.headers.x-local-control",
     ],
   },
   bodyLimit: 5 * 1024 * 1024,
 });
 const origins = (
-  process.env.FRONTEND_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173"
+  (localApp ? localOrigin : process.env.FRONTEND_ORIGIN) || "http://localhost:5173,http://127.0.0.1:5173"
 )
   .split(",")
   .map((x) => x.trim());
@@ -79,6 +83,12 @@ await app.register(multipart, {
 await app.register(rateLimit, { max: 500, timeWindow: "1 minute" });
 await app.register(staticFiles, { root: mediaDir, serve: false });
 app.addHook("onRequest", async (req, reply) => {
+  if (!allowedLocalRequest(req)) return reply.code(403).send({error:"Use the local application address"});
+  // Only the built interface is public; private API/media routes retain their
+  // existing authentication and signature checks.
+  const apiRoute = (req.routeOptions.url || "").startsWith("/api/") || req.url.split("?")[0].startsWith("/api/");
+  if (localApp && !apiRoute) return;
+  if (localApp && req.routeOptions.url === "/api/local/shutdown") return;
   // Support already-open older frontends that sent JSON headers on bodyless actions.
   if (
     req.method === "POST" &&
@@ -115,12 +125,13 @@ app.setErrorHandler((error: any, _req, reply) => {
   const status = error.statusCode || 400;
   return reply.code(status).send({
     error:
-      status >= 500
+      status === 507 ? "Not enough free disk space. Free up space before uploading or rendering." : status >= 500
         ? "The server could not complete this request"
         : error.message,
   });
 });
 app.get("/api/health", () => ({
+  ...healthIdentity(),
   ok: true,
   requiresPassword: !!process.env.APP_PASSWORD,
   storage: s3 ? "bucket" : "disk",
@@ -224,7 +235,10 @@ app.get("/api/models", async (req) => {
   if ((req.query as any).refresh === "1") invalidateCatalog();
   return { models: await getCatalog() };
 });
-app.post("/api/uploads", async (req) => {
+let uploadsActive = 0;
+app.post("/api/uploads", async (req, reply) => {
+  if (uploadsActive) return reply.code(429).send({error:"Another upload is active. Wait for it to finish."});
+  uploadsActive++;
   const parts = req.parts();
   let fields: Record<string, string> = {},
     temp = "",
@@ -233,6 +247,11 @@ app.post("/api/uploads", async (req) => {
     filename = "";
   const id = crypto.randomUUID();
   try {
+    if (localApp) {
+      const disk = await statfs(mediaDir);
+      if (disk.bavail * disk.bsize < 2 * 1024 ** 3 + 100 * 1024 ** 2)
+        throw Object.assign(new Error("Not enough free disk space"), {statusCode:507});
+    }
     for await (const part of parts) {
       if (part.type === "field") fields[part.fieldname] = String(part.value);
       else {
@@ -264,17 +283,18 @@ app.post("/api/uploads", async (req) => {
         header.toString("ascii", 0, 4) === "RIFF" &&
         header.toString("ascii", 8, 12) === "WEBP";
     const mp4 = header.toString("ascii", 4, 8) === "ftyp",
+      wav = header.toString("ascii", 0, 4) === "RIFF" && header.toString("ascii", 8, 12) === "WAVE",
       webm = header.subarray(0, 4).toString("hex") === "1a45dfa3",
       mp3 =
         header.toString("ascii", 0, 3) === "ID3" ||
         (header[0] === 255 && (header[1] & 224) === 224);
     if (
       (imageKind && !(jpeg || png || webp)) ||
-      (kind === "music" && !mp3) ||
+      (kind === "music" && !(mp3 || wav || mp4)) ||
       (!imageKind && kind !== "music" && !(mp4 || webm))
     )
       throw new Error(
-        `Choose ${imageKind ? "a PNG, JPG, or WEBP image" : kind === "music" ? "an MP3 audio file" : "an MP4, MOV, or WEBM video"}`,
+        `Choose ${imageKind ? "a PNG, JPG, or WEBP image" : kind === "music" ? "an MP3, WAV, or M4A audio file" : "an MP4, MOV, or WEBM video"}`,
       );
     mime = imageKind
       ? png
@@ -283,7 +303,7 @@ app.post("/api/uploads", async (req) => {
           ? "image/webp"
           : "image/jpeg"
       : kind === "music"
-        ? "audio/mpeg"
+        ? wav ? "audio/wav" : mp4 ? "audio/mp4" : "audio/mpeg"
         : webm
           ? "video/webm"
           : "video/mp4";
@@ -291,7 +311,7 @@ app.post("/api/uploads", async (req) => {
     if (!imageKind && !metadata.duration)
       throw new Error("Could not read media duration");
     if (
-      (kind === "music" && !metadata.hasAudio) ||
+      (kind === "music" && (!metadata.hasAudio || metadata.hasVideo)) ||
       (!imageKind && kind !== "music" && !metadata.hasVideo)
     )
       throw new Error("The file does not contain the required media stream");
@@ -314,6 +334,8 @@ app.post("/api/uploads", async (req) => {
   } catch (error) {
     if (temp) await unlink(temp).catch(() => {});
     throw error;
+  } finally {
+    uploadsActive--;
   }
 });
 app.get("/api/assets/:id/url", async (req) => {
@@ -322,7 +344,7 @@ app.get("/api/assets/:id/url", async (req) => {
   const base = process.env.PUBLIC_API_URL || `http://localhost:${process.env.PORT || 3001}`;
   const variant = (req.query as any).variant;
   return {
-    url: asset.mime.startsWith("video/") && ["preview", "thumbnail"].includes(variant)
+    url: (asset.mime.startsWith("video/") || (asset.kind === "music" && variant === "preview")) && ["preview", "thumbnail"].includes(variant)
       ? previewURL(asset, base, variant === "thumbnail") : await mediaURL(asset, base),
   };
 });
@@ -333,7 +355,7 @@ app.get("/api/previews/:id", async (req, reply) => {
     return reply.code(403).send({ error: "Preview link expired" });
   const asset = get("assets", id);
   if (!asset) return reply.code(404).send({ error: "Asset not found" });
-  return reply.type(thumbnail ? "image/jpeg" : "video/mp4").sendFile(await videoPreview(asset, thumbnail));
+  return reply.type(thumbnail ? "image/jpeg" : asset.kind === "music" ? "audio/mpeg" : "video/mp4").sendFile(await videoPreview(asset, thumbnail));
 });
 app.get("/api/media/:id", async (req, reply) => {
   const id = (req.params as any).id,
@@ -485,6 +507,10 @@ app.post("/api/generate", async (req) => {
   );
 });
 app.post("/api/render", async (req) => {
+  if (localApp) {
+    const disk = await statfs(mediaDir);
+    if (disk.bavail * disk.bsize < 2 * 1024 ** 3) throw Object.assign(new Error("Not enough free disk space"),{statusCode:507});
+  }
   const { projectId } = z.object({ projectId: z.string() }).parse(req.body);
   const p = get("projects", projectId);
   if (!p) throw new Error("Project not found");
@@ -577,13 +603,24 @@ app.post("/api/products/import", async (req) => {
     html,
   );
 });
-startQueue();
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  stopQueue();
+  await app.close();
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  db.close();
+  process.exit(0);
+}
+await registerLocalApp(app, shutdown);
+if (queueEnabled) startQueue();
 await app.listen({
   port: Number(process.env.PORT || 3001),
   host:
-    process.env.HOST || (process.env.APP_PASSWORD ? "0.0.0.0" : "127.0.0.1"),
+    localApp ? "127.0.0.1" : process.env.HOST || (process.env.APP_PASSWORD ? "0.0.0.0" : "127.0.0.1"),
 });
 for (const signal of ["SIGTERM", "SIGINT"] as const)
   process.on(signal, () => {
-    void app.close().then(() => process.exit(0));
+    void shutdown();
   });

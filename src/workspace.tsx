@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { AppState, Asset, AssetKind, Product, PromptPreset } from "../shared/types.ts";
 import { newProject } from "../shared/project.ts";
-import { backendURL, configureBackend, request, watchState } from "./api.ts";
+import { backendURL, configureBackend, hasSession, request, watchState } from "./api.ts";
+import { runUploadBatch, type UploadProgress } from "../shared/uploads.ts";
 import { WorkspaceDrafts, type ProjectUpdate, type SavedDrafts } from "./workspace-sync.ts";
 
 function readState(): AppState {
@@ -20,7 +21,9 @@ export function useWorkspace() {
   const [data, setData] = useState<AppState>(readState),
     [connected, setConnected] = useState(false),
     [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState("");
+    [busy, setBusy] = useState(""),
+    [uploadProgress, setUploadProgress] = useState<UploadProgress>();
+  const uploadController = useRef<AbortController | undefined>(undefined);
   const current = useRef(data), online = useRef(false);
   const drafts = useRef<WorkspaceDrafts | null>(null);
   if (!drafts.current) {
@@ -138,6 +141,10 @@ export function useWorkspace() {
     let alive = true;
     void request("/health").then(async (health) => {
       if (!alive) return;
+      if (health.requiresPassword && !hasSession()) {
+        notify("Open Settings and sign in with your workspace password to start.");
+        return;
+      }
       if (!health.requiresPassword) {
         const auth = await request("/login", { method: "POST", body: JSON.stringify({ password: "" }) });
         if (!alive) return;
@@ -222,20 +229,21 @@ export function useWorkspace() {
     }
     notify("Prompt preset saved.");
   }
-  async function upload(files: FileList | File[], kind: AssetKind, projectId: string) {
+  async function upload(files: FileList | File[], kind: AssetKind, projectId: string, onSaved?: (asset:Asset)=>void) {
     if (!online.current) throw new Error("Connect your backend in Settings to upload media.");
-    const assets: Asset[] = [];
-    for (const file of Array.from(files)) {
-      if (file.size > 100 * 1024 * 1024) throw new Error(`${file.name} exceeds 100 MB`);
+    if (uploadController.current) throw new Error("Wait for the current upload or stop it before adding more files.");
+    const controller = new AbortController();
+    uploadController.current = controller;
+    try { return await runUploadBatch(Array.from(files),kind,async(file)=>{
       const form = new FormData();
       form.append("kind", kind); form.append("projectId", projectId); form.append("file", file);
-      const { revision, ...asset } = await request<Asset & { revision?: number }>("/uploads", { method: "POST", body: form });
+      const { revision, ...asset } = await request<Asset & { revision?: number }>("/uploads", { method: "POST", body: form, signal:controller.signal });
       edits.observeWrite(revision);
-      assets.push(asset);
       // SSE may have already delivered this upload.
       commit((previous) => ({ ...previous, assets: [asset, ...previous.assets.filter((a) => a.id !== asset.id)] }));
-    }
-    return assets;
+      return asset;
+    },{signal:controller.signal,onProgress:setUploadProgress,onSaved}); }
+    finally { uploadController.current=undefined; }
   }
   async function act(label: string, action: () => Promise<unknown>) {
     setBusy(label);
@@ -255,7 +263,7 @@ export function useWorkspace() {
     const result = await request("/render", { method: "POST", body: JSON.stringify({ projectId }) });
     notify(`${result.count} videos queued for rendering.`);
   }
-  return { data, connected, notice, busy, saving: edits.saving, notify, refresh, sync,
+  return { data, connected, notice, busy, uploadProgress, cancelUpload:()=>uploadController.current?.abort(), dismissUpload:()=>setUploadProgress(undefined), saving: edits.saving, notify, refresh, sync,
     setConnected: setConnection, updateProject, addProject, saveProduct, savePreset, upload, act, generate, render };
 }
 export type Workspace = ReturnType<typeof useWorkspace>;

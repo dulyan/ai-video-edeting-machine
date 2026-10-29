@@ -17,6 +17,13 @@ import {
 } from "../shared/project.ts";
 const running = new Set<string>(),
   controllers = new Map<string, AbortController>();
+let closing = false;
+let queueTimer: ReturnType<typeof setInterval> | undefined;
+export function stopQueue() {
+  closing = true;
+  clearInterval(queueTimer);
+  for (const controller of controllers.values()) controller.abort();
+}
 export function cancelJob(id: string) {
   controllers.get(id)?.abort();
   const job = get("jobs", id);
@@ -303,6 +310,7 @@ export async function processJob(job: Job) {
       patchJob(job.id, { status: "completed", progress: 100, outputId });
     }
   } catch (error) {
+    if (closing) return; // Leave checkpoints for safe restart recovery.
     if (get("jobs", job.id)?.status === "canceled") return;
     const current = get("jobs", job.id)!;
     const uncertain =
@@ -319,6 +327,8 @@ export async function processJob(job: Job) {
   }
 }
 export function startQueue() {
+  closing = false;
+  clearInterval(queueTimer);
   recoverJobs();
   const timer = setInterval(() => {
     const queue = all("jobs")
@@ -337,6 +347,7 @@ export function startQueue() {
     }
   }, 1000);
   timer.unref();
+  queueTimer = timer;
   return timer;
 }
 export function queueRender(p: Project) {

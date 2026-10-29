@@ -1,10 +1,11 @@
 import { apiHeaders } from "../shared/http.ts";
-export let backendURL = (
-  localStorage.getItem("avem.backend") ||
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? "http://127.0.0.1:3001" : "")
-).replace(/\/$/, "");
+import { initialBackend } from "../shared/backend.ts";
+export let backendURL = initialBackend(window.location.origin, localStorage.getItem("avem.backend"), import.meta.env.VITE_API_URL, import.meta.env.DEV);
 let token = sessionStorage.getItem("avem.token") || "";
+export function hasSession() { return !!token; }
+export class APIError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
 export function configureBackend(url: string, nextToken?: string) {
   backendURL = url.replace(/\/$/, "");
   localStorage.setItem("avem.backend", backendURL);
@@ -23,7 +24,7 @@ export async function request<T = any>(
     );
   const response = await fetch(`${backendURL}/api${path}`, {
     ...options,
-    signal: options.signal || AbortSignal.timeout(options.body instanceof FormData || path.endsWith("/download") ? 180000 : 30000),
+    signal: AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.body instanceof FormData || path.endsWith("/download") ? 180000 : 30000)]),
     headers: apiHeaders(options, token),
   });
   if (!response.ok) {
@@ -33,7 +34,7 @@ export async function request<T = any>(
     } catch {
       error = `Server returned ${response.status}`;
     }
-    throw new Error(error);
+    throw new APIError(error || `Server returned ${response.status}`, response.status);
   }
   if (response.headers.get("content-type")?.includes("application/zip"))
     return (await response.blob()) as T;

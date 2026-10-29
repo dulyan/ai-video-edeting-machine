@@ -12,7 +12,11 @@
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "local:setup": "node scripts/local.mjs setup --fresh",
+    "local:start": "node scripts/local.mjs start",
+    "local:stop": "node scripts/local.mjs stop",
+    "local:backup": "node scripts/local.mjs backup"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",

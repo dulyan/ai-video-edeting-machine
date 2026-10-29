@@ -389,6 +389,32 @@ test("uploaded media renders through the durable API queue and downloads private
     "PK",
   );
 });
+test("mixed MP3/WAV/M4A uploads validate audio, support bounded previews, and reject corrupt files", async () => {
+  const binary = process.env.FFMPEG_PATH || ffmpeg!;
+  async function make(name:string,codec:string) {
+    await new Promise<void>((resolve,reject)=>{
+      const child=spawn(binary,["-y","-v","error","-i",path.join(dir,"track.mp3"),"-c:a",codec,path.join(dir,name)],{windowsHide:true});
+      child.on("error",reject);child.on("close",code=>code===0?resolve():reject(new Error("Audio fixture conversion failed")));
+    });
+  }
+  await make("mixed.wav","pcm_s16le");await make("mixed.m4a","aac");
+  const fixtures=await Promise.all(["track.mp3","mixed.wav","mixed.m4a"].map(async name=>({name,data:await readFile(path.join(dir,name))})));
+  let firstM4A:any;
+  for(let i=0;i<120;i++) {
+    const fixture=fixtures[i%3],form=new FormData();form.append("projectId",project.id);form.append("kind","music");
+    form.append("file",new Blob([fixture.data]),`batch-${i}-${fixture.name}`);
+    const response=await fetch(base+"/uploads",{method:"POST",headers:{Authorization:`Bearer ${token}`},body:form});
+    assert.equal(response.status,200);const asset=await response.json() as any;
+    assert.equal(asset.kind,"music");assert.equal(asset.mime,["audio/mpeg","audio/wav","audio/mp4"][i%3]);
+    if(i===2)firstM4A=asset;
+  }
+  const link=(await api(`/assets/${firstM4A.id}/url?variant=preview`)).data.url;
+  const audio=await fetch(link);assert.equal(audio.status,200);assert(audio.headers.get("content-type")?.startsWith("audio/mpeg"));await audio.arrayBuffer();
+  const before=(await api("/state")).data.assets.length;
+  const corrupt=new FormData();corrupt.append("projectId",project.id);corrupt.append("kind","music");corrupt.append("file",new Blob(["not audio"]),"broken.wav");
+  assert.equal((await fetch(base+"/uploads",{method:"POST",headers:{Authorization:`Bearer ${token}`},body:corrupt})).status,400);
+  assert.equal((await api("/state")).data.assets.length,before);
+});
 test("server restart preserves projects, authenticated sessions, and scopes", async () => {
   const version = (await api("/state")).data.revision;
   await stop();

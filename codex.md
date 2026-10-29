@@ -5,8 +5,8 @@
 **ai video edeting machine** is a single-operator workspace for generating starting frames, reaction videos, and hooks, then assembling product videos in batches. Preserve the product name's existing spelling unless asked to rename it.
 
 - Repository: https://github.com/dulyan/ai-video-edeting-machine
-- Frontend: https://dulyan.github.io/ai-video-edeting-machine/
-- Production API base URL: https://46.62.236.47 (without `/api` in the Settings input)
+- Current browser app and API: http://127.0.0.1:3001, served by one Node backend on this PC.
+- Previous frontend: https://dulyan.github.io/ai-video-edeting-machine/; previous API: https://46.62.236.47. Local operation does not use them.
 - Stack: React 19, Vite, TypeScript, Fastify, Node.js 24+, SQLite, private disk/S3-compatible storage, and FFmpeg.
 - AI provider: **Siray**, `api.siray.ai`. Do not confuse it with similarly named services.
 
@@ -70,6 +70,8 @@ The main workflow has nine steps: Project name, Starting frames, Reaction videos
 | `server/render.ts`, `server/conform.ts`, `server/reaction-duration.ts` | FFmpeg composition, ratios, and reaction duration enforcement |
 | `server/previews.ts` | Cached still thumbnails and bounded H.264/AAC browser playback copies |
 | `server/sessions.ts`, `server/events.ts` | Durable hashed sessions and authenticated SSE |
+| `server/local-app.ts`, `server/local-logging.ts` | Local static interface, loopback/origin guards, private shutdown, rotating logs |
+| `scripts/local.mjs`, `scripts/local-runtime.mjs`, `scripts/local-backup.mjs` | Desktop lifecycle, private profile setup, and consistent local backups |
 | `tests/*.test.ts` | Workflow, payload, retry, authentication, and real FFmpeg checks |
 | `.github/workflows/pages.yml`, `deploy/compose.yml`, `Dockerfile` | Frontend CI/deploy and backend container configuration |
 
@@ -117,6 +119,13 @@ Run checks appropriate to the change. Tests use mocked AI transport and temporar
 
 ## Production operations
 
+- Current runtime is the local browser app. Start/Stop desktop shortcuts launch a hidden backend and open the default browser; there is no automatic Windows startup. Closing the browser leaves background jobs running while the PC remains awake.
+- Private data/configuration live under `%LOCALAPPDATA%\AI Video Edeting Machine`, outside the checkout, restricted to the user and SYSTEM. Preserve `config.env` and its encryption key with database/media backups. Never print those credentials.
+- The user explicitly chose a fresh workspace without importing VPS projects/media for now. Leave the VPS and verified backups untouched. A later recovery must preserve newer local work instead of overwriting it.
+- Local mode binds exclusively to 127.0.0.1, serves built UI assets publicly, protects API/media routes, validates Host/Origin, and resolves the frontend API against its own origin. Do not inherit a Pages/VPS build address or saved remote backend setting for a built local interface.
+- Local setup/start/stop/backup commands are in README. `QUEUE_ENABLED=0` disables queue recovery/execution for validation. Retain CPU encoding and existing bounded workers/previews.
+- Bulk music uploads support MP3/WAV/M4A and run sequentially with progress/cancel and incremental selection. Preserve partial successes; stop a batch on connection/auth/storage failures. Probe time and metadata output are bounded; original audio is never decoded automatically during upload.
+- Historical hosted deployment details below apply only when explicitly maintaining or restoring that deployment.
 - GitHub Pages deploys the frontend from `main` after tests and build. `VITE_API_URL` is a public backend URL, never an API key. Frontend deployment does not deploy the backend.
 - Backend: Ubuntu 24.04 LTS on Hetzner, Docker Compose behind Nginx HTTPS.
 - Server checkout: `/srv/ai-video-edeting-machine/source`.

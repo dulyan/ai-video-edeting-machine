@@ -2,6 +2,37 @@
 
 A project-based creative assembly line for first frames, reaction clips, viral hooks, product demos, music, and final video batches.
 
+## Local browser app (current setup)
+
+The interface and backend run together at **http://127.0.0.1:3001** on this PC. Siray handles AI generation; local FFmpeg handles final composition. No VPS, Docker, or GitHub Pages connection is needed for local operation.
+
+- Use the **Start AI Video Edeting Machine** desktop shortcut to start the hidden backend and open your default browser. Repeated launches reuse the same backend.
+- Use **Stop AI Video Edeting Machine** to stop the backend. Closing the browser leaves the backend and queued jobs running; the PC must remain awake. Browser file transfers require the browser to stay open.
+- First sign-in uses the workspace password in `%LOCALAPPDATA%\AI Video Edeting Machine\Workspace access.txt`. Enter the Siray API key separately in Settings. The existing password/encryption key were retained from the private configuration backup; the encrypted Siray settings database was not available.
+- Projects, originals, previews, private configuration, rotating logs, and backups live under `%LOCALAPPDATA%\AI Video Edeting Machine`, with access restricted to the Windows user and SYSTEM. They are outside this repository.
+- This is a **fresh local workspace**, as requested. VPS projects/media were not imported; the unreachable VPS and verified backups remain untouched.
+- Music accepts MP3, WAV, and M4A. Large batches run one file at a time, show progress and cancellation, preserve successful files, and report corrupt files individually. Music does not decode automatically during upload; playback uses bounded preview copies.
+
+To install on another Windows PC with Node 24+, run the following from the repository, then use the desktop shortcut:
+
+```powershell
+npm.cmd ci --ignore-scripts
+npm.cmd rebuild esbuild ffmpeg-static
+npm.cmd run build
+npm.cmd run local:setup
+npm.cmd run local:start
+```
+
+Setup creates a fresh workspace only when no initialized profile exists; it does not overwrite an existing database. A conflicting service on port 3001 produces an error rather than being killed. Automatic Windows sign-in startup is not enabled.
+
+### Local backup and recovery
+
+Run `npm.cmd run local:backup` after jobs finish, or after stopping the backend. The backup contains a consistent SQLite snapshot, original media referenced by it, private configuration, profile identity, and a SHA-256 manifest. Treat backups as private because they include the encryption key and workspace credentials. Keep an additional copy on a separate drive.
+
+To restore, stop the backend and preserve the current profile in a separate backup first. Restore the backup's `workspace` directory, `config.env`, and `profile.json` into the local profile directory; verify file sizes and hashes against `manifest.json` before starting. Keep these files together so the database's encrypted settings remain readable. Cached previews can be regenerated. Do not merge a future VPS export over new local projects without a separate verified migration.
+
+`npm.cmd run local:stop` and `npm.cmd run local:start` are command-line equivalents of the shortcuts. Runtime logs rotate under the profile's `logs` directory. Set `QUEUE_ENABLED=0` when running the server manually for migration validation; the launcher also supports `node scripts/local.mjs start --paused` when the backend is stopped.
+
 **Outputs = hooks × reaction clips × product demos × music tracks.** Hook and music spans are independent: whole video, reaction only, or demo only. Each output pairing and span can be edited in the task outline.
 
 ## Run locally
@@ -22,7 +53,7 @@ Open the Vite Local URL (normally http://localhost:5173). The development backen
 
 In Settings, connect the backend, enter your Siray API key, and test it. The frontend can save local project drafts before a backend is connected; generation, uploads, and rendering require the backend. Browser drafts do not contain media or API keys.
 
-## Deploy on a VPS (Hetzner, Contabo, or another Docker host)
+## Optional VPS deployment (previous hosting setup)
 
 Use Ubuntu Server 24.04 LTS with Docker Engine and Docker Compose. The existing application runs without a provider-specific database or queue service.
 

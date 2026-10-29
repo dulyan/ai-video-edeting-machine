@@ -46,12 +46,20 @@ export async function probe(file: string) {
       "file,pipe",
       "-show_format",
       "-show_streams",
+      "-show_entries",
+      "format=duration:stream=codec_type,width,height:stream_disposition=attached_pic",
+      "-probesize",
+      "5000000",
+      "-analyzeduration",
+      "5000000",
+      "-threads",
+      "1",
       "-of",
       "json",
       file,
-    ]),
+    ], undefined, undefined, AbortSignal.timeout(20000)),
   );
-  const video = result.streams.find((s: any) => s.codec_type === "video");
+  const video = result.streams.find((s: any) => s.codec_type === "video" && !s.disposition?.attached_pic);
   return {
     duration: Number(result.format.duration) || 0,
     width: video?.width,

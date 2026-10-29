@@ -1286,11 +1286,10 @@ export function LibraryChooser({
     );
   const onUpload = (files: FileList) =>
     void w.act("Uploading media", async () => {
-      const assets = await w.upload(files, kind, p.id);
-      update((latest) => ({
-        [key]: [...new Set([...latest[key], ...assets.map((a) => a.id)])],
-        ...(kind === "music" ? { musicMode: "selected" } : {}),
-      }));
+      await w.upload(files, kind, p.id, (asset)=>update((latest) => ({
+        [key]: [...new Set([...latest[key], asset.id])],
+        ...(kind === "music" && latest.musicMode === "none" ? { musicMode: "selected" } : {}),
+      })));
     });
   return (
     <div className={kind === "music" ? "music-layout" : ""}>
@@ -1468,7 +1467,7 @@ export function LibraryChooser({
               kind === "demo"
                 ? "Upload product demos once, then use them in every campaign. Each selected demo follows your reaction clip."
                 : kind === "music"
-                  ? "Upload MP3 tracks to build your reusable music library."
+                  ? "Upload MP3, WAV, or M4A tracks to build your reusable music library."
                   : "Generated reaction clips from every project live here. You can also upload your own."
             }
             icon={kind === "music" ? "music" : "film"}
@@ -1476,6 +1475,7 @@ export function LibraryChooser({
         )}
         <UploadZone
           kind={kind === "music" ? "music" : "video"}
+          disabled={w.uploadProgress?.active}
           label={
             kind === "demo"
               ? "Add product demos"
