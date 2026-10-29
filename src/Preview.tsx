@@ -11,7 +11,7 @@ import { activeHooks } from "../shared/project.ts";
 import { outputResolution } from "../shared/ratios.ts";
 import { useMedia } from "./components.tsx";
 function KeyedPresenter({ asset, p, playing }: { asset?: Asset; p: Project; playing: boolean }) {
-  const url = useMedia(playing ? asset?.id : undefined, "preview"),
+  const url = useMedia(playing ? asset?.id : undefined),
     video = useRef<HTMLVideoElement>(null),
     canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -125,9 +125,9 @@ export default function Preview({
         : p.reactionIds[0] || p.frameIds[0]
       : p.demoIds[0];
   const asset = assets.find((a) => a.id === chosen),
-    url = useMedia(asset?.mime.startsWith("image/") || loaded ? chosen : undefined, asset?.mime.startsWith("video/") ? "preview" : "original"),
+    url = useMedia(asset?.mime.startsWith("image/") || loaded ? chosen : undefined),
     hookImage = useMedia(hook?.imageId),
-    music = useMedia(loaded && p.musicMode !== "none" ? p.musicIds[0] : undefined, "preview");
+    music = useMedia(loaded && p.musicMode !== "none" ? p.musicIds[0] : undefined);
   const showHook = c.hookSpan === "whole" || c.hookSpan === part,
     playMusic = c.musicSpan === "whole" || c.musicSpan === part;
   useEffect(() => { setPlaying(false); setLoaded(false); setMediaError(""); }, [chosen]);
@@ -190,7 +190,7 @@ export default function Preview({
         ) : (
           <div className="preview-empty">
             <div className="preview-grid" />
-            <strong>{asset ? loaded ? "Preparing lightweight preview…" : "Press Play to preview" : "Select a clip to preview"}</strong>
+            <strong>{asset ? loaded ? "Loading original…" : "Press Play to preview" : "Select a clip to preview"}</strong>
           </div>
         )}
         <span className="preview-top-label">
@@ -271,7 +271,7 @@ export default function Preview({
           {c.musicSpan === "whole" ? "whole video" : `${c.musicSpan} only`}
         </span>
       </div>
-      <small className="muted-text">Lightweight preview, up to 2 minutes. Renders use the original files.</small>
+      <small className="muted-text">Playback uses the original file at its original quality.</small>
       {mediaError && <p role="status" className="inline-error">{mediaError}</p>}
       {music && <audio ref={audio} src={music} loop preload="none" />}
     </aside>

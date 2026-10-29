@@ -203,7 +203,7 @@ export function AssetMedia({
   className?: string;
   muted?: boolean;
 }) {
-  const url = useMedia(asset.id, asset.mime.startsWith("video/") ? controls ? "preview" : "thumbnail" : asset.kind === "music" ? "preview" : "original");
+  const url = useMedia(asset.id, asset.mime.startsWith("video/") && !controls ? "thumbnail" : "original");
   if (!url)
     return (
       <div className={`media-placeholder ${className}`}>

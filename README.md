@@ -11,7 +11,7 @@ The interface and backend run together at **http://127.0.0.1:3001** on this PC. 
 - First sign-in uses the workspace password in `%LOCALAPPDATA%\AI Video Edeting Machine\Workspace access.txt`. Enter the Siray API key separately in Settings. The existing password/encryption key were retained from the private configuration backup; the encrypted Siray settings database was not available.
 - Projects, originals, previews, private configuration, rotating logs, and backups live under `%LOCALAPPDATA%\AI Video Edeting Machine`, with access restricted to the Windows user and SYSTEM. They are outside this repository.
 - This is a **fresh local workspace**, as requested. VPS projects/media were not imported; the unreachable VPS and verified backups remain untouched.
-- Music accepts MP3, WAV, and M4A. Large batches run one file at a time, show progress and cancellation, preserve successful files, and report corrupt files individually. Music does not decode automatically during upload; playback uses bounded preview copies.
+- Music accepts MP3, WAV, and M4A. Large batches run one file at a time, show progress and cancellation, preserve successful files, and report corrupt files individually. Music does not decode automatically during upload; playback uses the original files.
 
 To install on another Windows PC with Node 24+, run the following from the repository, then use the desktop shortcut:
 
@@ -118,7 +118,7 @@ Final output is portrait 1080×1920, 30 fps, H.264/AAC MP4. FFmpeg normalizes so
 ## Reliability and limits
 
 - Server snapshots and write acknowledgements carry a durable SQLite revision. The browser preserves pending field edits and rejects older live/GET snapshots, so late updates cannot undo text, selections, or navigation. Offline project, product, and preset edits are retained for reconnect. Generation and rendering wait for project saves to complete.
-- Library cards use still thumbnails and paginate at 24 assets. Video/audio preview playback starts only on Play. Cached browser video copies use H.264/AAC, at most 480 pixels and 24 fps, and the first two minutes; original files remain unchanged and are used for final renders. Green-screen preview processing is bounded and stops outside active playback.
+- Library cards use still thumbnails and paginate at 24 assets. Video/audio playback starts only on Play and uses the original files, without reduced-resolution or recompressed playback copies. Green-screen compositing remains an approximate browser preview; its processing is bounded and stops outside active playback.
 - Projects, reusable products, assets, provider task IDs, and immutable render inputs are saved to SQLite. Media is private on disk or in the configured bucket.
 - Generated images and videos are copied from Siray into app storage as soon as available.
 - Siray image/video jobs resume by task ID after a restart. A crash or network error during an ambiguous submission is shown as **uncertain** rather than silently charging again. Check Siray before retrying such jobs.
