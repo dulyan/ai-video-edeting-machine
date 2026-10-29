@@ -1,3 +1,4 @@
+import { hookFontCSS } from "../shared/hook-fonts.ts";
 import { useState, useRef, useEffect } from "react";
 import {
   Play,
@@ -215,7 +216,7 @@ export default function Preview({
           ) : (
             <div
               className={`preview-hook pos-${c.position} style-${c.style.replace(" ", "-")}`}
-              style={{ fontSize: `${c.fontSize / 3.6}px` }}
+              style={{ ...hookFontCSS(hook?.fontId ?? c.fontId, hook?.text || ""), fontSize: `${c.fontSize / 3.6}px` }}
             >
               {hook?.text || "Your hook text"}
             </div>

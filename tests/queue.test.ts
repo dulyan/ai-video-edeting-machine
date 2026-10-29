@@ -61,3 +61,40 @@ test("recovery resumes known provider tasks and flags ambiguous submissions", ()
   assert.equal(jobs.find((j) => j.id === unknown.id)?.status, "uncertain");
   assert.equal(jobs.find((j) => j.id === render.id)?.status, "queued");
 });
+
+test("hook batches preserve virality and product snapshots across chunks and retries", async () => {
+  const {processJob}=await import("../server/queue.ts");
+  const {setSecret,get}=await import("../server/store.ts");
+  setSecret("siray","test-only");
+  const original=globalThis.fetch;
+  try {
+    for(const level of [1,5,10]) {
+      const p=newProject();put("projects",p);
+      const product={id:"product-"+level,internalName:"Campaign",externalName:"Gym app",description:"Fitness coaching",url:"",painPoints:"Unsure how to train",costOfInaction:"",solution:"Guided plans",proof:""};
+      put("products",product);
+      const job=addJob(p.id,"hooks","Hooks",{hookPromptVersion:"virality-v1",viralityLevel:level,productSnapshot:structuredClone(product),productId:product.id,count:21,completed:0,language:"Russian",model:"openai/gpt-4.1-mini"});
+      let call=0;const bodies:any[]=[];
+      globalThis.fetch=async (_url,init)=>{
+        const body=JSON.parse(String(init?.body));bodies.push(body);call++;
+        if(call===2) throw new Error("simulated connection failure");
+        const context=JSON.parse(body.messages[1].content);
+        put("products",{...product,description:"Changed after start"});
+        return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({hooks:Array.from({length:context.count},(_,i)=>"Hook "+level+"-"+call+"-"+i)})}}]}));
+      };
+      await processJob(job);
+      assert.equal(get("jobs",job.id)?.status,"failed");
+      assert.equal(get("projects",p.id)?.hooks.length,20);
+      await processJob(get("jobs",job.id)!);
+      assert.equal(get("jobs",job.id)?.status,"completed");
+      assert.equal(get("projects",p.id)?.hooks.length,21);
+      for(const body of bodies) {
+        assert.equal(body.model,"openai/gpt-4.1-mini");
+        assert.match(body.messages[0].content,new RegExp("Virality level: "+level+"/10"));
+        const context=JSON.parse(body.messages[1].content);
+        assert.equal(context.viralityLevel,level);assert.equal(context.language,"Russian");
+        assert.equal(context.product.description,"Fitness coaching");
+      }
+      assert.equal(JSON.parse(bodies.at(-1).messages[1].content).avoid.length,20);
+    }
+  } finally {globalThis.fetch=original;}
+});

@@ -1,0 +1,21 @@
+import {mkdir,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+const fonts=[['montserrat','Montserrat',700,'montserrat'],['poppins','Poppins',700,'poppins'],['anton','Anton',400,'anton'],['bebas-neue','Bebas Neue',400,'bebasneue'],['oswald','Oswald',700,'oswald'],['inter','Inter',700,'inter'],['roboto','Roboto',700,'roboto'],['open-sans','Open Sans',700,'opensans'],['playfair-display','Playfair Display',700,'playfairdisplay'],['caveat','Caveat',700,'caveat']];
+const dir=fileURLToPath(new URL('../public/fonts/',import.meta.url));await mkdir(dir,{recursive:true});
+const manifest=await Promise.all(fonts.map(async([id,family,weight,folder])=>{
+ const cssURL='https://fonts.googleapis.com/css?family='+encodeURIComponent(family+':'+weight)+'&subset=latin,latin-ext,cyrillic,cyrillic-ext,greek,greek-ext,vietnamese';
+ const response=await fetch(cssURL,{signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error('Font CSS failed: '+family);
+ const css=await response.text(),url=css.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.ttf)\)/)?.[1];
+ if(!url)throw new Error('No full TrueType font supplied for '+family);
+ const fontResponse=await fetch(url,{signal:AbortSignal.timeout(30000)});if(!fontResponse.ok)throw new Error('Font download failed: '+family);
+ const bytes=Buffer.from(await fontResponse.arrayBuffer());
+ if(bytes.readUInt32BE(0)!==0x00010000&&bytes.toString('ascii',0,4)!=='OTTO')throw new Error('Invalid font: '+family);
+ const licenseURL='https://raw.githubusercontent.com/google/fonts/main/ofl/'+folder+'/OFL.txt';
+ const license=await fetch(licenseURL,{signal:AbortSignal.timeout(30000)});if(!license.ok)throw new Error('License download failed: '+family);
+ await writeFile(dir+id+'.ttf',bytes);await writeFile(dir+id+'-OFL.txt',(await license.text()).replace(/[ \t]+$/gm,''));
+ return {id,family,weight,source:url,license:licenseURL,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length};
+}));
+await writeFile(dir+'manifest.json',JSON.stringify({retrievedAt:new Date().toISOString(),fonts:manifest},null,2));
+await writeFile(dir+'fonts.css',manifest.map(f=>`@font-face { font-family: "AVEM ${f.family}"; font-style: normal; font-weight: ${f.weight}; font-display: swap; src: url("./${f.id}.ttf") format("truetype"); }`).join('\n')+'\n');
+console.log('Bundled '+manifest.length+' licensed fonts, '+manifest.reduce((sum,f)=>sum+f.bytes,0)+' bytes.');

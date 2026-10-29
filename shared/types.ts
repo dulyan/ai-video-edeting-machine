@@ -1,4 +1,5 @@
 import type { ReferencePoses } from "./reference-poses.ts";
+import type { HookFontId } from "./hook-fonts.ts";
 export type Span = "whole" | "reaction" | "demo";
 export type HookStyle =
   "Text" | "Snapchat" | "IMG" | "Text Wall" | "Green screen";
@@ -33,6 +34,7 @@ export interface Hook {
   text: string;
   imageId?: string;
   productId?: string;
+  fontId?: HookFontId;
   createdAt: string;
 }
 export interface Product {
@@ -44,6 +46,7 @@ export interface Product {
   costOfInaction: string;
   solution: string;
   proof: string;
+  description?: string;
 }
 export interface Composition {
   aspectRatio?: string;
@@ -52,6 +55,7 @@ export interface Composition {
   musicSpan: Span;
   position: "top" | "middle" | "bottom";
   fontSize: number;
+  fontId?: HookFontId;
   textWallDuration: number;
   fit: "cover" | "contain";
   musicVolume: number;
@@ -102,6 +106,7 @@ export interface Project {
   videoAspectRatio?: string;
   videoDuration: number;
   hookModel?: string;
+  hookVirality?: number;
   modelInputs?: Record<string, Record<string, unknown>>;
   frameIds: string[];
   frameSelectionExplicit?: boolean;

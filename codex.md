@@ -156,3 +156,11 @@ Headroom, Graphify, and Codeburn were fetched with shallow history. Read each to
 ## UI direction
 
 Keep the interface focused on the operator's workflow: clear labels, prominent readable text at 100% browser zoom, useful controls, and visible generation status. Support light/dark themes and mobile layouts. Avoid decorative metrics, redundant controls, hidden prompt modifications, and implementation details that do not help operators make a decision.
+
+## Hook fonts and virality
+
+Viral hooks supports a project default font plus an optional override on each text hook. Use the default-for-all action to clear overrides. Font choices are Montserrat, Poppins, Anton, Bebas Neue, Oswald, Inter, Roboto, Open Sans, Playfair Display, and Caveat. Bundled Google Fonts TTFs and OFL licenses live in public/fonts; browser and FFmpeg select the same family. For Cyrillic, Poppins falls back to Montserrat, and Anton/Bebas Neue to Oswald. Old queued render snapshots retain their legacy font.
+
+Virality 1 means neutral product facts; 10 means industry-first curiosity with a relevant unanswered question. Intermediate values progressively broaden the framing. This is a writing direction, not a prediction of views. Product descriptions, pain points, cost of inaction, solution, and proof ground all levels. Do not invent claims or promises. New hook jobs snapshot the chosen level and product context for retries; existing jobs retain their previous policy.
+
+The ten-font list is curated, not a verified CapCut trend ranking. CapCut does not provide a public ranked usage leaderboard in the sources reviewed. Sources include https://www.capcut.com/resource/anton-font , https://www.capcut.com/resource/subtitle-font , https://www.capcut.com/resource/poppins-font and https://www.capcut.com/resource/youtube-thumbnail-font . Inter and Caveat round out the shortlist as caption/design choices, without a claim of universal built-in availability. Font provenance and checksums: public/fonts/manifest.json. Refresh the vendored assets with node scripts/fetch-hook-fonts.mjs only when deliberately updating them.

@@ -1,3 +1,5 @@
+import { HOOK_FONTS, DEFAULT_HOOK_FONT, hookFontCSS, type HookFontId } from "../shared/hook-fonts.ts";
+import { viralityGuidance } from "../shared/hook-virality.ts";
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { useEffect, useState } from "react";
 import {
@@ -663,7 +665,8 @@ function ProductModal({
   onClose: () => void;
 }) {
   const [form, setForm] = useState<Product>(
-      product || {
+      product ? { description: "", ...product } : {
+        description: "",
         id: crypto.randomUUID(),
         internalName: "",
         externalName: "",
@@ -694,6 +697,7 @@ function ProductModal({
               [
                 "internalName",
                 "externalName",
+                "description",
                 "painPoints",
                 "costOfInaction",
                 "solution",
@@ -771,6 +775,7 @@ function ProductModal({
         </div>
         {(
           [
+            ["description", "Product description", "What is the product and who is it for?"],
             [
               "painPoints",
               "Pain points",
@@ -935,6 +940,11 @@ export function Hooks({ p, w, update, inspect }: Props) {
                   : `Generate ${p.hookCount} hooks`}
               </Button>
             </div>
+            <Field label={`Virality scale: ${p.hookVirality ?? 1}/10`} hint="Changes the writing direction; does not guarantee views.">
+              <input aria-label="Virality scale" type="range" min={1} max={10} step={1} value={p.hookVirality ?? 1} onChange={e => update({hookVirality: Number(e.target.value)})} />
+              <div className="virality-endpoints"><span>1 - Neutral product</span><span>10 - Industry curiosity</span></div>
+              <p className="muted-text">{viralityGuidance(p.hookVirality ?? 1)}</p>
+            </Field>
           </section>
           <section className="hook-editor">
             <div className="section-heading">
@@ -1005,6 +1015,12 @@ export function Hooks({ p, w, update, inspect }: Props) {
                 </Field>
               )}
             </div>
+            {c.style !== "IMG" && <Field label="Default hook font" hint="Poppins uses Montserrat for Russian; Anton and Bebas Neue use Oswald. Preview and render use the same fallback.">
+              <select aria-label="Default hook font" value={c.fontId ?? DEFAULT_HOOK_FONT} onChange={e => patch({fontId: e.target.value as HookFontId})}>
+                {HOOK_FONTS.map(font => <option key={font.id} value={font.id}>{font.name}</option>)}
+              </select>
+              {p.hooks.some(h => h.fontId) && <Button onClick={() => update(latest => ({hooks: latest.hooks.map(({fontId, ...h}) => h)}))}>Use default font for all hooks</Button>}
+            </Field>}
             <SpanControl
               label="Show hook on"
               value={c.hookSpan}
@@ -1138,7 +1154,8 @@ export function Hooks({ p, w, update, inspect }: Props) {
                       onFocus={() => setSelected(i)}
                     >
                       <span>{String(i + 1).padStart(2, "0")}</span>
-                      <textarea
+                      <div className="hook-text-controls"><textarea
+                        style={hookFontCSS(hook.fontId ?? c.fontId, hook.text)}
                         aria-label={`Hook ${i + 1}`}
                         rows={Math.max(1, Math.ceil(hook.text.length / 80))}
                         value={hook.text}
@@ -1153,6 +1170,10 @@ export function Hooks({ p, w, update, inspect }: Props) {
                           })
                         }
                       />
+                      <select aria-label={`Font for hook ${i + 1}`} value={hook.fontId ?? ""} onChange={e => { const fontId = e.target.value as HookFontId | ""; update(latest => ({hooks: latest.hooks.map(h => h.id === hook.id ? {...h, fontId: fontId || undefined} : h)})); }}>
+                        <option value="">Project default</option>
+                        {HOOK_FONTS.map(font => <option key={font.id} value={font.id}>{font.name}</option>)}
+                      </select></div>
                       <button
                         className="icon-button"
                         aria-label={`Delete hook ${i + 1}`}

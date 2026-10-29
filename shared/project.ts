@@ -1,5 +1,7 @@
 import type { Project, RenderRow, Span } from "./types.ts";
 import { IMAGE_PROMPT, IMAGE_FIXED_INSTRUCTIONS } from "./starting-frame-defaults.ts";
+import { DEFAULT_HOOK_FONT } from "./hook-fonts.ts";
+import { DEFAULT_HOOK_VIRALITY } from "./hook-virality.ts";
 export const STEPS = [
   "Project name",
   "Starting frames",
@@ -66,6 +68,7 @@ export function newProject(): Project {
     musicMode: "none",
     hooks: [],
     hookCount: 10,
+    hookVirality: DEFAULT_HOOK_VIRALITY,
     language: "English",
     productId: "",
     composition: {
@@ -75,6 +78,7 @@ export function newProject(): Project {
       musicSpan: "whole",
       position: "middle",
       fontSize: 48,
+      fontId: DEFAULT_HOOK_FONT,
       textWallDuration: 7,
       fit: "cover",
       musicVolume: 0.3,

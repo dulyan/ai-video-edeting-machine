@@ -1,5 +1,7 @@
+import { effectiveHookFont } from "../shared/hook-fonts.ts";
+import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile, rm, copyFile } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import ffmpegStatic from "ffmpeg-static";
 import ffprobeStatic from "ffprobe-static";
@@ -108,7 +110,8 @@ export function subtitleASS(
     .replace(/[{}]/g, "")
     .replace(/\n/g, "\\N");
   const snapchat = c.style === "Snapchat";
-  return `[Script Info]\nScriptType: v4.00+\nPlayResX: ${w}\nPlayResY: ${h}\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Hook,DejaVu Sans,${font},&H00FFFFFF,&H00FFFFFF,${snapchat ? "&H80000000" : "&H00101010"},&H80000000,${snapchat ? 0 : -1},0,0,0,100,100,0,0,${snapchat ? 3 : 1},${snapchat ? 10 : 2},0,5,50,50,50,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,${assTime(window[0])},${assTime(window[1])},Hook,,0,0,0,,{\\an5\\pos(${w / 2},${Math.round(y)})}${escaped}\n`;
+  const face = c.fontId ? effectiveHookFont(c.fontId, text) : undefined;
+  return `[Script Info]\nScriptType: v4.00+\nPlayResX: ${w}\nPlayResY: ${h}\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Hook,${face?.family ?? "DejaVu Sans"},${font},&H00FFFFFF,&H00FFFFFF,${snapchat ? "&H80000000" : "&H00101010"},&H80000000,${face ? (face.weight >= 700 ? -1 : 0) : (snapchat ? 0 : -1)},0,0,0,100,100,0,0,${snapchat ? 3 : 1},${snapchat ? 10 : 2},0,5,50,50,50,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,${assTime(window[0])},${assTime(window[1])},Hook,,0,0,0,,{\\an5\\pos(${w / 2},${Math.round(y)})}${escaped}\n`;
 }
 export interface RenderSpec {
   row: RenderRow;
@@ -301,9 +304,15 @@ export async function renderVideo(
     if (hook?.text && active && c.style !== "IMG") {
       await writeFile(
         path.join(dir, "hook.ass"),
-        subtitleASS(hook.text, c, hookRange, w, h),
+        subtitleASS(hook.text, {...c, fontId: hook.fontId ?? c.fontId}, hookRange, w, h),
       );
-      graph.push(`[${video}]subtitles=hook.ass[textout]`);
+      const selectedFont = hook.fontId ?? c.fontId;
+      if (selectedFont) {
+        const face = effectiveHookFont(selectedFont, hook.text);
+        await mkdir(path.join(dir, "fonts"));
+        await copyFile(fileURLToPath(new URL(`../public/fonts/${face.file}`, import.meta.url)), path.join(dir, "fonts", face.file));
+      }
+      graph.push(`[${video}]subtitles=hook.ass${selectedFont ? ":fontsdir=fonts" : ""}[textout]`);
       video = "textout";
     }
     graph.push(`[0:a]volume=${c.sourceVolume}[source]`);

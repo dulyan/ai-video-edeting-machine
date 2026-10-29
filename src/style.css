@@ -4312,3 +4312,8 @@ progress {
 .upload-status { margin-bottom: 24px; overflow-wrap: anywhere; }
 .upload-status progress { width: 100%; accent-color: var(--coral); }
 .upload-zone.disabled { opacity: .55; cursor: wait; }
+
+.hook-text-controls { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.hook-text-controls textarea { width: 100%; font-size: 17px; }
+.hook-text-controls select { width: min(100%, 245px); font-size: 14px; padding: 7px 10px; }
+.virality-endpoints { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--muted); }

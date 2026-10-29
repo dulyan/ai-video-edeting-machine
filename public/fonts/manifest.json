@@ -1,0 +1,95 @@
+{
+  "retrievedAt": "2026-10-29T15:12:22.701Z",
+  "fonts": [
+    {
+      "id": "montserrat",
+      "family": "Montserrat",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM70w-.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/OFL.txt",
+      "sha256": "247f052d2f5b84a5bbe7831c3b08a71ca391ff54f1dfb9be88a3d3da569e3a38",
+      "bytes": 181028
+    },
+    {
+      "id": "poppins",
+      "family": "Poppins",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLCz7Z1JlEA.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/OFL.txt",
+      "sha256": "cb44ce692b0f214598014fdb2356045aefea47cdc603be619de385fa47dcc091",
+      "bytes": 24444
+    },
+    {
+      "id": "anton",
+      "family": "Anton",
+      "weight": 400,
+      "source": "https://fonts.gstatic.com/s/anton/v27/1Ptgg87LROyAm0K0.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/anton/OFL.txt",
+      "sha256": "fd9301f2837c99df2be07cc7f0be66e9470f5354d8fcf1606027c67fcd637a53",
+      "bytes": 130324
+    },
+    {
+      "id": "bebas-neue",
+      "family": "Bebas Neue",
+      "weight": 400,
+      "source": "https://fonts.gstatic.com/s/bebasneue/v16/JTUSjIg69CK48gW7PXoo9Wdhzg.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/bebasneue/OFL.txt",
+      "sha256": "df57625ebbc0961c1218edb05963706798568b2a7cef938ec3b78564aab7a9f6",
+      "bytes": 45264
+    },
+    {
+      "id": "oswald",
+      "family": "Oswald",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/oswald/v57/TK3_WkUHHAIjg75cFRf3bXL8LICs1xZogUE.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/OFL.txt",
+      "sha256": "a6ee8b91ec269a6f48631ba4ba1a3ab7e5039e5482dda8dc9672ee4620d7bd68",
+      "bytes": 86416
+    },
+    {
+      "id": "inter",
+      "family": "Inter",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZg.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt",
+      "sha256": "b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c",
+      "bytes": 326468
+    },
+    {
+      "id": "roboto",
+      "family": "Roboto",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/roboto/v51/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWuYjammT.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/OFL.txt",
+      "sha256": "35757eaa996b3359022f47f164a67ee9eac04971af24c5b8fbd4b89e844ff190",
+      "bytes": 124292
+    },
+    {
+      "id": "open-sans",
+      "family": "Open Sans",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/opensans/v44/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsg-1y4n.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/opensans/OFL.txt",
+      "sha256": "75367e6da7d914eaed87883ba51b2a2b5816b5cdbb39f96ec5c81a5b032bfd5a",
+      "bytes": 122132
+    },
+    {
+      "id": "playfair-display",
+      "family": "Playfair Display",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKeiukDQ.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/playfairdisplay/OFL.txt",
+      "sha256": "adefc53e7b3d483f1fa5e85edd82b7689ca79db25a1f6786bd7949cdcfeec601",
+      "bytes": 123536
+    },
+    {
+      "id": "caveat",
+      "family": "Caveat",
+      "weight": 700,
+      "source": "https://fonts.gstatic.com/s/caveat/v23/WnznHAc5bAfYB2QRah7pcpNvOx-pjRV6SII.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/caveat/OFL.txt",
+      "sha256": "f4365d9874c1b64026aca48786cf835a5decf2c740c06de04dbb05ce8c93ff37",
+      "bytes": 251256
+    }
+  ]
+}

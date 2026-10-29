@@ -10,6 +10,8 @@ import { addJob, all, get, put, patchJob, mediaDir } from "./store.ts";
 import { chatJSON, generationPayload, siray } from "./siray.ts";
 import { assetDataURL, copyRemote, storeFile } from "./storage.ts";
 import { probe, renderVideo } from "./render.ts";
+import { DEFAULT_HOOK_FONT } from "../shared/hook-fonts.ts";
+import { hookWritingSystem, viralityGuidance } from "../shared/hook-virality.ts";
 import {
   combinationAt,
   combinationCount,
@@ -211,7 +213,8 @@ export async function processJob(job: Job) {
         await new Promise((r) => setTimeout(r, 5000));
       }
     } else if (job.kind === "hooks") {
-      const product = get("products", job.input.productId);
+      const scaledHooks = job.input.hookPromptVersion === "virality-v1";
+      const product = scaledHooks ? job.input.productSnapshot : get("products", job.input.productId);
       if (!product) throw new Error("Product not found");
       let completed = job.input.completed || 0;
       const generated = new Set<string>(
@@ -228,9 +231,10 @@ export async function processJob(job: Job) {
         if (get("jobs", job.id)?.status === "canceled") return;
         const count = Math.min(20, job.input.count - completed);
         const response = await chatJSON(
-          'Write concise, varied, attention-grabbing product video hooks in the requested language. Use only supplied product facts; never invent proof, guarantees, or results. Return JSON {"hooks":[strings]}.',
+          scaledHooks ? hookWritingSystem(job.input.viralityLevel ?? 1) : 'Write concise, varied, attention-grabbing product video hooks in the requested language. Use only supplied product facts; never invent proof, guarantees, or results. Return JSON {"hooks":[strings]}.',
           JSON.stringify({
             product,
+            ...(scaledHooks ? {viralityLevel:job.input.viralityLevel ?? 1,focus:viralityGuidance(job.input.viralityLevel ?? 1)} : {}),
             language: job.input.language,
             count,
             avoid: Array.from(generated).slice(-80),
@@ -374,7 +378,7 @@ export function queueRender(p: Project) {
       throw new Error(
         "Choose a reaction clip, demo video, or image hook before rendering",
       );
-    const c = p.composition;
+    const c = {...p.composition,fontId:p.composition.fontId ?? DEFAULT_HOOK_FONT};
     if (c.style === "Green screen" && hook && !c.presenterId)
       throw new Error("Choose a green-screen presenter clip");
     const selected = [

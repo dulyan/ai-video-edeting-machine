@@ -414,3 +414,15 @@ test("image hook can span the demo while green-screen footage is keyed over it",
     "Presenter foreground must remain visible",
   );
 });
+
+test("bundled fonts render Cyrillic text and per-hook overrides",async()=>{
+ const p=newProject();p.composition.fontId="anton";
+ assert.match(subtitleASS("\u041f\u0440\u0438\u0432\u0435\u0442",p.composition,[0,1]),/Style: Hook,Oswald,/);
+ const legacy={...p.composition};delete legacy.fontId;
+ assert.match(subtitleASS("Legacy",legacy,[0,1]),/Style: Hook,DejaVu Sans,/);
+ for(const fontId of ["caveat","playfair-display"] as const){
+   const output=path.join(testDir,fontId+".mp4");
+   await renderVideo({row:{id:fontId,hookId:"h",reactionId:"reaction",demoId:null,musicId:null},hook:{id:"h",text:"\u041f\u0440\u0438\u0432\u0435\u0442",fontId,createdAt:""},composition:p.composition,assets},output,()=>{},undefined,[216,384]);
+   assert((await stat(output)).size>1000);
+ }
+});

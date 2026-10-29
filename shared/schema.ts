@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RATIOS } from "./ratios.ts";
+import { HOOK_FONT_IDS } from "./hook-fonts.ts";
 export const referencePosesSchema = z.union([
   z.string().max(20000),
   z
@@ -22,6 +23,7 @@ export const compositionSchema = z.object({
   musicSpan: span,
   position: z.enum(["top", "middle", "bottom"]),
   fontSize: z.number().min(20).max(100),
+  fontId: z.enum(HOOK_FONT_IDS).optional(),
   textWallDuration: z.number().min(1).max(30),
   fit: z.enum(["cover", "contain"]),
   musicVolume: z.number().min(0).max(2),
@@ -38,6 +40,7 @@ export const hookSchema = z.object({
   text,
   imageId: id.optional(),
   productId: id.optional(),
+  fontId: z.enum(HOOK_FONT_IDS).optional(),
   createdAt: z.string().max(100),
 });
 export const productSchema = z.object({
@@ -49,6 +52,7 @@ export const productSchema = z.object({
   costOfInaction: text,
   solution: text,
   proof: text,
+  description: text.optional(),
 });
 export const rowSchema = z.object({
   id,
@@ -88,6 +92,7 @@ export const projectSchema = z.object({
   videoAspectRatio: z.enum(RATIOS).optional(),
   videoDuration: z.number().int().min(-1).max(600),
   hookModel: id.optional(),
+  hookVirality: z.number().int().min(1).max(10).optional(),
   modelInputs: z
     .record(z.string(), z.record(z.string(), z.unknown()))
     .optional(),
