@@ -1,3 +1,4 @@
+import { hookPositionFraction } from "../shared/hook-layout.ts";
 import { hookFontCSS } from "../shared/hook-fonts.ts";
 import { useState, useRef, useEffect } from "react";
 import {
@@ -117,7 +118,7 @@ export default function Preview({
   const video = useRef<HTMLVideoElement>(null),
     audio = useRef<HTMLAudioElement>(null);
   const c = p.composition,
-    hooks = activeHooks({ ...p, skipped: p.skipped.filter((n) => n !== 3) }),
+    hooks = hookIndex !== undefined ? p.hooks.filter(h => c.style === "IMG" ? !!h.imageId : !!h.text.trim()) : activeHooks({ ...p, skipped: p.skipped.filter((n) => n !== 3) }),
     hook = hooks[hookIndex] || hooks[0];
   const chosen =
     part === "reaction"
@@ -141,7 +142,7 @@ export default function Preview({
     let active = true;
     const v = video.current, a = audio.current;
     if (v) {
-      v.volume = Math.min(1, Math.max(0, c.sourceVolume));
+      v.volume = Math.min(1, Math.max(0, (part === "reaction" ? c.reactionVolume : c.demoVolume) ?? c.sourceVolume));
       if (playing) void v.play().catch(() => { if (active) setPlaying(false); });
       else v.pause();
     }
@@ -151,7 +152,7 @@ export default function Preview({
       else a.pause();
     }
     return () => { active = false; v?.pause(); a?.pause(); };
-  }, [playing, part, url, music, c.musicVolume, c.sourceVolume, playMusic]);
+  }, [playing, part, url, music, c.musicVolume, c.sourceVolume, c.reactionVolume, c.demoVolume, playMusic]);
   return (
     <aside className="preview-panel">
       <div className="preview-heading">
@@ -216,7 +217,7 @@ export default function Preview({
           ) : (
             <div
               className={`preview-hook pos-${c.position} style-${c.style.replace(" ", "-")}`}
-              style={{ ...hookFontCSS(hook?.fontId ?? c.fontId, hook?.text || ""), fontSize: `${c.fontSize / 3.6}px` }}
+              style={{ ...hookFontCSS(hook?.fontId ?? c.fontId, hook?.text || ""), fontSize: `${c.fontSize / 10.8}cqw`, top: `${hookPositionFraction(c.position) * 100}%`, transform: "translateY(-50%)" }}
             >
               {hook?.text || "Your hook text"}
             </div>

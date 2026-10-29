@@ -1,3 +1,4 @@
+import type { HookPosition } from "./hook-layout.ts";
 import type { ReferencePoses } from "./reference-poses.ts";
 import type { HookFontId } from "./hook-fonts.ts";
 export type Span = "whole" | "reaction" | "demo";
@@ -34,6 +35,7 @@ export interface Hook {
   text: string;
   imageId?: string;
   productId?: string;
+  enabled?: boolean;
   fontId?: HookFontId;
   createdAt: string;
 }
@@ -53,13 +55,16 @@ export interface Composition {
   style: HookStyle;
   hookSpan: Span;
   musicSpan: Span;
-  position: "top" | "middle" | "bottom";
+  position: HookPosition;
   fontSize: number;
   fontId?: HookFontId;
   textWallDuration: number;
   fit: "cover" | "contain";
   musicVolume: number;
   sourceVolume: number;
+  reactionVolume?: number;
+  demoVolume?: number;
+  textLayoutVersion?: 2;
   presenterId: string;
   backgroundId: string;
   presenterScale: number;

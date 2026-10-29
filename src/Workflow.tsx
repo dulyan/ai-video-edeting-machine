@@ -1,3 +1,4 @@
+import { HOOK_POSITIONS, HOOK_POSITION_LABELS } from "../shared/hook-layout.ts";
 import { HOOK_FONTS, DEFAULT_HOOK_FONT, hookFontCSS, type HookFontId } from "../shared/hook-fonts.ts";
 import { viralityGuidance } from "../shared/hook-virality.ts";
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
@@ -949,7 +950,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
           <section className="hook-editor">
             <div className="section-heading">
               <h3>Hook style and timing</h3>
-              <span className="muted-text">{hooks.length} unique hooks</span>
+              <span className="muted-text">{hooks.filter(h => h.enabled !== false).length} of {hooks.length} hooks selected</span>
             </div>
             <div className="style-tabs" role="tablist" aria-label="Hook style">
               {(
@@ -977,14 +978,16 @@ export function Hooks({ p, w, update, inspect }: Props) {
             </div>
             <div className="style-settings">
               <Field label="Hook position">
-                <div className="segmented">
-                  {(["top", "middle", "bottom"] as const).map((position) => (
+                <div className="segmented hook-positions">
+                  {HOOK_POSITIONS.map((position) => (
                     <button
                       key={position}
+                      aria-label={HOOK_POSITION_LABELS[position]}
+                      aria-pressed={c.position === position}
                       className={c.position === position ? "active" : ""}
                       onClick={() => patch({ position })}
                     >
-                      {position}
+                      {HOOK_POSITION_LABELS[position]}
                     </button>
                   ))}
                 </div>
@@ -1002,7 +1005,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
                   </select>
                 </Field>
               ) : (
-                <Field label="Text size">
+                <Field label={`Text size - ${c.fontSize} px at 1080px width`}>
                   <input
                     type="range"
                     min={20}
@@ -1137,8 +1140,8 @@ export function Hooks({ p, w, update, inspect }: Props) {
                         key={hook.id}
                         asset={a}
                         onInspect={() => setSelected(i)}
-                        selected={selected === i}
-                        onSelect={() => setSelected(i)}
+                        selected={hook.enabled !== false}
+                        onSelect={() => update(latest => ({hooks: latest.hooks.map(h => h.id === hook.id ? {...h,enabled: h.enabled === false} : h)}))}
                       />
                     ) : null;
                   })}
@@ -1146,6 +1149,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
               </>
             ) : (
               <>
+                {!hooks.some(h => h.enabled !== false) && <p className="muted-text">No hooks selected. Videos will render without hook text.</p>}
                 <div className="hook-list">
                   {hooks.map((hook, i) => (
                     <div
@@ -1153,6 +1157,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
                       key={hook.id}
                       onFocus={() => setSelected(i)}
                     >
+                      <input type="checkbox" aria-label={`Include hook ${i + 1}`} checked={hook.enabled !== false} onChange={e => {const enabled=e.target.checked;update(latest => ({hooks:latest.hooks.map(h=>h.id===hook.id?{...h,enabled}:h)}));}} />
                       <span>{String(i + 1).padStart(2, "0")}</span>
                       <div className="hook-text-controls"><textarea
                         style={hookFontCSS(hook.fontId ?? c.fontId, hook.text)}
@@ -1415,6 +1420,8 @@ export function LibraryChooser({
                         composition: {
                           ...p.composition,
                           sourceVolume: Number(e.target.value),
+                          reactionVolume: Number(e.target.value),
+                          demoVolume: Number(e.target.value),
                         },
                       })
                     }
@@ -1692,6 +1699,17 @@ export function Outline({ p, w, update, inspect }: Props) {
                 <option value="contain">Fit with black bars</option>
               </select>
             </Field>
+          </div>
+          <div className="form-columns">
+            {(["reaction", "demo"] as const).map(part => {
+              const key = part === "reaction" ? "reactionVolume" : "demoVolume";
+              const value = p.composition[key] ?? p.composition.sourceVolume;
+              const title = part === "reaction" ? "Reaction video" : "Product demo";
+              return <Field key={key} label={`${title} volume - ${Math.round(value * 100)}%`}>
+                <input aria-label={`${title} volume`} type="range" min={0} max={2} step={0.05} value={value} onChange={e => {const volume=Number(e.target.value);update(latest => ({composition:{...latest.composition,[key]:volume}}));}} />
+                <Button aria-label={`${value === 0 ? "Unmute" : "Mute"} ${title.toLowerCase()}`} onClick={() => update(latest => ({composition:{...latest.composition,[key]:value === 0 ? 1 : 0}}))}>{value === 0 ? "Unmute" : "Mute"} {title.toLowerCase()}</Button>
+              </Field>;
+            })}
           </div>
           <p className="info-note">
             <Film size={14} /> 1080 × 1920 · 30 fps · H.264 + AAC

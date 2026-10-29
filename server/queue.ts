@@ -378,7 +378,7 @@ export function queueRender(p: Project) {
       throw new Error(
         "Choose a reaction clip, demo video, or image hook before rendering",
       );
-    const c = {...p.composition,fontId:p.composition.fontId ?? DEFAULT_HOOK_FONT};
+    const c = {...p.composition,fontId:p.composition.fontId ?? DEFAULT_HOOK_FONT,textLayoutVersion:2 as const};
     if (c.style === "Green screen" && hook && !c.presenterId)
       throw new Error("Choose a green-screen presenter clip");
     const selected = [

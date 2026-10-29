@@ -426,3 +426,28 @@ test("bundled fonts render Cyrillic text and per-hook overrides",async()=>{
    assert((await stat(output)).size>1000);
  }
 });
+
+test("independent source volumes mute only their selected segment",async()=>{
+ for(const id of ["reaction-tone","demo-tone"]){await asset(id,id.startsWith("reaction")?"reaction":"demo",["-f","lavfi","-i","color=c=black:s=216x384:r=30","-f","lavfi","-i","sine=frequency=440:sample_rate=48000","-c:v","libx264","-c:a","aac","-pix_fmt","yuv420p"],1);}
+ for(const muted of ["reaction","demo"] as const){
+  const p=newProject();p.composition.reactionVolume=muted==="reaction"?0:1;p.composition.demoVolume=muted==="demo"?0:1;
+  const file=path.join(testDir,"mute-"+muted+".mp4");
+  await renderVideo({row:{id:muted,hookId:null,reactionId:"reaction-tone",demoId:"demo-tone",musicId:null},composition:p.composition,assets},file,()=>{},undefined,[216,384]);
+  const reaction=await rms(file,.4),demo=await rms(file,1.4);
+  assert(muted==="reaction"?reaction<.001&&demo>.02:demo<.001&&reaction>.02);
+ }
+});
+test("text size is scaled from CSS em units rather than shrunk by ASS metrics",async()=>{
+ const {assEmScale}=await import("../server/font-metrics.ts");
+ const p=newProject();p.composition.fontId="montserrat";p.composition.fontSize=100;
+ const ass=subtitleASS("MMMM",p.composition,[0,1],216,384);
+ const match=ass.match(/Style: Hook,Montserrat,([\d.]+),/)!;
+ assert(Math.abs(Number(match[1])-20*assEmScale("montserrat.ttf"))<.001);
+ const legacy={...p.composition};delete legacy.textLayoutVersion;
+ assert.match(subtitleASS("MMMM",legacy,[0,1],216,384),/Style: Hook,Montserrat,20,/);
+ for(const position of ["upper-middle","lower-middle"] as const){
+   p.composition.position=position;const file=path.join(testDir,"position-"+position+".mp4");
+   await renderVideo({row:{id:position,hookId:"h",reactionId:"reaction",demoId:null,musicId:null},hook:{id:"h",text:"MMMM",createdAt:""},composition:p.composition,assets},file,()=>{},undefined,[216,384]);
+   assert((await stat(file)).size>1000);
+ }
+});

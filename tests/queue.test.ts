@@ -98,3 +98,14 @@ test("hook batches preserve virality and product snapshots across chunks and ret
     }
   } finally {globalThis.fetch=original;}
 });
+
+test("render snapshots retain text size, position, hook selection and segment volumes",()=>{
+ const p=newProject();p.composition.fontSize=93;p.composition.position="lower-middle";p.composition.reactionVolume=0;p.composition.demoVolume=.65;
+ p.hooks=[{id:"wanted",text:"Selected",createdAt:""},{id:"later",text:"Save for later",enabled:false,createdAt:""}];p.reactionIds=["snapshot-reaction"];
+ put("assets",{id:"snapshot-reaction",key:"r.mp4",name:"r",size:1,kind:"reaction",projectId:p.id,mime:"video/mp4",createdAt:"",duration:1});
+ const batch=queueRender(p);assert.equal(batch.count,1);
+ const job=all("jobs").find(j=>j.batchId===batch.batchId)!;
+ assert.equal(job.input.hook.id,"wanted");assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.position,"lower-middle");assert.equal(job.input.composition.textLayoutVersion,2);
+ p.composition.fontSize=20;p.composition.reactionVolume=1;
+ assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.reactionVolume,0);assert.equal(job.input.composition.demoVolume,.65);
+});

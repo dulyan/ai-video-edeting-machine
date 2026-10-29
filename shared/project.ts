@@ -83,6 +83,7 @@ export function newProject(): Project {
       fit: "cover",
       musicVolume: 0.3,
       sourceVolume: 1,
+      textLayoutVersion: 2,
       presenterId: "",
       backgroundId: "",
       presenterScale: 0.65,
@@ -110,7 +111,7 @@ export function activeHooks(p: Project) {
   return p.skipped.includes(3)
     ? []
     : p.hooks.filter((h) =>
-        p.composition.style === "IMG" ? !!h.imageId : !!h.text.trim(),
+        h.enabled !== false && (p.composition.style === "IMG" ? !!h.imageId : !!h.text.trim()),
       );
 }
 export function effectiveProject(p: Project): Project {

@@ -34,3 +34,15 @@ test("Cyrillic fallback and industry curiosity policy are explicit",()=>{
   assert.match(hookWritingSystem(10),/Maximum curiosity, industry-first/);
   assert.match(hookWritingSystem(10),/Never invent statistics/);
 });
+
+test("five positions and persisted hook selections affect combinations",async()=>{
+ const {activeHooks,combinationCount,combinationAt}=await import("../shared/project.ts");
+ const {HOOK_POSITIONS,hookPositionFraction}=await import("../shared/hook-layout.ts");
+ const p=newProject();p.hooks=[{id:"on",text:"Keep",createdAt:""},{id:"off",text:"Keep for later",enabled:false,createdAt:""}];p.reactionIds=["r1","r2"];
+ for(const position of HOOK_POSITIONS)assert(projectSchema.safeParse({...p,composition:{...p.composition,position}}).success);
+ assert.deepEqual(HOOK_POSITIONS.map(hookPositionFraction),[0.18,0.32,0.46,0.63,0.8]);
+ assert.equal(activeHooks(p).length,1);assert.equal(combinationCount(p),2);assert.equal(combinationAt(p,1).hookId,"on");
+ const saved=projectSchema.parse(JSON.parse(JSON.stringify(p)));assert.equal(saved.hooks[1].enabled,false);
+ saved.hooks[1].enabled=true;assert.equal(combinationCount(saved),4);
+ assert(!projectSchema.safeParse({...p,composition:{...p.composition,reactionVolume:3}}).success);
+});

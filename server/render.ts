@@ -1,3 +1,5 @@
+import { assEmScale } from "./font-metrics.ts";
+import { hookPositionFraction } from "../shared/hook-layout.ts";
 import { effectiveHookFont } from "../shared/hook-fonts.ts";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -98,19 +100,15 @@ export function subtitleASS(
   w = 1080,
   h = 1920,
 ) {
-  const y =
-    c.position === "top"
-      ? h * 0.18
-      : c.position === "bottom"
-        ? h * 0.8
-        : h * 0.46;
-  const font = Math.round((c.fontSize * w) / 1080);
-  const escaped = wrapText(text, Math.max(16, Math.floor(w / (font * 0.58))))
+  const y = h * hookPositionFraction(c.position);
+  const face = c.fontId ? effectiveHookFont(c.fontId, text) : undefined;
+  const pixelSize = c.fontSize * w / 1080;
+  const font = Number((pixelSize * (c.textLayoutVersion === 2 && face ? assEmScale(face.file) : 1)).toFixed(3));
+  const escaped = wrapText(text, Math.max(16, Math.floor(w / (pixelSize * 0.58))))
     .replace(/\\/g, "\\\\")
     .replace(/[{}]/g, "")
     .replace(/\n/g, "\\N");
   const snapchat = c.style === "Snapchat";
-  const face = c.fontId ? effectiveHookFont(c.fontId, text) : undefined;
   return `[Script Info]\nScriptType: v4.00+\nPlayResX: ${w}\nPlayResY: ${h}\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Hook,${face?.family ?? "DejaVu Sans"},${font},&H00FFFFFF,&H00FFFFFF,${snapchat ? "&H80000000" : "&H00101010"},&H80000000,${face ? (face.weight >= 700 ? -1 : 0) : (snapchat ? 0 : -1)},0,0,0,100,100,0,0,${snapchat ? 3 : 1},${snapchat ? 10 : 2},0,5,50,50,50,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,${assTime(window[0])},${assTime(window[1])},Hook,,0,0,0,,{\\an5\\pos(${w / 2},${Math.round(y)})}${escaped}\n`;
 }
 export interface RenderSpec {
@@ -202,7 +200,7 @@ export async function renderVideo(
         "-vf",
         `${filters(c.fit)},tpad=stop_mode=clone:stop_duration=${length}`,
         "-af",
-        "apad",
+        `volume=${(index === 0 ? c.reactionVolume : c.demoVolume) ?? c.sourceVolume},apad`,
         "-t",
         String(length),
         "-c:v",
@@ -284,7 +282,7 @@ export async function renderVideo(
           ? "H*0.1"
           : c.position === "bottom"
             ? "H*0.85-h"
-            : "(H-h)/2";
+            : c.position === "upper-middle" ? "H*0.32-h/2" : c.position === "lower-middle" ? "H*0.63-h/2" : "(H-h)/2";
       graph.push(
         `[${video}][hookimage]overlay=(W-w)/2:${y}:enable='between(t,${hookRange[0]},${hookRange[1]})'[imgout]`,
       );
@@ -315,7 +313,7 @@ export async function renderVideo(
       graph.push(`[${video}]subtitles=hook.ass${selectedFont ? ":fontsdir=fonts" : ""}[textout]`);
       video = "textout";
     }
-    graph.push(`[0:a]volume=${c.sourceVolume}[source]`);
+    graph.push(`[0:a]anull[source]`);
     if (row.musicId && musicRange[1] > musicRange[0]) {
       const i = input++;
       args.push("-stream_loop", "-1", "-i", await source(row.musicId));
