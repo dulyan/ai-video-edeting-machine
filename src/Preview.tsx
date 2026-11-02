@@ -1,3 +1,5 @@
+import { hasHookEmoji } from "../shared/emoji.ts";
+import EmojiHookPreview from "./EmojiHookPreview.tsx";
 import { hookPositionFraction } from "../shared/hook-layout.ts";
 import { hookFontCSS } from "../shared/hook-fonts.ts";
 import { useState, useRef, useEffect } from "react";
@@ -223,6 +225,8 @@ export default function Preview({
                 alt="Image hook"
               />
             )
+          ) : hasHookEmoji(hook?.text || "") ? (
+            <EmojiHookPreview text={hook!.text} composition={c} fontId={hook?.fontId}/>
           ) : (
             <div
               className={`preview-hook pos-${c.position} style-${c.style.replace(" ", "-")}`}

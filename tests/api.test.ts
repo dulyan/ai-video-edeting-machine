@@ -64,6 +64,11 @@ async function api(route: string, method = "GET", body?: any) {
 }
 const project = newProject();
 project.name = "Isolated API fixture";
+
+test("hook emoji preview requires authentication",async()=>{
+ const r=await fetch(base+"/hook-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"\u{1f602}",composition:project.composition})});
+ assert.equal(r.status,401);
+});
 test("private workspace requires authentication and rejects wrong passwords", async () => {
   assert.equal((await api("/state")).status, 401);
   assert.equal(
@@ -502,4 +507,12 @@ test("logout revokes a persistent session and a new sign-in reconnects", async (
     ).status,
     401,
   );
+});
+
+test("Apple emoji preview is exactly the shared final-render overlay",async()=>{
+ const {emojiHookPNG}=await import("../server/emoji-hook.ts");
+ const composition=newProject().composition,text="Hello \u{1f602}";
+ const response=await fetch(base+"/hook-preview",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({text,composition})});
+ assert.equal(response.status,200);assert.match(response.headers.get("content-type")||"",/image\/png/);
+ assert.deepEqual(Buffer.from(await response.arrayBuffer()),await emojiHookPNG(text,composition,1080,1920));
 });

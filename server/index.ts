@@ -1,3 +1,6 @@
+import { emojiHookPNG } from "./emoji-hook.ts";
+import { outputResolution } from "../shared/ratios.ts";
+import { HOOK_FONT_IDS } from "../shared/hook-fonts.ts";
 import { vidGenPayload } from "../shared/vidgen.ts";
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { reactionPromptSettings } from "../shared/project.ts";
@@ -43,7 +46,7 @@ import { startQueue, stopQueue, cancelJob, queueRender } from "./queue.ts";
 import { probe } from "./render.ts";
 import { siray, chatJSON } from "./siray.ts";
 import { publicFetch } from "./network.ts";
-import { projectSchema, productSchema } from "../shared/schema.ts";
+import { projectSchema, productSchema, compositionSchema } from "../shared/schema.ts";
 import { getCatalog, invalidateCatalog } from "./catalog.ts";
 import { isAutoFrameField, modelPayload } from "../shared/catalog.ts";
 import {
@@ -366,6 +369,11 @@ app.get("/api/media/:id", async (req, reply) => {
   const asset = get("assets", id);
   if (!asset) return reply.code(404).send({ error: "Asset not found" });
   return reply.type(asset.mime).sendFile(asset.key);
+});
+app.post("/api/hook-preview", async (req,reply) => {
+  const {text,composition,fontId}=z.object({text:z.string().max(20000),composition:compositionSchema,fontId:z.enum(HOOK_FONT_IDS).optional()}).parse(req.body);
+  const [width,height]=outputResolution(composition.aspectRatio);
+  return reply.header("Cache-Control","no-store").type("image/png").send(await emojiHookPNG(text,composition,width,height,fontId));
 });
 app.post("/api/vidgen", async (req) => {
   const {projectId,modelId,inputs,requestId} = z.object({projectId:z.string(),modelId:z.string(),inputs:z.record(z.string(),z.unknown()),requestId:z.uuid()}).parse(req.body);

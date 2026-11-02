@@ -1,3 +1,5 @@
+import { hasHookEmoji } from "../shared/emoji.ts";
+import { emojiHookPNG } from "./emoji-hook.ts";
 import { assEmScale } from "./font-metrics.ts";
 import { hookPositionFraction } from "../shared/hook-layout.ts";
 import { effectiveHookFont } from "../shared/hook-fonts.ts";
@@ -301,6 +303,12 @@ export async function renderVideo(
       video = "keyed";
     }
     if (hook?.text && active && c.style !== "IMG") {
+      if (hasHookEmoji(hook.text)) {
+        await writeFile(path.join(dir,"hook.png"),await emojiHookPNG(hook.text,c,w,h,hook.fontId));
+        const i=input++;
+        args.push("-loop","1","-i","hook.png");
+        graph.push(`[${video}][${i}:v]overlay=0:0:enable='between(t,${hookRange[0]},${hookRange[1]})'[textout]`);
+      } else {
       await writeFile(
         path.join(dir, "hook.ass"),
         subtitleASS(hook.text, {...c, fontId: hook.fontId ?? c.fontId}, hookRange, w, h),
@@ -312,6 +320,7 @@ export async function renderVideo(
         await copyFile(fileURLToPath(new URL(`../public/fonts/${face.file}`, import.meta.url)), path.join(dir, "fonts", face.file));
       }
       graph.push(`[${video}]subtitles=hook.ass${selectedFont ? ":fontsdir=fonts" : ""}[textout]`);
+      }
       video = "textout";
     }
     graph.push(`[0:a]anull[source]`);

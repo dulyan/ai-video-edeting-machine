@@ -4348,3 +4348,6 @@ progress {
 .vidgen-job .asset-card { max-width:320px; margin:14px 0; }
 @media(max-width:1000px) { .vidgen-layout { grid-template-columns:1fr; } }
 @media(max-width:600px) { .vidgen-form { padding:18px; } .vidgen-form .section-heading { align-items:flex-start; flex-direction:column; gap:12px; } .studio-step-tabs button { font-size:13px; padding:7px 10px; } }
+
+.preview-emoji-overlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; object-fit:contain; }
+.emoji-preview-status { position:absolute; left:5%; right:5%; top:46%; z-index:3; text-align:center; padding:8px; background:#ffffffdd; color:#242622; font-size:13px; border-radius:8px; }

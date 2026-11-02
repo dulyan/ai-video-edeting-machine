@@ -36,7 +36,7 @@ export async function request<T = any>(
     }
     throw new APIError(error || `Server returned ${response.status}`, response.status);
   }
-  if (response.headers.get("content-type")?.includes("application/zip"))
+  if ((response.headers.get("content-type")?.includes("application/zip") || response.headers.get("content-type")?.startsWith("image/png")))
     return (await response.blob()) as T;
   return response.json();
 }

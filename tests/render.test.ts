@@ -461,3 +461,12 @@ test("music seeking changes the audible source while preserving the music span",
   assert((await rms(file,.4))<.001);const demo=await rms(file,1.4);assert(offset===undefined?demo<.001:demo>.02);
  }
 });
+
+test("Apple emoji stays colored in final video and respects the hook span",async()=>{
+ const p=newProject();p.composition.fontSize=100;p.composition.hookSpan="demo";
+ const file=path.join(testDir,"apple-emoji.mp4");
+ await renderVideo({row:{id:"emoji",hookId:"h",reactionId:"reaction",demoId:"demo",musicId:null},hook:{id:"h",text:"\u{1f602}",createdAt:""},composition:p.composition,assets},file,()=>{},undefined,[216,384]);
+ const {execFileSync}=await import("node:child_process");
+ const colored=(time:string)=>{const pixels=execFileSync(ffmpeg,["-v","error","-ss",time,"-i",file,"-frames:v","1","-f","rawvideo","-pix_fmt","rgb24","pipe:1"],{windowsHide:true});let count=0;for(let y=150;y<210;y++)for(let x=70;x<145;x++){const i=(y*216+x)*3;if(pixels[i]>140&&pixels[i+1]>70&&pixels[i+2]<100)count++;}return count;};
+ assert.equal(colored("0.4"),0);assert(colored("1.4")>20);
+});
