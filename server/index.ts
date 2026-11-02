@@ -1,3 +1,4 @@
+import { vidGenPayload } from "../shared/vidgen.ts";
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { reactionPromptSettings } from "../shared/project.ts";
 import { createSession, validSession, revokeSession } from "./sessions.ts";
@@ -365,6 +366,17 @@ app.get("/api/media/:id", async (req, reply) => {
   const asset = get("assets", id);
   if (!asset) return reply.code(404).send({ error: "Asset not found" });
   return reply.type(asset.mime).sendFile(asset.key);
+});
+app.post("/api/vidgen", async (req) => {
+  const {projectId,modelId,inputs,requestId} = z.object({projectId:z.string(),modelId:z.string(),inputs:z.record(z.string(),z.unknown()),requestId:z.uuid()}).parse(req.body);
+  if (!get("projects",projectId)) throw new Error("Project not found");
+  if (!getSecret("siray")) throw new Error("Add your Siray API key in Settings first");
+  const definition=(await getCatalog()).find(m=>m.id===modelId && m.kind === "video" && m.active !== false);
+  if (!definition) throw new Error("Choose an available video model");
+  const payload=vidGenPayload(definition,inputs);
+  const existing=all("jobs").find(j=>j.projectId===projectId && j.input.vidGenRequestId===requestId);
+  if(existing)return existing;
+  return addJob(projectId,"video",`VidGen - ${definition.name}`,{tool:"vidgen",vidGenRequestId:requestId,payload,model:modelId,prompt:payload.prompt || "",modelDefinition:definition});
 });
 app.post("/api/generate", async (req) => {
   const { projectId, mode } = z

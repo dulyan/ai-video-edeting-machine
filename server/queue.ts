@@ -1,3 +1,4 @@
+import { materializeVidGen } from "./vidgen-inputs.ts";
 import { limitReactionDuration } from "./reaction-duration.ts";
 import { freezeInputs } from "../shared/freeze-lips.ts";
 import { removeReactionAudio } from "./reaction-audio.ts";
@@ -79,7 +80,7 @@ export async function processJob(job: Job) {
         const source = job.input.sourceId
           ? get("assets", job.input.sourceId)
           : undefined;
-        const body = generationPayload(
+        const body = job.input.tool === "vidgen" ? await materializeVidGen(job.input.payload,job.input.modelDefinition) : generationPayload(
           job.input.model,
           job.input.prompt,
           job.input.seed,
@@ -135,13 +136,17 @@ export async function processJob(job: Job) {
           );
         if (["SUCCESS", "COMPLETED", "SUCCEEDED"].includes(status)) {
           if (get("jobs", job.id)?.status === "canceled") return;
-          const output = info.outputs?.[0],
+          const outputs = job.input.tool === "vidgen" ? info.outputs : info.outputs?.slice(0,1);
+          if (!Array.isArray(outputs) || !outputs.length) throw new Error("Siray completed without an output URL");
+          for (const [outputIndex, output] of outputs.entries()) {
+          const
             url = typeof output === "string" ? output : output?.url;
           if (!url) throw new Error("Siray completed without an output URL");
           const ext = job.kind === "image" ? ".png" : ".mp4",
-            id = job.id,
+            id = outputIndex === 0 ? job.id : `${job.id}-${outputIndex + 1}`,
             key = `${id}${ext}`,
             file = path.join(mediaDir, key);
+          if (get("assets", id)) continue;
           let copied = await copyRemote(url, file);
           if (job.input.aspectRatio) {
             const conformed = await conformMedia(
@@ -171,7 +176,7 @@ export async function processJob(job: Job) {
           const asset: Asset = {
             id,
             key,
-            name: job.label,
+            name: outputs.length > 1 ? `${job.label} #${outputIndex + 1}` : job.label,
             kind: job.kind === "image" ? "image" : "reaction",
             projectId: job.projectId,
             createdAt: new Date().toISOString(),
@@ -199,10 +204,11 @@ export async function processJob(job: Job) {
             return;
           }
           await storeFile(file, asset);
+          }
           patchJob(job.id, {
             status: "completed",
             progress: 100,
-            outputId: id,
+            outputId: job.id,
           });
           return;
         }

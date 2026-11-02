@@ -4326,3 +4326,25 @@ progress {
 
 .music-track-card { min-width: 0; }
 .music-track-card > .field { margin: 10px 4px 20px; }
+
+.studio-step-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 24px; }
+.studio-step-tabs button { display:flex; align-items:center; gap:7px; padding:9px 13px; border:1px solid var(--border); border-radius:16px; color:var(--muted); font-size:14px; }
+.studio-step-tabs button.active { color:var(--accent); background:var(--surface); border-color:var(--accent); }
+.vidgen-layout { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr); gap:24px; align-items:start; }
+.vidgen-form { padding:28px; min-width:0; }
+.vidgen-form > p { margin:12px 0 20px; line-height:1.6; }
+.vidgen-fields { display:grid; gap:22px; margin:24px 0; }
+.vidgen-model-id { display:block; overflow-wrap:anywhere; color:var(--muted); }
+.vidgen-parameter { min-width:0; }
+.vidgen-complex { min-width:0; border:1px solid var(--border); border-radius:16px; padding:18px; display:grid; gap:14px; }
+.vidgen-complex legend { font-weight:700; padding:0 6px; overflow-wrap:anywhere; }
+.vidgen-array-item { min-width:0; border-bottom:1px solid var(--border); padding-bottom:14px; }
+.vidgen-item-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:10px 0; }
+.vidgen-layout pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:420px; overflow:auto; font-size:13px; }
+.vidgen-layout details { margin-top:16px; }
+.vidgen-results { min-width:0; }
+.vidgen-job { padding:20px; margin-top:16px; }
+.vidgen-job > p { margin:10px 0; }
+.vidgen-job .asset-card { max-width:320px; margin:14px 0; }
+@media(max-width:1000px) { .vidgen-layout { grid-template-columns:1fr; } }
+@media(max-width:600px) { .vidgen-form { padding:18px; } .vidgen-form .section-heading { align-items:flex-start; flex-direction:column; gap:12px; } .studio-step-tabs button { font-size:13px; padding:7px 10px; } }

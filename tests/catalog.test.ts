@@ -14,10 +14,10 @@ import { projectSchema } from "../shared/schema.ts";
 import { newProject } from "../shared/project.ts";
 
 test("catalog includes every published text, image and video model with input schemas", () => {
-  assert.equal(new Set(MODELS.map((m) => m.id)).size, 175);
-  assert.equal(MODELS.filter((m) => m.kind === "text").length, 37);
-  assert.equal(MODELS.filter((m) => m.kind === "image").length, 58);
-  assert.equal(MODELS.filter((m) => m.kind === "video").length, 80);
+  assert.equal(new Set(MODELS.map((m) => m.id)).size, 186);
+  assert.equal(MODELS.filter((m) => m.kind === "text").length, 40);
+  assert.equal(MODELS.filter((m) => m.kind === "image").length, 60);
+  assert.equal(MODELS.filter((m) => m.kind === "video").length, 86);
   assert(MODELS.every((m) => m.schema?.properties?.model));
 });
 test("future API models use endpoint metadata, including lifecycle and text protocols", () => {

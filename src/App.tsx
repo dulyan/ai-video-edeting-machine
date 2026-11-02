@@ -1,3 +1,4 @@
+import VidGen from "./VidGen.tsx";
 import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
@@ -61,7 +62,7 @@ import { ModelPicker, useModels } from "./ModelPicker.tsx";
 import { backendURL, configureBackend, hasSession, request } from "./api.ts";
 import type { ProjectUpdate } from "./workspace-sync.ts";
 type Page =
-  "Studio" | "Projects" | "Image Library" | "Video Library" | "Settings";
+  "Studio" | "VidGen" | "Projects" | "Image Library" | "Video Library" | "Settings";
 const stepSubtitles = [
   "Every great video starts with a little idea.",
   "One brief. A fresh perspective in every frame.",
@@ -540,6 +541,7 @@ export default function App() {
           {(
             [
               { name: "Studio", icon: Clapperboard },
+              { name: "VidGen", icon: Sparkles },
               { name: "Projects", icon: FolderOpen },
               { name: "Image Library", icon: ImageIcon },
               { name: "Video Library", icon: Film },
@@ -562,9 +564,7 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-divider" />
-        <div className="sidebar-label">
-          YOUR PROJECT <span>{String(step + 1).padStart(2, "0")} / 09</span>
-        </div>
+        <div className="sidebar-label">CURRENT PROJECT</div>
         <div className="project-switch">
           <FolderOpen size={15} />
           <select
@@ -572,7 +572,6 @@ export default function App() {
             value={p.id}
             onChange={(e) => {
               setProjectId(e.target.value);
-              setPage("Studio");
             }}
           >
             {w.data.projects.map((p) => (
@@ -583,35 +582,7 @@ export default function App() {
           </select>
           <ChevronDown size={13} />
         </div>
-        <nav className="step-nav">
-          {STEPS.map((label, i) => (
-            <button
-              key={label}
-              className={
-                page === "Studio" && step === i
-                  ? "active"
-                  : i < step
-                    ? "past"
-                    : ""
-              }
-              onClick={() => navigate(i)}
-            >
-              <span className="step-number">
-                {p.skipped.includes(i) ? (
-                  "—"
-                ) : i < step ? (
-                  <Check size={12} />
-                ) : (
-                  String(i + 1).padStart(2, "0")
-                )}
-              </span>
-              <span>{label}</span>
-              {page === "Studio" && step === i && (
-                <span className="step-active-dot" />
-              )}
-            </button>
-          ))}
-        </nav>
+
         <div className="sidebar-bottom">
           <button
             className={`settings-nav ${page === "Settings" ? "active" : ""}`}
@@ -688,6 +659,35 @@ export default function App() {
           </div>
           {page === "Studio" ? (
             <>
+        <nav className="studio-step-tabs" aria-label="Studio steps">
+          {STEPS.map((label, i) => (
+            <button
+              key={label}
+              className={
+                page === "Studio" && step === i
+                  ? "active"
+                  : i < step
+                    ? "past"
+                    : ""
+              }
+              onClick={() => navigate(i)}
+            >
+              <span className="step-number">
+                {p.skipped.includes(i) ? (
+                  "—"
+                ) : i < step ? (
+                  <Check size={12} />
+                ) : (
+                  String(i + 1).padStart(2, "0")
+                )}
+              </span>
+              <span>{label}</span>
+              {page === "Studio" && step === i && (
+                <span className="step-active-dot" />
+              )}
+            </button>
+          ))}
+        </nav>
               <div className="workflow-top">
                 <div className="workflow-current">
                   <span className="current-step-number">
@@ -789,6 +789,8 @@ export default function App() {
                 </div>
               </footer>
             </>
+          ) : page === "VidGen" ? (
+            <VidGen {...props}/>
           ) : page === "Settings" ? (
             <Settings w={w} theme={theme} setTheme={setTheme} />
           ) : page === "Projects" ? (

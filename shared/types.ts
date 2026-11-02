@@ -1,3 +1,4 @@
+import type { VidGenDraft } from "./vidgen.ts";
 import type { HookPosition } from "./hook-layout.ts";
 import type { ReferencePoses } from "./reference-poses.ts";
 import type { HookFontId } from "./hook-fonts.ts";
@@ -83,6 +84,7 @@ export interface RenderRow {
   musicSpan?: Span;
 }
 export interface Project {
+  vidGen?: VidGenDraft;
   id: string;
   name: string;
   createdAt: string;
