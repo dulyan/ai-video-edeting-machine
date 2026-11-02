@@ -203,7 +203,7 @@ test("four prompts stream live, duplicates are replaced, then exactly four saved
       publicState.jobs.find((j) => j.id === batch.id)?.promptModel,
       textModel.id,
     );
-    assert(publicState.jobs.every((j) => j.input === undefined));
+    assert(publicState.jobs.every((j) => Object.getOwnPropertyDescriptor(j, "input")?.value === undefined));
     assert(publicState.assets.every((a) => a.projectId === p.id));
   } finally {
     changes.off("change", observe);

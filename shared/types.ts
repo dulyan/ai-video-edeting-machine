@@ -155,6 +155,9 @@ export interface Job {
   progress: number;
   label: string;
   input: any;
+  /** Safe public job fields; internal input is omitted from workspace state. */
+  tool?: "vidgen";
+  requestSettings?: Record<string, unknown>;
   taskId?: string;
   outputId?: string;
   error?: string;
@@ -193,9 +196,11 @@ export interface AppState {
   projects: Project[];
   products: Product[];
   assets: Asset[];
-  jobs: Job[];
+  jobs: PublicJob[];
   presets?: PromptPreset[];
 }
+/** Browser clients never receive internal worker input or model definitions. */
+export type PublicJob = Omit<Job, "input">;
 export interface Model {
   id: string;
   name: string;

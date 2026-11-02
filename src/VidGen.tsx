@@ -77,7 +77,7 @@ export default function VidGen({p,w,update,inspect}: {p:Project;w:Workspace;upda
   }
   let validation="",payload:Record<string,unknown>|undefined;
   try {if(model)payload=vidGenPayload(model,inputs);}catch(e){validation=(e as Error).message;}
-  const jobs=w.data.jobs.filter(j=>j.projectId===p.id && j.input.tool==="vidgen").sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  const jobs=w.data.jobs.filter(j=>j.projectId===p.id && j.tool==="vidgen").sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   const visible=jobs.slice(page*10,page*10+10);
   async function generate() {
     if(!model)return;
@@ -107,7 +107,7 @@ export default function VidGen({p,w,update,inspect}: {p:Project;w:Workspace;upda
         {["failed","canceled","uncertain"].includes(job.status) && <Button onClick={()=>void w.act("Retrying job",()=>request(`/jobs/${job.id}/retry`,{method:"POST"}))}>{job.status === "uncertain" ? "Retry after checking Siray" : "Retry saved request"}</Button>}
         {job.status==="uncertain" && <p>Check Siray for this request before retrying to avoid a duplicate charge.</p>}
         {w.data.assets.filter(a=>a.jobId===job.id).map(asset=><div key={asset.id}><AssetCard asset={asset} onInspect={inspect}/><Button onClick={()=>void w.act("Downloading video",async()=>{const r=await request(`/assets/${asset.id}/url`);const a=document.createElement("a");a.href=r.url;a.download=asset.name+".mp4";a.click();})}><Download size={14}/>Download original</Button></div>)}
-        <details><summary>Saved request</summary><pre>{JSON.stringify(job.input.payload,null,2)}</pre></details>
+        <details><summary>Saved request</summary><pre>{JSON.stringify(job.requestSettings || {},null,2)}</pre></details>
       </article>)}
       {jobs.length>10 && <div className="vidgen-item-actions"><Button disabled={!page} onClick={()=>setPage(page-1)}>Previous</Button><span>Page {page+1} of {Math.ceil(jobs.length/10)}</span><Button disabled={(page+1)*10>=jobs.length} onClick={()=>setPage(page+1)}>Next</Button></div>}
     </section>

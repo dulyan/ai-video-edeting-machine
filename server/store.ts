@@ -134,6 +134,8 @@ export function state(): AppState {
     jobs: jobs.map((j) => ({
       ...j,
       input: undefined,
+      tool: j.input.tool === "vidgen" ? "vidgen" : undefined,
+      requestSettings: j.input.tool === "vidgen" ? j.input.payload : undefined,
       mode: j.kind === "prepare" ? j.input.mode : undefined,
       prompt:
         j.kind === "image" || j.kind === "video" ? j.input.prompt : undefined,

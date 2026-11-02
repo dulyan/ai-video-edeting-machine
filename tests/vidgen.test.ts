@@ -83,6 +83,10 @@ test("VidGen API authenticates, validates, snapshots, and deduplicates submissio
   const first=await api("/vidgen","POST",input);assert.equal(first.status,200,JSON.stringify(first.body));assert.equal(first.body.input.payload.seed,0);assert.equal(first.body.input.payload.n,3);
   assert.equal((await api("/vidgen","POST",input)).body.id,first.body.id);
   assert.equal((await api("/vidgen","POST",{...input,requestId:crypto.randomUUID(),inputs:{...input.inputs,duration:1.5}})).status,400);
-  assert.equal((await api("/state")).body.jobs.length,1);
+  const jobs=(await api("/state")).body.jobs;
+  assert.equal(jobs.length,1);
+  assert.equal(jobs[0].input,undefined);
+  assert.equal(jobs[0].tool,"vidgen");
+  assert.deepEqual(jobs[0].requestSettings,{model:model.id,...input.inputs});
  } finally {await new Promise<void>(resolve=>{if(child.exitCode!==null)return resolve();child.once("exit",()=>resolve());child.kill();});}
 });

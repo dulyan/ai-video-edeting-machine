@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2, Check, Image as ImageIcon } from "lucide-react";
-import type { Job, Asset, PromptParts } from "../shared/types.ts";
+import type { PublicJob, Asset, PromptParts } from "../shared/types.ts";
 import type { Workspace } from "./workspace.tsx";
 import { AssetMedia, Button, Modal } from "./components.tsx";
 import PromptContent from "./PromptContent.tsx";
@@ -12,7 +12,7 @@ export default function GenerationProgress({
   selectedIds,
   toggleAsset,
 }: {
-  batch: Job;
+  batch: PublicJob;
   w: Workspace;
   inspect: (asset: Asset) => void;
   selectedIds: string[];
