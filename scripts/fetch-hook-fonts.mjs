@@ -1,7 +1,7 @@
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-const fonts=[['montserrat','Montserrat',700,'montserrat'],['poppins','Poppins',700,'poppins'],['anton','Anton',400,'anton'],['bebas-neue','Bebas Neue',400,'bebasneue'],['oswald','Oswald',700,'oswald'],['inter','Inter',700,'inter'],['roboto','Roboto',700,'roboto'],['open-sans','Open Sans',700,'opensans'],['playfair-display','Playfair Display',700,'playfairdisplay'],['caveat','Caveat',700,'caveat']];
+const fonts=[['instagram-default','Manrope',600,'manrope'],['tiktok-default','TikTok Sans',600,'tiktoksans']];
 const dir=fileURLToPath(new URL('../public/fonts/',import.meta.url));await mkdir(dir,{recursive:true});
 const manifest=await Promise.all(fonts.map(async([id,family,weight,folder])=>{
  const cssURL='https://fonts.googleapis.com/css?family='+encodeURIComponent(family+':'+weight)+'&subset=latin,latin-ext,cyrillic,cyrillic-ext,greek,greek-ext,vietnamese';
@@ -16,6 +16,8 @@ const manifest=await Promise.all(fonts.map(async([id,family,weight,folder])=>{
  await writeFile(dir+id+'.ttf',bytes);await writeFile(dir+id+'-OFL.txt',(await license.text()).replace(/[ \t]+$/gm,''));
  return {id,family,weight,source:url,license:licenseURL,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length};
 }));
-await writeFile(dir+'manifest.json',JSON.stringify({retrievedAt:new Date().toISOString(),fonts:manifest},null,2));
-await writeFile(dir+'fonts.css',manifest.map(f=>`@font-face { font-family: "AVEM ${f.family}"; font-style: normal; font-weight: ${f.weight}; font-display: swap; src: url("./${f.id}.ttf") format("truetype"); }`).join('\n')+'\n');
+const old=JSON.parse(await readFile(dir+'manifest.json','utf8'));
+const all=[...old.fonts.filter(f=>!manifest.some(n=>n.id===f.id)),...manifest];
+await writeFile(dir+'manifest.json',JSON.stringify({retrievedAt:new Date().toISOString(),fonts:all},null,2));
+await writeFile(dir+'fonts.css',all.map(f=>`@font-face { font-family: "AVEM ${f.family}"; font-style: normal; font-weight: ${f.weight}; font-display: swap; src: url("./${f.id}.ttf") format("truetype"); }`).join('\n')+'\n');
 console.log('Bundled '+manifest.length+' licensed fonts, '+manifest.reduce((sum,f)=>sum+f.bytes,0)+' bytes.');

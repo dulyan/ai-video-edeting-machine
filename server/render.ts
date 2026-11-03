@@ -1,5 +1,6 @@
+import {hookHasText,textPosition} from "../shared/hook-sections.ts";
 import { hasHookEmoji } from "../shared/emoji.ts";
-import { emojiHookPNG } from "./emoji-hook.ts";
+import { emojiHookPNG,renderHookPNG } from "./emoji-hook.ts";
 import { assEmScale } from "./font-metrics.ts";
 import { hookPositionFraction } from "../shared/hook-layout.ts";
 import { effectiveHookFont } from "../shared/hook-fonts.ts";
@@ -105,7 +106,7 @@ export function subtitleASS(
   const y = h * hookPositionFraction(c.position);
   const face = c.fontId ? effectiveHookFont(c.fontId, text) : undefined;
   const pixelSize = c.fontSize * w / 1080;
-  const font = Number((pixelSize * (c.textLayoutVersion === 2 && face ? assEmScale(face.file) : 1)).toFixed(3));
+  const font = Number((pixelSize * ((c.textLayoutVersion ?? 0) >= 2 && face ? assEmScale(face.file) : 1)).toFixed(3));
   const escaped = wrapText(text, Math.max(16, Math.floor(w / (pixelSize * 0.58))))
     .replace(/\\/g, "\\\\")
     .replace(/[{}]/g, "")
@@ -281,7 +282,7 @@ export async function renderVideo(
       args.push("-loop", "1", "-i", img);
       graph.push(`[${i}:v]scale=${Math.round(w * 0.8)}:-2[hookimage]`);
       const y =
-        c.position === "top"
+        c.textLayoutVersion === 3 ? `H*${textPosition(c)/100}-h/2` : c.position === "top"
           ? "H*0.1"
           : c.position === "bottom"
             ? "H*0.85-h"
@@ -302,9 +303,9 @@ export async function renderVideo(
       );
       video = "keyed";
     }
-    if (hook?.text && active && c.style !== "IMG") {
-      if (hasHookEmoji(hook.text)) {
-        await writeFile(path.join(dir,"hook.png"),await emojiHookPNG(hook.text,c,w,h,hook.fontId));
+    if (hook && hookHasText(hook) && active && c.style !== "IMG") {
+      if (c.textLayoutVersion===3 || hasHookEmoji(hook.text)) {
+        await writeFile(path.join(dir,"hook.png"),c.textLayoutVersion===3 ? await renderHookPNG(hook,c,w,h) : await emojiHookPNG(hook.text,c,w,h,hook.fontId));
         const i=input++;
         args.push("-loop","1","-i","hook.png");
         graph.push(`[${video}][${i}:v]overlay=0:0:enable='between(t,${hookRange[0]},${hookRange[1]})'[textout]`);

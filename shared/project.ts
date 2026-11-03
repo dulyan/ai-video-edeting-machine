@@ -1,3 +1,4 @@
+import { hookHasText } from "./hook-sections.ts";
 import type { Project, RenderRow, Span } from "./types.ts";
 import { IMAGE_PROMPT, IMAGE_FIXED_INSTRUCTIONS } from "./starting-frame-defaults.ts";
 import { DEFAULT_HOOK_FONT } from "./hook-fonts.ts";
@@ -78,12 +79,14 @@ export function newProject(): Project {
       musicSpan: "whole",
       position: "middle",
       fontSize: 48,
+      textPosition:46,
+      textWidth:90,
       fontId: DEFAULT_HOOK_FONT,
       textWallDuration: 7,
       fit: "cover",
       musicVolume: 0.3,
       sourceVolume: 1,
-      textLayoutVersion: 2,
+      textLayoutVersion: 3,
       presenterId: "",
       backgroundId: "",
       presenterScale: 0.65,
@@ -111,7 +114,7 @@ export function activeHooks(p: Project) {
   return p.skipped.includes(3)
     ? []
     : p.hooks.filter((h) =>
-        h.enabled !== false && (p.composition.style === "IMG" ? !!h.imageId : !!h.text.trim()),
+        h.enabled !== false && (p.composition.style === "IMG" ? !!h.imageId : hookHasText(h)),
       );
 }
 export function effectiveProject(p: Project): Project {

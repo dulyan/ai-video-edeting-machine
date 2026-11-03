@@ -17,13 +17,19 @@ const text = z.string().max(20000),
   id = z.string().max(200),
   ids = z.array(id).max(1000);
 const span = z.enum(["whole", "reaction", "demo"]);
+export const textSectionSettingsSchema = z.object({
+ fontId:z.enum(HOOK_FONT_IDS).optional(),fontSize:z.number().min(20).max(100).optional(),widthPercent:z.number().min(10).max(100).optional(),verticalOffset:z.number().min(-100).max(100).optional(),style:z.enum(["Text","Snapchat","Instagram","Text Wall","Green screen"]).optional(),
+});
+export const textSectionSchema = z.object({id,text,settings:textSectionSettingsSchema.optional()});
 export const compositionSchema = z.object({
   aspectRatio: z.enum(RATIOS).optional(),
-  style: z.enum(["Text", "Snapchat", "IMG", "Text Wall", "Green screen"]),
+  style: z.enum(["Text", "Snapchat", "Instagram", "IMG", "Text Wall", "Green screen"]),
   hookSpan: span,
   musicSpan: span,
   position: z.enum(HOOK_POSITIONS),
   fontSize: z.number().min(20).max(100),
+  textPosition:z.number().min(0).max(100).optional(),
+  textWidth:z.number().min(10).max(100).optional(),
   fontId: z.enum(HOOK_FONT_IDS).optional(),
   textWallDuration: z.number().min(1).max(30),
   fit: z.enum(["cover", "contain"]),
@@ -31,7 +37,7 @@ export const compositionSchema = z.object({
   sourceVolume: z.number().min(0).max(2),
   reactionVolume: z.number().min(0).max(2).optional(),
   demoVolume: z.number().min(0).max(2).optional(),
-  textLayoutVersion: z.literal(2).optional(),
+  textLayoutVersion: z.union([z.literal(2),z.literal(3)]).optional(),
   presenterId: id,
   backgroundId: id,
   presenterScale: z.number().min(0.15).max(1),
@@ -40,6 +46,8 @@ export const compositionSchema = z.object({
   keyBlend: z.number().min(0).max(1),
 });
 export const hookSchema = z.object({
+  textSettings:textSectionSettingsSchema.optional(),
+  sections:z.array(textSectionSchema).max(20).optional(),
   enabled: z.boolean().optional(),
   id,
   text,

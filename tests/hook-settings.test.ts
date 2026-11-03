@@ -15,9 +15,9 @@ test("font and virality settings validate and retain backward compatibility",()=
   const {hookVirality,...legacy}=p; delete legacy.composition.fontId;
   assert(projectSchema.safeParse(legacy).success);
 });
-test("all ten bundled font files match their provenance checksums and include licenses",async()=>{
+test("both social font files match their provenance checksums and include licenses",async()=>{
   const manifest=JSON.parse(await readFile("public/fonts/manifest.json","utf8"));
-  assert.equal(HOOK_FONTS.length,10);
+  assert.equal(HOOK_FONTS.length,2);assert.deepEqual(HOOK_FONTS.map(f=>f.group),["Instagram","TikTok"]);
   for(const font of HOOK_FONTS){
     const bytes=await readFile(`public/fonts/${font.file}`);
     assert.equal(bytes.readUInt32BE(),0x00010000);

@@ -90,6 +90,26 @@
       "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/caveat/OFL.txt",
       "sha256": "f4365d9874c1b64026aca48786cf835a5decf2c740c06de04dbb05ce8c93ff37",
       "bytes": 251256
+    },
+    {
+      "id": "instagram-default",
+      "family": "Manrope",
+      "weight": 600,
+      "source": "https://fonts.gstatic.com/s/manrope/v23/xn7_YHE41ni1AdIRqAuZuw1Bx9mbZk4jE-_F.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/OFL.txt",
+      "sha256": "68ed4be49ec7d32f07b42f9232dc01ca1df7a77be1d9b0731aac74db58235f34",
+      "bytes": 96348,
+      "retrievedAt": "2026-11-03T13:34:52.759Z"
+    },
+    {
+      "id": "tiktok-default",
+      "family": "TikTok Sans",
+      "weight": 600,
+      "source": "https://fonts.gstatic.com/s/tiktoksans/v8/70kbu7g-Lm8OXGnh_Ow1sUfFMmlnhbRF425wxXH-UGeud7XItbaHtxhggMrrmAvSNAHtMV6x5PpBL2J5Rgbj-Bo71ub1pA.ttf",
+      "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/tiktoksans/OFL.txt",
+      "sha256": "d52790df8a70a9febb9761f1d7fa4a6b41291f88e3edc8194a3994c366467f4f",
+      "bytes": 175328,
+      "retrievedAt": "2026-11-03T13:34:52.760Z"
     }
   ]
 }

@@ -1,7 +1,6 @@
-import { hasHookEmoji } from "../shared/emoji.ts";
+import {activeHookFontId} from "../shared/hook-fonts.ts";
+import {hookHasText,textPosition} from "../shared/hook-sections.ts";
 import EmojiHookPreview from "./EmojiHookPreview.tsx";
-import { hookPositionFraction } from "../shared/hook-layout.ts";
-import { hookFontCSS } from "../shared/hook-fonts.ts";
 import { useState, useRef, useEffect } from "react";
 import {
   Play,
@@ -119,8 +118,8 @@ export default function Preview({
     [mediaError, setMediaError] = useState("");
   const video = useRef<HTMLVideoElement>(null),
     audio = useRef<HTMLAudioElement>(null);
-  const c = p.composition,
-    hooks = hookIndex !== undefined ? p.hooks.filter(h => c.style === "IMG" ? !!h.imageId : !!h.text.trim()) : activeHooks({ ...p, skipped: p.skipped.filter((n) => n !== 3) }),
+  const c = {...p.composition,textLayoutVersion:3 as const,fontId:activeHookFontId(p.composition.fontId)},
+    hooks = hookIndex !== undefined ? p.hooks.filter(h => c.style === "IMG" ? !!h.imageId : hookHasText(h)) : activeHooks({ ...p, skipped: p.skipped.filter((n) => n !== 3) }),
     hook = hooks[hookIndex] || hooks[0];
   const chosen =
     part === "reaction"
@@ -221,19 +220,13 @@ export default function Preview({
             hookImage && (
               <img
                 className={`preview-hook-image pos-${c.position}`}
+                style={{top:`${textPosition(c)}%`,bottom:"auto",transform:"translateY(-50%)"}}
                 src={hookImage}
                 alt="Image hook"
               />
             )
-          ) : hasHookEmoji(hook?.text || "") ? (
-            <EmojiHookPreview text={hook!.text} composition={c} fontId={hook?.fontId}/>
           ) : (
-            <div
-              className={`preview-hook pos-${c.position} style-${c.style.replace(" ", "-")}`}
-              style={{ ...hookFontCSS(hook?.fontId ?? c.fontId, hook?.text || ""), fontSize: `${c.fontSize / 10.8}cqw`, top: `${hookPositionFraction(c.position) * 100}%`, transform: "translateY(-50%)" }}
-            >
-              {hook?.text || "Your hook text"}
-            </div>
+            <EmojiHookPreview text={hook?hook.text:"Your hook text"} composition={c} fontId={hook?.fontId} sections={hook?.sections} textSettings={hook?.textSettings}/>
           ))}
         {asset && !asset.mime.startsWith("image/") && (
           <button

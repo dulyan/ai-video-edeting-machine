@@ -17,7 +17,7 @@ test("shared emoji overlay retains color, transparency, font size, style and pos
  const p=newProject();p.composition.fontSize=100;
  const text="Hello \u{1f602}";
  for(const position of ["top","upper-middle","middle","lower-middle","bottom"] as const){
-  p.composition.position=position;
+  p.composition.position=position;delete p.composition.textPosition;
   const png=await emojiHookPNG(text,p.composition,216,384);
   assert.deepEqual(png,await emojiHookPNG(text,p.composition,216,384));
   const image=await loadImage(png),canvas=createCanvas(216,384),ctx=canvas.getContext("2d");ctx.drawImage(image,0,0);

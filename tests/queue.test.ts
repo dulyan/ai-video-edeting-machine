@@ -105,7 +105,7 @@ test("render snapshots retain text size, position, hook selection and segment vo
  put("assets",{id:"snapshot-reaction",key:"r.mp4",name:"r",size:1,kind:"reaction",projectId:p.id,mime:"video/mp4",createdAt:"",duration:1});
  const batch=queueRender(p);assert.equal(batch.count,1);
  const job=all("jobs").find(j=>j.batchId===batch.batchId)!;
- assert.equal(job.input.hook.id,"wanted");assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.position,"lower-middle");assert.equal(job.input.composition.textLayoutVersion,2);
+ assert.equal(job.input.hook.id,"wanted");assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.position,"lower-middle");assert.equal(job.input.composition.textLayoutVersion,3);
  p.composition.fontSize=20;p.composition.reactionVolume=1;
  assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.reactionVolume,0);assert.equal(job.input.composition.demoVolume,.65);
 });
@@ -119,4 +119,13 @@ test("music offsets follow each chosen track and remain immutable",()=>{
  p.musicMode="random";batch=queueRender(p);jobs=all("jobs").filter(j=>j.batchId===batch.batchId);assert.equal(jobs.length,1);assert.equal(jobs[0].input.musicStartOffset,p.musicStartOffsets[jobs[0].input.row.musicId]);
  delete p.musicStartOffsets;batch=queueRender(p);assert.equal(all("jobs").find(j=>j.batchId===batch.batchId)!.input.musicStartOffset,0);
  p.musicStartOffsets={"offset-a":10};assert.throws(()=>queueRender(p),/Music start time/);
+});
+
+test("section settings are snapshotted without multiplying final combinations",()=>{
+ const p=newProject();p.reactionIds=["section-reaction"];p.composition.textPosition=32;p.composition.textWidth=70;
+ p.hooks=[{id:"sections",text:"Primary",createdAt:"",sections:[{id:"extra",text:"Secondary",settings:{widthPercent:45,fontId:"tiktok-default"}}]}];
+ put("assets",{id:"section-reaction",key:"r.mp4",name:"r",size:1,kind:"reaction",projectId:p.id,mime:"video/mp4",createdAt:"",duration:1});
+ const batch=queueRender(p);assert.equal(batch.count,1);const job=all("jobs").find(j=>j.batchId===batch.batchId)!;
+ assert.equal(job.input.composition.textPosition,32);assert.equal(job.input.composition.textWidth,70);assert.equal(job.input.hook.sections[0].settings.widthPercent,45);
+ p.hooks[0].sections![0].text="Changed later";assert.equal(job.input.hook.sections[0].text,"Secondary");
 });

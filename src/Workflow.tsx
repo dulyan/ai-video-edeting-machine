@@ -1,5 +1,6 @@
-import { HOOK_POSITIONS, HOOK_POSITION_LABELS } from "../shared/hook-layout.ts";
-import { HOOK_FONTS, DEFAULT_HOOK_FONT, hookFontCSS, type HookFontId } from "../shared/hook-fonts.ts";
+import HookTextEditor,{HookFontSelect} from "./HookTextEditor.tsx";
+import {hookHasText,textPosition,textWidth} from "../shared/hook-sections.ts";
+import {activeHookFontId} from "../shared/hook-fonts.ts";
 import { viralityGuidance } from "../shared/hook-virality.ts";
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { useEffect, useState } from "react";
@@ -823,12 +824,12 @@ export function Hooks({ p, w, update, inspect }: Props) {
     ),
     [selected, setSelected] = useState(0),
     [next, setNext] = useState("");
-  const c = p.composition,
+  const c = {...p.composition,textLayoutVersion:3 as const,fontId:activeHookFontId(p.composition.fontId)},
     patch = (value: Partial<Composition>) =>
       update((latest) => ({ composition: { ...latest.composition, ...value } })),
     product = w.data.products.find((x) => x.id === p.productId),
     hooks = p.hooks.filter((h) =>
-      c.style === "IMG" ? h.imageId : h.text.trim(),
+      c.style === "IMG" ? h.imageId : hookHasText(h),
     ),
     active = w.data.jobs.some(
       (j) =>
@@ -957,6 +958,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
                 [
                   "Text",
                   "Snapchat",
+                  "Instagram",
                   "IMG",
                   "Text Wall",
                   "Green screen",
@@ -971,58 +973,20 @@ export function Hooks({ p, w, update, inspect }: Props) {
                     patch({ style });
                     setSelected(0);
                   }}
-                >
-                  {style}
-                </button>
+                >{style === "Instagram" ? "Instagram white" : style}</button>
               ))}
             </div>
             <div className="style-settings">
-              <Field label="Hook position">
-                <div className="segmented hook-positions">
-                  {HOOK_POSITIONS.map((position) => (
-                    <button
-                      key={position}
-                      aria-label={HOOK_POSITION_LABELS[position]}
-                      aria-pressed={c.position === position}
-                      className={c.position === position ? "active" : ""}
-                      onClick={() => patch({ position })}
-                    >
-                      {HOOK_POSITION_LABELS[position]}
-                    </button>
-                  ))}
-                </div>
+              <Field label={`Vertical position - ${Math.round(textPosition(c))}%`} hint="Moves the first section up/down. All text stays horizontally centered.">
+                <input aria-label="Hook vertical position" type="range" min={0} max={100} step={1} value={textPosition(c)} onChange={e=>patch({textPosition:Number(e.target.value)})}/>
               </Field>
-              {c.style === "Text Wall" ? (
-                <Field label="Clip duration">
-                  <select
-                    value={c.textWallDuration}
-                    onChange={(e) =>
-                      patch({ textWallDuration: Number(e.target.value) })
-                    }
-                  >
-                    <option value={7}>Short · 7 seconds</option>
-                    <option value={14}>Long · 14 seconds</option>
-                  </select>
-                </Field>
-              ) : (
-                <Field label={`Text size - ${c.fontSize} px at 1080px width`}>
-                  <input
-                    type="range"
-                    min={20}
-                    max={100}
-                    value={c.fontSize}
-                    onChange={(e) =>
-                      patch({ fontSize: Number(e.target.value) })
-                    }
-                  />
-                </Field>
-              )}
+              {c.style !== "IMG" && <Field label={`Text size - ${c.fontSize} px at 1080px width`}><input aria-label="Hook text size" type="range" min={20} max={100} value={c.fontSize} onChange={e=>patch({fontSize:Number(e.target.value)})}/></Field>}
+              {c.style !== "IMG" && <Field label={`Text width - ${textWidth(c)}%`} hint="Wraps lines without changing letter spacing."><input aria-label="Hook text width" type="range" min={10} max={100} value={textWidth(c)} onChange={e=>patch({textWidth:Number(e.target.value)})}/></Field>}
+              {c.style === "Text Wall" && <Field label="Clip duration"><select value={c.textWallDuration} onChange={e=>patch({textWallDuration:Number(e.target.value)})}><option value={7}>Short - 7 seconds</option><option value={14}>Long - 14 seconds</option></select></Field>}
             </div>
-            {c.style !== "IMG" && <Field label="Default hook font" hint="Poppins uses Montserrat for Russian; Anton and Bebas Neue use Oswald. Preview and render use the same fallback.">
-              <select aria-label="Default hook font" value={c.fontId ?? DEFAULT_HOOK_FONT} onChange={e => patch({fontId: e.target.value as HookFontId})}>
-                {HOOK_FONTS.map(font => <option key={font.id} value={font.id}>{font.name}</option>)}
-              </select>
-              {p.hooks.some(h => h.fontId) && <Button onClick={() => update(latest => ({hooks: latest.hooks.map(({fontId, ...h}) => h)}))}>Use default font for all hooks</Button>}
+            {c.style !== "IMG" && <Field label="Default hook font" hint="TikTok Sans is the original font. Instagram-style Sans uses the approved Manrope substitute. Both support Russian.">
+              <HookFontSelect label="Default hook font" value={c.fontId} onChange={fontId=>patch({fontId})}/>
+              <Button onClick={()=>update(latest=>({hooks:latest.hooks.map(h=>({...h,fontId:undefined,textSettings:h.textSettings?{...h.textSettings,fontId:undefined}:undefined,sections:h.sections?.map(s=>({...s,settings:s.settings?{...s.settings,fontId:undefined}:undefined}))}))}))}>Use default font for all hooks</Button>
             </Field>}
             <SpanControl
               label="Show hook on"
@@ -1159,26 +1123,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
                     >
                       <input type="checkbox" aria-label={`Include hook ${i + 1}`} checked={hook.enabled !== false} onChange={e => {const enabled=e.target.checked;update(latest => ({hooks:latest.hooks.map(h=>h.id===hook.id?{...h,enabled}:h)}));}} />
                       <span>{String(i + 1).padStart(2, "0")}</span>
-                      <div className="hook-text-controls"><textarea
-                        style={hookFontCSS(hook.fontId ?? c.fontId, hook.text)}
-                        aria-label={`Hook ${i + 1}`}
-                        rows={Math.max(1, Math.ceil(hook.text.length / 80))}
-                        value={hook.text}
-                        disabled={active}
-                        onChange={(e) =>
-                          update({
-                            hooks: p.hooks.map((h) =>
-                              h.id === hook.id
-                                ? { ...h, text: e.target.value }
-                                : h,
-                            ),
-                          })
-                        }
-                      />
-                      <select aria-label={`Font for hook ${i + 1}`} value={hook.fontId ?? ""} onChange={e => { const fontId = e.target.value as HookFontId | ""; update(latest => ({hooks: latest.hooks.map(h => h.id === hook.id ? {...h, fontId: fontId || undefined} : h)})); }}>
-                        <option value="">Project default</option>
-                        {HOOK_FONTS.map(font => <option key={font.id} value={font.id}>{font.name}</option>)}
-                      </select></div>
+                      <HookTextEditor hook={hook} composition={c} index={i} disabled={active} onChange={change=>update(latest=>({hooks:latest.hooks.map(h=>h.id===hook.id?change(h):h)}))}/>
                       <button
                         className="icon-button"
                         aria-label={`Delete hook ${i + 1}`}
@@ -1682,9 +1627,9 @@ export function Outline({ p, w, update, inspect }: Props) {
                   })
                 }
               >
-                {["Text", "Snapchat", "IMG", "Text Wall", "Green screen"].map(
+                {["Text", "Snapchat", "Instagram", "IMG", "Text Wall", "Green screen"].map(
                   (s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>{s === "Instagram" ? "Instagram white" : s}</option>
                   ),
                 )}
               </select>
@@ -1809,7 +1754,7 @@ export function Outline({ p, w, update, inspect }: Props) {
         </p>
         <h3>Edit hook text</h3>
         {p.hooks
-          .filter((h) => h.text)
+          .filter((h) => hookHasText(h))
           .map((h) => (
             <Field
               label={

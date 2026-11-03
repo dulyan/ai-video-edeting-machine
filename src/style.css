@@ -4351,3 +4351,16 @@ progress {
 
 .preview-emoji-overlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; object-fit:contain; }
 .emoji-preview-status { position:absolute; left:5%; right:5%; top:46%; z-index:3; text-align:center; padding:8px; background:#ffffffdd; color:#242622; font-size:13px; border-radius:8px; }
+
+.hook-text-section { border-top:1px solid var(--border); padding-top:12px; display:grid; gap:10px; }
+.hook-text-section .section-heading { margin:0; gap:8px; }
+.hook-text-section .section-heading strong { font-size:14px; }
+.section-customization > summary { cursor:pointer; font-size:14px; }
+.section-customization[open] { display:grid; gap:14px; }
+.section-customization .field { margin-top:14px; }
+.hook-text-controls select { width:100%; max-width:100%; }
+.hook-text-section textarea { letter-spacing:normal; font-stretch:normal; }
+
+.hook-row { align-items:flex-start; }
+.hook-row > input[type="checkbox"], .hook-row > span, .hook-row > .icon-button { margin-top:10px; }
+@media(max-width:600px) { .style-tabs { flex-wrap:wrap; border-radius:18px; } .style-tabs > button { flex:0 0 auto; } }

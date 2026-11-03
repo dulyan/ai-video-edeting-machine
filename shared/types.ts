@@ -4,7 +4,7 @@ import type { ReferencePoses } from "./reference-poses.ts";
 import type { HookFontId } from "./hook-fonts.ts";
 export type Span = "whole" | "reaction" | "demo";
 export type HookStyle =
-  "Text" | "Snapchat" | "IMG" | "Text Wall" | "Green screen";
+  "Text" | "Snapchat" | "Instagram" | "IMG" | "Text Wall" | "Green screen";
 export type AssetKind =
   | "image"
   | "reaction"
@@ -31,7 +31,18 @@ export interface Asset {
   jobId?: string;
   key: string;
 }
+export type HookTextStyle = Exclude<HookStyle,"IMG">;
+export interface TextSectionSettings {
+ fontId?: HookFontId;
+ fontSize?: number;
+ widthPercent?: number;
+ verticalOffset?: number;
+ style?: HookTextStyle;
+}
+export interface HookTextSection { id:string; text:string; settings?:TextSectionSettings }
 export interface Hook {
+  textSettings?: TextSectionSettings;
+  sections?: HookTextSection[];
   id: string;
   text: string;
   imageId?: string;
@@ -58,6 +69,8 @@ export interface Composition {
   musicSpan: Span;
   position: HookPosition;
   fontSize: number;
+  textPosition?: number;
+  textWidth?: number;
   fontId?: HookFontId;
   textWallDuration: number;
   fit: "cover" | "contain";
@@ -65,7 +78,7 @@ export interface Composition {
   sourceVolume: number;
   reactionVolume?: number;
   demoVolume?: number;
-  textLayoutVersion?: 2;
+  textLayoutVersion?: 2 | 3;
   presenterId: string;
   backgroundId: string;
   presenterScale: number;

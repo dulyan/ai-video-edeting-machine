@@ -1,7 +1,10 @@
-export const HOOK_FONT_IDS = ["montserrat","poppins","anton","bebas-neue","oswald","inter","roboto","open-sans","playfair-display","caveat"] as const;
+export const LEGACY_HOOK_FONT_IDS = ["montserrat","poppins","anton","bebas-neue","oswald","inter","roboto","open-sans","playfair-display","caveat"] as const;
+export const ACTIVE_HOOK_FONT_IDS = ["instagram-default","tiktok-default"] as const;
+export const HOOK_FONT_IDS = [...ACTIVE_HOOK_FONT_IDS,...LEGACY_HOOK_FONT_IDS] as const;
 export type HookFontId = typeof HOOK_FONT_IDS[number];
-export const DEFAULT_HOOK_FONT: HookFontId = "montserrat";
-export const HOOK_FONTS: {id:HookFontId;name:string;family:string;file:string;weight:number;cyrillic:boolean;fallback?:HookFontId}[] = [
+export type ActiveHookFontId = typeof ACTIVE_HOOK_FONT_IDS[number];
+export const DEFAULT_HOOK_FONT: ActiveHookFontId = "instagram-default";
+export const LEGACY_HOOK_FONTS: {id:HookFontId;name:string;family:string;file:string;weight:number;cyrillic:boolean;fallback?:HookFontId}[] = [
   {id:"montserrat",name:"Montserrat Bold",family:"Montserrat",file:"montserrat.ttf",weight:700,cyrillic:true},
   {id:"poppins",name:"Poppins Bold",family:"Poppins",file:"poppins.ttf",weight:700,cyrillic:false,fallback:"montserrat"},
   {id:"anton",name:"Anton",family:"Anton",file:"anton.ttf",weight:400,cyrillic:false,fallback:"oswald"},
@@ -13,12 +16,17 @@ export const HOOK_FONTS: {id:HookFontId;name:string;family:string;file:string;we
   {id:"playfair-display",name:"Playfair Display Bold",family:"Playfair Display",file:"playfair-display.ttf",weight:700,cyrillic:true},
   {id:"caveat",name:"Caveat Bold",family:"Caveat",file:"caveat.ttf",weight:700,cyrillic:true},
 ];
-export function hookFont(id?:string) { return HOOK_FONTS.find(font=>font.id===id)||HOOK_FONTS[0]; }
+export const HOOK_FONTS = [
+ {id:"instagram-default" as const,name:"Instagram-style Sans (Manrope)",family:"Manrope",file:"instagram-default.ttf",weight:600,cyrillic:true,group:"Instagram"},
+ {id:"tiktok-default" as const,name:"Classic (TikTok Sans)",family:"TikTok Sans",file:"tiktok-default.ttf",weight:600,cyrillic:true,group:"TikTok"},
+];
+export function activeHookFontId(id?:string):ActiveHookFontId { return ACTIVE_HOOK_FONT_IDS.includes(id as ActiveHookFontId) ? id as ActiveHookFontId : DEFAULT_HOOK_FONT; }
+export function hookFont(id?:string) { return HOOK_FONTS.find(font=>font.id===id)||LEGACY_HOOK_FONTS.find(font=>font.id===id)||HOOK_FONTS[0]; }
 // Select a complete compatible family for Cyrillic text, rather than silently
 // mixing unmatched glyphs. Both the browser and FFmpeg use this same decision.
 export function effectiveHookFont(id:HookFontId|undefined,text:string) {
   const font=hookFont(id);
-  return /[\u0400-\u052f]/u.test(text) && !font.cyrillic ? hookFont(font.fallback) : font;
+  return /[\u0400-\u052f]/u.test(text) && !font.cyrillic ? hookFont("fallback" in font ? font.fallback : undefined) : font;
 }
 export function hookFontCSS(id:HookFontId|undefined,text:string) {
   const font=effectiveHookFont(id,text);

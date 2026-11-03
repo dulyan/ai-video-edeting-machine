@@ -470,3 +470,12 @@ test("Apple emoji stays colored in final video and respects the hook span",async
  const colored=(time:string)=>{const pixels=execFileSync(ffmpeg,["-v","error","-ss",time,"-i",file,"-frames:v","1","-f","rawvideo","-pix_fmt","rgb24","pipe:1"],{windowsHide:true});let count=0;for(let y=150;y<210;y++)for(let x=70;x<145;x++){const i=(y*216+x)*3;if(pixels[i]>140&&pixels[i+1]>70&&pixels[i+2]<100)count++;}return count;};
  assert.equal(colored("0.4"),0);assert(colored("1.4")>20);
 });
+
+test("multi-section Instagram white hooks render with Apple emoji and independent styling",async()=>{
+ const p=newProject();p.composition.style="Instagram";p.composition.fontSize=100;p.composition.textPosition=25;p.composition.textWidth=80;p.composition.hookSpan="demo";
+ const file=path.join(testDir,"sections-instagram.mp4");
+ await renderVideo({row:{id:"sections",hookId:"h",reactionId:"reaction",demoId:"demo",musicId:null},hook:{id:"h",text:"First \u{1f602}",createdAt:"",sections:[{id:"s1",text:"Second",settings:{fontId:"tiktok-default"}},{id:"s2",text:"Third",settings:{fontSize:80,widthPercent:50}}]},composition:p.composition,assets},file,()=>{},undefined,[216,384]);
+ const before=await pixels(file,.4),after=await pixels(file,1.4);
+ const whites=(data:Buffer,minY:number,maxY:number)=>{let n=0;for(let y=minY;y<maxY;y++)for(let x=20;x<196;x++){const i=(y*216+x)*3;if(data[i]>220&&data[i+1]>220&&data[i+2]>220)n++;}return n;};
+ assert.equal(whites(before,70,175),0);assert(whites(after,75,110)>100);assert(whites(after,110,145)>100);assert(whites(after,145,175)>50);
+});
