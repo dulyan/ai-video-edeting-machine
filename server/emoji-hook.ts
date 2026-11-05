@@ -48,7 +48,7 @@ async function image(file:string) {
 function registerFont(fontId:Hook["fontId"],text:string) {
  const face=effectiveHookFont(fontId,text);
  if(!fonts.has(face.id)){
-  if(!GlobalFonts.registerFromPath(("local" in face && face.local)?requireLocalClassicFont():fileURLToPath(new URL(`../public/fonts/${face.file}`,import.meta.url)),`AVEM ${face.family}`))throw new Error("Could not load hook font");
+  if(!GlobalFonts.registerFromPath(("local" in face && face.local)?requireLocalClassicFont(face.id):fileURLToPath(new URL(`../public/fonts/${face.file}`,import.meta.url)),`AVEM ${face.family}`))throw new Error("Could not load hook font");
   fonts.add(face.id);
  }
  return face;

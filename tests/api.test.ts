@@ -527,3 +527,13 @@ test('Classic font status, import and files stay private; invalid imports preser
  assert.equal(invalid.status,400);assert.match((await invalid.json()).error,/Proxima Nova/);
  assert.equal((await api('/hook-fonts')).data.legacyInstalled,false);
 });
+
+test('Helvetica reference import is private, validates the actual font, and never falls back silently',async()=>{
+ assert.equal((await fetch(base+'/hook-fonts/classic-iphone-helvetica/file')).status,401);
+ const status=(await api('/hook-fonts')).data;assert.equal(status.installed['classic-iphone-helvetica'],false);
+ const form=new FormData();form.append('file',new Blob([await readFile('public/fonts/tiktok-default.ttf')]),'Helvetica.ttf');
+ const r=await fetch(base+'/hook-fonts/classic-iphone-helvetica',{method:'POST',headers:{Authorization:'Bearer '+token},body:form});assert.equal(r.status,400);assert.match((await r.json()).error,/Helvetica Pro Roman/);
+ assert.equal((await api('/hook-fonts')).data.installed['classic-iphone-helvetica'],false);
+ const preview=await fetch(base+'/hook-preview',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({text:'\u044f',composition:{...newProject().composition,fontId:'classic-iphone-helvetica'}})});
+ assert.equal(preview.status,400);assert.match((await preview.json()).error,/Import a licensed Helvetica Pro Roman/);
+});

@@ -40,8 +40,8 @@ test("local launcher serves UI and authenticated API, reuses its instance, backs
   assert.equal((await (await fetch(base+"/api/state",{headers})).json() as any).projects[0].name,project.name);
   const reused=await start({home,port,browser:false,queue:false,uiDir});
   assert.equal(reused.reused,true);assert.equal(reused.instanceId,status.instanceId);
-  await mkdir(path.join(p.data,'fonts'),{recursive:true});await writeFile(path.join(p.data,'fonts','proxima-nova-semibold.otf'),'backup-font-fixture');
-  const backup=await backupLocal(p),manifest=JSON.parse(await readFile(path.join(backup,"manifest.json"),"utf8"));assert(manifest.files.some((file:any)=>file.name==="config.env"));assert(manifest.files.some((file:any)=>file.name==="workspace/fonts/proxima-nova-semibold.otf"));assert.equal(await readFile(path.join(backup,"workspace/fonts/proxima-nova-semibold.otf"),"utf8"),"backup-font-fixture");
+  await mkdir(path.join(p.data,'fonts'),{recursive:true});await writeFile(path.join(p.data,'fonts','proxima-nova-semibold.otf'),'backup-font-fixture');await writeFile(path.join(p.data,'fonts','helvetica-roman.otf'),'reference-font-fixture');
+  const backup=await backupLocal(p),manifest=JSON.parse(await readFile(path.join(backup,"manifest.json"),"utf8"));assert(manifest.files.some((file:any)=>file.name==="config.env"));assert(manifest.files.some((file:any)=>file.name==="workspace/fonts/proxima-nova-semibold.otf"));assert.equal(await readFile(path.join(backup,"workspace/fonts/proxima-nova-semibold.otf"),"utf8"),"backup-font-fixture");assert.equal(await readFile(path.join(backup,"workspace/fonts/helvetica-roman.otf"),"utf8"),"reference-font-fixture");
   assert.equal((await stop({home,port})).stopped,true);
   const log=await readFile(path.join(p.logs,"app.log"),"utf8");
   assert(!log.includes(config.LOCAL_CONTROL_TOKEN));assert(!log.includes(config.APP_PASSWORD));

@@ -374,13 +374,16 @@ app.get("/api/media/:id", async (req, reply) => {
   if (!asset) return reply.code(404).send({ error: "Asset not found" });
   return reply.type(asset.mime).sendFile(asset.key);
 });
-app.get('/api/hook-fonts',async()=>({legacyInstalled:localClassicInstalled()}));
-app.post('/api/hook-fonts/tiktok-classic-legacy',async req=>{
+const localHookFontIds=['classic-iphone-helvetica','tiktok-classic-legacy'] as const;
+const hookFontStatus=()=>({legacyInstalled:localClassicInstalled(),installed:Object.fromEntries(localHookFontIds.map(id=>[id,localClassicInstalled(id)]))});
+app.get('/api/hook-fonts',async()=>hookFontStatus());
+app.post('/api/hook-fonts/:fontId',async req=>{
+ const fontId=z.enum(localHookFontIds).parse((req.params as {fontId:string}).fontId);
  const file=await req.file({limits:{fileSize:5*1024*1024,files:1,fields:0}});
- if(!file)throw new Error('Choose a Proxima Nova Semibold TTF/OTF file.');
- await installClassicFont(await file.toBuffer());return {legacyInstalled:true};
+ if(!file)throw new Error('Choose a licensed TTF/OTF font file.');
+ await installClassicFont(await file.toBuffer(),fontId);return hookFontStatus();
 });
-app.get('/api/hook-fonts/tiktok-classic-legacy/file',async(_req,reply)=>reply.header('Cache-Control','private, no-store').type('font/otf').send(await readFile(requireLocalClassicFont())));
+app.get('/api/hook-fonts/:fontId/file',async(req,reply)=>{const fontId=z.enum(localHookFontIds).parse((req.params as {fontId:string}).fontId);return reply.header('Cache-Control','private, no-store').type('font/otf').send(await readFile(requireLocalClassicFont(fontId)));});
 app.get("/api/hook-preview/status",async()=>hookPreviews.stats());
 app.post("/api/hook-preview", async (req,reply) => {
   const {text,composition,fontId,sections,textSettings}=z.object({text:z.string().max(20000),composition:compositionSchema,fontId:z.enum(HOOK_FONT_IDS).optional(),sections:z.array(textSectionSchema).max(20).optional(),textSettings:textSectionSettingsSchema.optional()}).parse(req.body);

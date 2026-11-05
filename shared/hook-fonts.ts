@@ -1,5 +1,5 @@
 export const LEGACY_HOOK_FONT_IDS = ["montserrat","poppins","anton","bebas-neue","oswald","inter","roboto","open-sans","playfair-display","caveat","instagram-default","tiktok-default"] as const;
-export const ACTIVE_HOOK_FONT_IDS = ["tiktok-classic-ru","tiktok-classic-legacy"] as const;
+export const ACTIVE_HOOK_FONT_IDS = ["classic-iphone-helvetica","tiktok-classic-ru","tiktok-classic-legacy"] as const;
 export const HOOK_FONT_IDS = [...ACTIVE_HOOK_FONT_IDS,...LEGACY_HOOK_FONT_IDS] as const;
 export type HookFontId = typeof HOOK_FONT_IDS[number];
 export type ActiveHookFontId = typeof ACTIVE_HOOK_FONT_IDS[number];
@@ -19,12 +19,13 @@ export const LEGACY_HOOK_FONTS: {id:HookFontId;name:string;family:string;file:st
  {id:'tiktok-default',name:'Legacy TikTok Sans',family:'TikTok Sans',file:'tiktok-default.ttf',weight:600,cyrillic:true},
 ];
 export const HOOK_FONTS = [
- {id:'tiktok-classic-ru' as const,name:'TikTok Classic - Russian (TikTok Sans)',family:'TikTok Sans',file:'tiktok-default.ttf',weight:600,cyrillic:true,group:'TikTok',local:false},
- {id:'tiktok-classic-legacy' as const,name:'TikTok Classic legacy - Proxima Nova Semibold',family:'Proxima Nova',file:'proxima-nova-semibold.otf',weight:600,cyrillic:true,group:'TikTok',local:true},
+ {id:'classic-iphone-helvetica' as const,name:'iPhone Classic reference - Helvetica Roman',family:'Helvetica Reference',file:'helvetica-roman.otf',weight:400,cyrillic:true,group:'TikTok',local:true},
+ {id:'tiktok-classic-ru' as const,name:'TikTok Sans (previous font)',family:'TikTok Sans',file:'tiktok-default.ttf',weight:600,cyrillic:true,group:'TikTok',local:false},
+ {id:'tiktok-classic-legacy' as const,name:'Proxima Nova Semibold (alternative)',family:'Proxima Nova',file:'proxima-nova-semibold.otf',weight:600,cyrillic:true,group:'TikTok',local:true},
 ];
 export function activeHookFontId(id?:string):ActiveHookFontId { return ACTIVE_HOOK_FONT_IDS.includes(id as ActiveHookFontId) ? id as ActiveHookFontId : DEFAULT_HOOK_FONT; }
 export function v3HookFontId(id?:string):HookFontId {return id==='tiktok-default'?'tiktok-default':'instagram-default';}
-export function hookFont(id?:string) { return HOOK_FONTS.find(font=>font.id===id)||LEGACY_HOOK_FONTS.find(font=>font.id===id)||HOOK_FONTS[0]; }
+export function hookFont(id?:string) { return HOOK_FONTS.find(font=>font.id===id)||LEGACY_HOOK_FONTS.find(font=>font.id===id)||HOOK_FONTS.find(font=>font.id===DEFAULT_HOOK_FONT)!; }
 // Select a complete compatible family for Cyrillic text, rather than silently
 // mixing unmatched glyphs. Both the browser and FFmpeg use this same decision.
 export function effectiveHookFont(id:HookFontId|undefined,text:string) {

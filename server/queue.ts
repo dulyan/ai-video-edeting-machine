@@ -1,3 +1,4 @@
+import {hookFont} from '../shared/hook-fonts.ts';
 import { materializeVidGen } from "./vidgen-inputs.ts";
 import { limitReactionDuration } from "./reaction-duration.ts";
 import { freezeInputs } from "../shared/freeze-lips.ts";
@@ -365,7 +366,7 @@ export function startQueue() {
 export function queueRender(p: Project) {
   if (!p.skipped.includes(3) && p.composition.style !== 'IMG') {
     for (const hook of p.hooks.filter(h=>h.enabled!==false)) {
-      if (hookSections(hook,currentHookComposition(p.composition)).some(s=>s.settings.fontId==='tiktok-classic-legacy'))requireLocalClassicFont();
+      for(const section of hookSections(hook,currentHookComposition(p.composition))){const face=hookFont(section.settings.fontId);if('local' in face&&face.local)requireLocalClassicFont(face.id);}
     }
   }
   const batchId = crypto.randomUUID(),

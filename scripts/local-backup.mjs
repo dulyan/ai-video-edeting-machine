@@ -13,9 +13,8 @@ export async function backupLocal(p) {
   await mkdir(path.join(target,'workspace','media'),{recursive:true});
   await backup(db,path.join(target,'workspace','workspace.sqlite'));
  }finally{db.close();}
- const fontRelative='workspace/fonts/proxima-nova-semibold.otf',fontSource=path.join(p.data,'fonts','proxima-nova-semibold.otf');
- const hasFont=await access(fontSource).then(()=>true,()=>false);
- if(hasFont){await mkdir(path.join(target,'workspace','fonts'),{recursive:true});await copyFile(fontSource,path.join(target,fontRelative));}
+ const fontFiles=[];
+ for(const name of ['proxima-nova-semibold.otf','helvetica-roman.otf']){const source=path.join(p.data,'fonts',name);if(await access(source).then(()=>true,()=>false)){const relative='workspace/fonts/'+name;await mkdir(path.join(target,'workspace','fonts'),{recursive:true});await copyFile(source,path.join(target,relative));fontFiles.push(relative);}}
  const snapshot=new DatabaseSync(path.join(target,'workspace','workspace.sqlite'),{readOnly:true});
  const manifest={createdAt:new Date().toISOString(),files:[]};
  try{
@@ -29,7 +28,7 @@ export async function backupLocal(p) {
  for(const [source,name] of [[p.config,'config.env'],[p.profile,'profile.json']])await copyFile(source,path.join(target,name));
  // Only originals referenced by the database are required; previews rebuild.
  const check=new DatabaseSync(path.join(target,'workspace','workspace.sqlite'),{readOnly:true});
- const names=['workspace/workspace.sqlite','config.env','profile.json',...(hasFont?[fontRelative]:[]),...check.prepare("SELECT body FROM records WHERE kind='assets'").all().map(({body})=>'workspace/media/'+JSON.parse(body).key)];check.close();
+ const names=['workspace/workspace.sqlite','config.env','profile.json',...fontFiles,...check.prepare("SELECT body FROM records WHERE kind='assets'").all().map(({body})=>'workspace/media/'+JSON.parse(body).key)];check.close();
  for(const name of names){const file=path.join(target,name),hash=createHash('sha256');for await(const chunk of createReadStream(file))hash.update(chunk);manifest.files.push({name,size:(await stat(file)).size,sha256:hash.digest('hex')});}
  await writeFile(path.join(target,'manifest.json'),JSON.stringify(manifest,null,2),{mode:0o600});
  return target;

@@ -17,8 +17,8 @@ test("font and virality settings validate and retain backward compatibility",()=
 });
 test("current Classic font matches its provenance and legacy requires a local installation",async()=>{
   const manifest=JSON.parse(await readFile("public/fonts/manifest.json","utf8"));
-  assert.equal(HOOK_FONTS.length,2);assert.deepEqual(HOOK_FONTS.map(f=>f.group),["TikTok","TikTok"]);
-  assert(HOOK_FONTS.every(f=>f.cyrillic));assert.equal(HOOK_FONTS[1].local,true);
+  assert.equal(HOOK_FONTS.length,3);assert.deepEqual(HOOK_FONTS.map(f=>f.group),["TikTok","TikTok","TikTok"]);
+  assert(HOOK_FONTS.every(f=>f.cyrillic));assert.equal(HOOK_FONTS[0].local,true);assert.equal(HOOK_FONTS[2].local,true);
   for(const font of HOOK_FONTS.filter(f=>!f.local)){
     const bytes=await readFile(`public/fonts/${font.file}`);
     assert.equal(bytes.readUInt32BE(),0x00010000);

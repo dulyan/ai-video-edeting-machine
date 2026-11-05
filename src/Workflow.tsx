@@ -958,9 +958,9 @@ export function Hooks({ p, w, update, inspect }: Props) {
               {c.style !== "IMG" && <Field label={`Text width - ${textWidth(c)}%`} hint="Wraps lines without changing letter spacing."><input aria-label="Hook text width" type="range" min={10} max={100} value={textWidth(c)} onChange={e=>patch({textWidth:Number(e.target.value)})}/></Field>}
               {c.style === "Text Wall" && <Field label="Clip duration"><select value={c.textWallDuration} onChange={e=>patch({textWallDuration:Number(e.target.value)})}><option value={7}>Short - 7 seconds</option><option value={14}>Long - 14 seconds</option></select></Field>}
             </div>
-            {c.style !== "IMG" && <div className="field"><span className="field-label">Default hook font</span><p className="field-hint">Both Classic options support Russian. Legacy Classic requires a licensed Proxima Nova Semibold font file.</p>
+            {c.style !== "IMG" && <div className="field"><span className="field-label">Default hook font</span><p className="field-hint">Choose the font for new previews and renders. Your iPhone reference is Helvetica Pro Roman.</p>
               <HookFontSelect label="Default hook font" value={c.fontId} onChange={fontId=>patch({fontId})}/>
-              <LegacyHookFontImport/>
+              <LegacyHookFontImport onInstalled={fontId=>update(latest=>({composition:{...latest.composition,fontId},hooks:latest.hooks.map(h=>({...h,fontId:undefined,textSettings:h.textSettings?{...h.textSettings,fontId:undefined}:undefined,sections:h.sections?.map(s=>({...s,settings:s.settings?{...s.settings,fontId:undefined}:undefined}))}))}))}/>
               <Button onClick={()=>update(latest=>({hooks:latest.hooks.map(h=>({...h,fontId:undefined,textSettings:h.textSettings?{...h.textSettings,fontId:undefined}:undefined,sections:h.sections?.map(s=>({...s,settings:s.settings?{...s.settings,fontId:undefined}:undefined}))}))}))}>Use default font for all hooks</Button>
             </div>}
             {c.style!=="IMG"&&<Field label="Text appearance"><select aria-label="Hook text appearance" value={c.textAppearance} onChange={e=>patch({textAppearance:e.target.value as Composition['textAppearance']})}>{TEXT_APPEARANCES.map(a=><option key={a} value={a}>{APPEARANCE_LABELS[a]}</option>)}</select></Field>}

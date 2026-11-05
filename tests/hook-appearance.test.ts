@@ -44,9 +44,9 @@ test('legacy font import rejects invalid files and other fonts instead of relabe
  const current=await readFile('public/fonts/tiktok-default.ttf');assert.throws(()=>inspectClassicFont(current),/Proxima Nova Semibold/);
 });
 
-function classicMetadata(includeYo=true){
- const nameText=Buffer.from('Proxima Nova','utf16le').swap16(),name=Buffer.alloc(18+nameText.length);name.writeUInt16BE(1,2);name.writeUInt16BE(18,4);name.writeUInt16BE(3,6);name.writeUInt16BE(1,8);name.writeUInt16BE(0x409,10);name.writeUInt16BE(1,12);name.writeUInt16BE(nameText.length,14);nameText.copy(name,18);
- const os2=Buffer.alloc(6);os2.writeUInt16BE(600,4);
+function classicMetadata(includeYo=true,family="Proxima Nova",weight=600){
+ const nameText=Buffer.from(family,'utf16le').swap16(),name=Buffer.alloc(18+nameText.length);name.writeUInt16BE(1,2);name.writeUInt16BE(18,4);name.writeUInt16BE(3,6);name.writeUInt16BE(1,8);name.writeUInt16BE(0x409,10);name.writeUInt16BE(1,12);name.writeUInt16BE(nameText.length,14);nameText.copy(name,18);
+ const os2=Buffer.alloc(6);os2.writeUInt16BE(weight,4);
  const groups=includeYo?[[1025,1025],[1040,1103],[1105,1105]]:[[1040,1103]];
  const sub=Buffer.alloc(16+groups.length*12);sub.writeUInt16BE(12);sub.writeUInt32BE(sub.length,4);sub.writeUInt32BE(groups.length,12);groups.forEach(([start,end],i)=>{sub.writeUInt32BE(start,16+i*12);sub.writeUInt32BE(end,20+i*12);sub.writeUInt32BE(1,24+i*12);});
  const cmap=Buffer.alloc(12+sub.length);cmap.writeUInt16BE(1,2);cmap.writeUInt16BE(3,4);cmap.writeUInt16BE(10,6);cmap.writeUInt32BE(12,8);sub.copy(cmap,12);
@@ -54,4 +54,11 @@ function classicMetadata(includeYo=true){
 }
 test('legacy font validation requires the complete Russian alphabet including Yo',()=>{
  assert.equal(inspectClassicFont(classicMetadata()).weight,600);assert.throws(()=>inspectClassicFont(classicMetadata(false)),/Russian alphabet/);
+});
+
+test('iPhone reference accepts Helvetica Roman at weight 400 and rejects other families, weights and Cyrillic variants',()=>{
+ const id='classic-iphone-helvetica';assert.equal(inspectClassicFont(classicMetadata(true,'HelveticaLTPro-Roman',400),id).weight,400);
+ for(const name of ['Helvetica Neue','Helvetica World','Helvetica Narrow','Proxima Nova'])assert.throws(()=>inspectClassicFont(classicMetadata(true,name,400),id),/Helvetica Pro Roman/);
+ assert.throws(()=>inspectClassicFont(classicMetadata(true,'Helvetica',700),id),/Helvetica Pro Roman/);
+ assert.throws(()=>inspectClassicFont(classicMetadata(false,'Helvetica',400),id),/Russian alphabet/);
 });
