@@ -8,6 +8,6 @@
 @font-face { font-family: "AVEM Open Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("./open-sans.ttf") format("truetype"); }
 @font-face { font-family: "AVEM Playfair Display"; font-style: normal; font-weight: 700; font-display: swap; src: url("./playfair-display.ttf") format("truetype"); }
 @font-face { font-family: "AVEM Caveat"; font-style: normal; font-weight: 700; font-display: swap; src: url("./caveat.ttf") format("truetype"); }
-
 @font-face { font-family: "AVEM Manrope"; font-style: normal; font-weight: 600; font-display: swap; src: url("./instagram-default.ttf") format("truetype"); }
 @font-face { font-family: "AVEM TikTok Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("./tiktok-default.ttf") format("truetype"); }
+@font-face { font-family: "AVEM Nimbus Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("./nimbus-classic.otf") format("opentype"); }

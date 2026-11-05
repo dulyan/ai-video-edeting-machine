@@ -114,7 +114,6 @@ export default function Preview({
 }) {
   const [part, setPart] = useState<"reaction" | "demo">("reaction"),
     [playing, setPlaying] = useState(false),
-    [loaded, setLoaded] = useState(false),
     [mediaError, setMediaError] = useState("");
   const video = useRef<HTMLVideoElement>(null),
     audio = useRef<HTMLAudioElement>(null);
@@ -128,9 +127,10 @@ export default function Preview({
         : p.reactionIds[0] || p.frameIds[0]
       : p.demoIds[0];
   const asset = assets.find((a) => a.id === chosen),
-    url = useMedia(asset?.mime.startsWith("image/") || loaded ? chosen : undefined),
+    url = useMedia(asset?.mime.startsWith("image/") || playing ? chosen : undefined),
     hookImage = useMedia(hook?.imageId),
-    music = useMedia(loaded && p.musicMode !== "none" ? p.musicIds[0] : undefined);
+    music = useMedia(playing && p.musicMode !== "none" ? p.musicIds[0] : undefined);
+  const editKey=JSON.stringify([hook,c.fontId,c.fontSize,c.style,c.aspectRatio,c.textPosition,c.position,c.textWidth,c.textAppearance]);
   const musicStartOffset = p.musicStartOffsets?.[p.musicIds[0]] ?? 0;
   const showHook = c.hookSpan === "whole" || c.hookSpan === part,
     playMusic = c.musicSpan === "whole" || c.musicSpan === part;
@@ -138,11 +138,15 @@ export default function Preview({
   // retain native/GPU resources until the browser eventually collects it.
   useEffect(()=>{const v=video.current;return()=>{if(v){v.pause();v.removeAttribute('src');v.load();}};},[url]);
   useEffect(()=>{const a=audio.current;return()=>{if(a){a.pause();a.removeAttribute('src');a.load();}};},[music]);
-  useEffect(() => { setPlaying(false); setLoaded(false); setMediaError(""); }, [chosen]);
+  // A paused media element still owns a decoder. Unmount its source on pause and
+  // before editing text/layout, so appearance changes never repaint over playback.
+  useEffect(() => { setPlaying(false); setMediaError(""); }, [chosen,editKey]);
   useEffect(() => {
     const pause = () => { if (document.hidden) setPlaying(false); };
     document.addEventListener("visibilitychange", pause);
-    return () => document.removeEventListener("visibilitychange", pause);
+    const stop=()=>setPlaying(false);
+    window.addEventListener('avem-pause-preview',stop);
+    return () => {document.removeEventListener("visibilitychange", pause);window.removeEventListener('avem-pause-preview',stop);};
   }, []);
   useEffect(() => {
     const a = audio.current;
@@ -183,7 +187,7 @@ export default function Preview({
         className={`phone-preview ${c.style === "Text Wall" ? "text-wall" : ""}`}
         style={{ aspectRatio: (c.aspectRatio || "9:16").replace(":", " / ") }}
       >
-        {url && (loaded || asset?.mime.startsWith("image/")) ? (
+        {url && (playing || asset?.mime.startsWith("image/")) ? (
           asset?.mime.startsWith("image/") ? (
             <img
               src={url}
@@ -209,7 +213,7 @@ export default function Preview({
         ) : (
           <div className="preview-empty">
             <div className="preview-grid" />
-            <strong>{asset ? loaded ? "Loading original…" : "Press Play to preview" : "Select a clip to preview"}</strong>
+            <strong>{asset ? playing ? "Loading original…" : "Press Play to preview" : "Select a clip to preview"}</strong>
           </div>
         )}
         <span className="preview-top-label">
@@ -238,7 +242,7 @@ export default function Preview({
         {asset && !asset.mime.startsWith("image/") && (
           <button
             className="preview-play"
-            onClick={() => { setLoaded(true); setMediaError(""); setPlaying(!playing); }}
+            onClick={() => { setMediaError(""); setPlaying(!playing); }}
             aria-label={playing ? "Pause preview" : "Play preview"}
           >
             {playing ? <Pause size={18} /> : <Play size={18} />}
@@ -288,7 +292,7 @@ export default function Preview({
       </div>
       <small className="muted-text">Playback uses the original file at its original quality.</small>
       {mediaError && <p role="status" className="inline-error">{mediaError}</p>}
-      {loaded && music && <audio ref={audio} src={music} loop preload="none" />}
+      {playing && music && <audio ref={audio} src={music} loop preload="none" />}
     </aside>
   );
 }

@@ -1,23 +1,16 @@
-import {mkdir,writeFile,readFile} from 'node:fs/promises';
+﻿import {writeFile,readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-const fonts=[['tiktok-default','TikTok Sans',600,'tiktoksans']];
-const dir=fileURLToPath(new URL('../public/fonts/',import.meta.url));await mkdir(dir,{recursive:true});
-const manifest=await Promise.all(fonts.map(async([id,family,weight,folder])=>{
- const cssURL='https://fonts.googleapis.com/css?family='+encodeURIComponent(family+':'+weight)+'&subset=latin,latin-ext,cyrillic,cyrillic-ext,greek,greek-ext,vietnamese';
- const response=await fetch(cssURL,{signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error('Font CSS failed: '+family);
- const css=await response.text(),url=css.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.ttf)\)/)?.[1];
- if(!url)throw new Error('No full TrueType font supplied for '+family);
- const fontResponse=await fetch(url,{signal:AbortSignal.timeout(30000)});if(!fontResponse.ok)throw new Error('Font download failed: '+family);
- const bytes=Buffer.from(await fontResponse.arrayBuffer());
- if(bytes.readUInt32BE(0)!==0x00010000&&bytes.toString('ascii',0,4)!=='OTTO')throw new Error('Invalid font: '+family);
- const licenseURL='https://raw.githubusercontent.com/google/fonts/main/ofl/'+folder+'/OFL.txt';
- const license=await fetch(licenseURL,{signal:AbortSignal.timeout(30000)});if(!license.ok)throw new Error('License download failed: '+family);
- await writeFile(dir+id+'.ttf',bytes);await writeFile(dir+id+'-OFL.txt',(await license.text()).replace(/[ \t]+$/gm,''));
- return {id,family,weight,source:url,license:licenseURL,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length};
-}));
-const old=JSON.parse(await readFile(dir+'manifest.json','utf8'));
-const all=[...old.fonts.filter(f=>!manifest.some(n=>n.id===f.id)),...manifest];
-await writeFile(dir+'manifest.json',JSON.stringify({retrievedAt:new Date().toISOString(),fonts:all},null,2));
-await writeFile(dir+'fonts.css',all.map(f=>`@font-face { font-family: "AVEM ${f.family}"; font-style: normal; font-weight: ${f.weight}; font-display: swap; src: url("./${f.id}.ttf") format("truetype"); }`).join('\n')+'\n');
-console.log('Bundled '+manifest.length+' licensed fonts, '+manifest.reduce((sum,f)=>sum+f.bytes,0)+' bytes.');
+const dir=fileURLToPath(new URL('../public/fonts/',import.meta.url));
+// Pinned upstream; retain historical files/checksums for immutable job snapshots.
+const upstream='https://raw.githubusercontent.com/ArtifexSoftware/urw-base35-fonts/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9/';
+async function download(url){const r=await fetch(url,{signal:AbortSignal.timeout(30000)});if(!r.ok)throw new Error('Font download failed: '+r.status);return Buffer.from(await r.arrayBuffer());}
+const source=upstream+'fonts/NimbusSans-Regular.otf',bytes=await download(source);
+if(bytes.toString('ascii',0,4)!=='OTTO')throw new Error('Invalid Nimbus font');
+await writeFile(dir+'nimbus-classic.otf',bytes);
+for(const file of ['LICENSE','COPYING'])await writeFile(dir+'nimbus-classic-'+file+'.txt',await download(upstream+file));
+const entry={id:'nimbus-classic',family:'Nimbus Sans',weight:400,source,license:upstream+'LICENSE',licenseFile:'nimbus-classic-LICENSE.txt',file:'nimbus-classic.otf',sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length};
+const old=JSON.parse(await readFile(dir+'manifest.json','utf8')),all=[...old.fonts.filter(f=>f.id!==entry.id),entry];
+await writeFile(dir+'manifest.json',JSON.stringify({retrievedAt:new Date().toISOString(),fonts:all},null,2)+'\n');
+await writeFile(dir+'fonts.css',all.map(f=>`@font-face { font-family: "AVEM ${f.family}"; font-style: normal; font-weight: ${f.weight}; font-display: swap; src: url("./${f.file||f.id+'.ttf'}") format("${f.file?.endsWith('.otf')?'opentype':'truetype'}"); }`).join('\n')+'\n');
+console.log('Bundled Nimbus Sans, '+bytes.length+' bytes, with upstream licenses.');

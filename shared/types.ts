@@ -81,7 +81,7 @@ export interface Composition {
   reactionVolume?: number;
   demoVolume?: number;
   textAppearance?:TextAppearance;
-  textLayoutVersion?: 2 | 3 | 4;
+  textLayoutVersion?: 2 | 3 | 4 | 5;
   presenterId: string;
   backgroundId: string;
   presenterScale: number;

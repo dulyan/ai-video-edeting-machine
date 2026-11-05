@@ -32,10 +32,13 @@ test('legacy snapshots keep original fonts while the live editor uses Classic an
  const hook={id:'h',text:'Text',createdAt:''};
  const old={...p.composition,textLayoutVersion:3 as const,fontId:'instagram-default' as const,style:'Instagram' as const};
  assert.equal(hookSections(hook,old)[0].settings.fontId,'instagram-default');
- const current=currentHookComposition(old);assert.equal(current.style,'Text');assert.equal(current.fontId,'tiktok-classic-ru');
+ const current=currentHookComposition(old);assert.equal(current.style,'Text');assert.equal(current.fontId,'nimbus-classic');
  current.textAppearance='grey-box';p.composition=current;p.hooks=[{...hook,sections:[{id:'s',text:'Extra',settings:{fontId:'tiktok-classic-legacy',textAppearance:'plain'}}]}];
  assert.deepEqual(projectSchema.parse(JSON.parse(JSON.stringify(p))).composition,p.composition);
- assert.equal(hookSections(p.hooks[0],p.composition)[1].settings.fontId,'tiktok-classic-legacy');
+ assert.equal(hookSections(p.hooks[0],p.composition)[1].settings.fontId,'manrope-classic');
+ const snapshot={...p.composition,textLayoutVersion:4 as const,fontId:'tiktok-classic-ru' as const};
+ assert.equal(hookSections(hook,snapshot)[0].settings.fontId,'tiktok-classic-ru');
+ assert.equal(hookSections({...hook,fontId:'classic-iphone-helvetica'},snapshot)[0].settings.fontId,'classic-iphone-helvetica');
 });
 
 test('legacy font import rejects invalid files and other fonts instead of relabeling them',async()=>{

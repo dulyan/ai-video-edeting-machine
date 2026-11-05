@@ -9,7 +9,7 @@ export const APPEARANCE_LABELS: Record<TextAppearance,string> = {
 export const HOOK_STYLES = ['Text','Snapchat','IMG','Text Wall','Green screen'] as const;
 export function currentHookStyle(style:HookStyle) {return style==='Instagram'?'Text':style;}
 export function defaultAppearance(style:HookStyle):TextAppearance {return style==='Instagram'?'white-box':style==='Snapchat'?'grey-box':'outline';}
-/** New edits and renders use v4; existing job snapshots keep their original layout. */
+/** New edits use the bundled free fonts; existing snapshots keep their fonts. */
 export function currentHookComposition(c:Composition):Composition {
- return {...c,style:currentHookStyle(c.style),textLayoutVersion:4,fontId:activeHookFontId(c.fontId),textAppearance:c.textAppearance??defaultAppearance(c.style)};
+ return {...c,style:currentHookStyle(c.style),textLayoutVersion:5,fontId:activeHookFontId(c.fontId),textAppearance:c.textAppearance??defaultAppearance(c.style)};
 }

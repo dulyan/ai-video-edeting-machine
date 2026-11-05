@@ -4350,6 +4350,10 @@ progress {
 @media(max-width:600px) { .vidgen-form { padding:18px; } .vidgen-form .section-heading { align-items:flex-start; flex-direction:column; gap:12px; } .studio-step-tabs button { font-size:13px; padding:7px 10px; } }
 
 .preview-emoji-overlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; object-fit:contain; }
+.appearance-options { display:flex; flex-wrap:wrap; gap:8px; }
+.appearance-options button { flex:1 1 155px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--ink); font:inherit; font-size:15px; cursor:pointer; }
+.appearance-options button[aria-pressed="true"] { border:2px solid var(--accent); padding:11px; font-weight:700; }
+.appearance-options button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .emoji-preview-status { position:absolute; left:5%; right:5%; top:46%; z-index:3; text-align:center; padding:8px; background:#ffffffdd; color:#242622; font-size:13px; border-radius:8px; }
 
 .hook-text-section { border-top:1px solid var(--border); padding-top:12px; display:grid; gap:10px; }

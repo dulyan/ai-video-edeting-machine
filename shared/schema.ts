@@ -40,7 +40,7 @@ export const compositionSchema = z.object({
   reactionVolume: z.number().min(0).max(2).optional(),
   demoVolume: z.number().min(0).max(2).optional(),
   textAppearance:z.enum(TEXT_APPEARANCES).optional(),
-  textLayoutVersion: z.union([z.literal(2),z.literal(3),z.literal(4)]).optional(),
+  textLayoutVersion: z.union([z.literal(2),z.literal(3),z.literal(4),z.literal(5)]).optional(),
   presenterId: id,
   backgroundId: id,
   presenterScale: z.number().min(0.15).max(1),

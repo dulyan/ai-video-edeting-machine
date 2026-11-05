@@ -1,7 +1,6 @@
-import HookTextEditor,{HookFontSelect} from "./HookTextEditor.tsx";
+import HookTextEditor,{HookFontSelect,AppearancePicker} from "./HookTextEditor.tsx";
 import {hookHasText,textPosition,textWidth} from "../shared/hook-sections.ts";
-import {currentHookComposition,HOOK_STYLES,TEXT_APPEARANCES,APPEARANCE_LABELS} from "../shared/hook-appearance.ts";
-import {LegacyHookFontImport} from "./HookTextEditor.tsx";
+import {currentHookComposition,HOOK_STYLES} from "../shared/hook-appearance.ts";
 import { viralityGuidance } from "../shared/hook-virality.ts";
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { useEffect, useState } from "react";
@@ -931,7 +930,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
               <p className="muted-text">{viralityGuidance(p.hookVirality ?? 1)}</p>
             </Field>
           </section>
-          <section className="hook-editor">
+          <section className="hook-editor" onPointerDownCapture={()=>window.dispatchEvent(new Event('avem-pause-preview'))} onFocusCapture={()=>window.dispatchEvent(new Event('avem-pause-preview'))}>
             <div className="section-heading">
               <h3>Hook style and timing</h3>
               <span className="muted-text">{hooks.filter(h => h.enabled !== false).length} of {hooks.length} hooks selected</span>
@@ -958,12 +957,11 @@ export function Hooks({ p, w, update, inspect }: Props) {
               {c.style !== "IMG" && <Field label={`Text width - ${textWidth(c)}%`} hint="Wraps lines without changing letter spacing."><input aria-label="Hook text width" type="range" min={10} max={100} value={textWidth(c)} onChange={e=>patch({textWidth:Number(e.target.value)})}/></Field>}
               {c.style === "Text Wall" && <Field label="Clip duration"><select value={c.textWallDuration} onChange={e=>patch({textWallDuration:Number(e.target.value)})}><option value={7}>Short - 7 seconds</option><option value={14}>Long - 14 seconds</option></select></Field>}
             </div>
-            {c.style !== "IMG" && <div className="field"><span className="field-label">Default hook font</span><p className="field-hint">Choose the font for new previews and renders. Your iPhone reference is Helvetica Pro Roman.</p>
+            {c.style !== "IMG" && <div className="field"><span className="field-label">Default hook font</span><p className="field-hint">Free fonts with Russian support. Nimbus Sans is a Classic-style substitute, not an exact TikTok font.</p>
               <HookFontSelect label="Default hook font" value={c.fontId} onChange={fontId=>patch({fontId})}/>
-              <LegacyHookFontImport onInstalled={fontId=>update(latest=>({composition:{...latest.composition,fontId},hooks:latest.hooks.map(h=>({...h,fontId:undefined,textSettings:h.textSettings?{...h.textSettings,fontId:undefined}:undefined,sections:h.sections?.map(s=>({...s,settings:s.settings?{...s.settings,fontId:undefined}:undefined}))}))}))}/>
               <Button onClick={()=>update(latest=>({hooks:latest.hooks.map(h=>({...h,fontId:undefined,textSettings:h.textSettings?{...h.textSettings,fontId:undefined}:undefined,sections:h.sections?.map(s=>({...s,settings:s.settings?{...s.settings,fontId:undefined}:undefined}))}))}))}>Use default font for all hooks</Button>
             </div>}
-            {c.style!=="IMG"&&<Field label="Text appearance"><select aria-label="Hook text appearance" value={c.textAppearance} onChange={e=>patch({textAppearance:e.target.value as Composition['textAppearance']})}>{TEXT_APPEARANCES.map(a=><option key={a} value={a}>{APPEARANCE_LABELS[a]}</option>)}</select></Field>}
+            {c.style!=="IMG"&&<AppearancePicker label="Hook text appearance" value={c.textAppearance} onChange={textAppearance=>patch({textAppearance})}/>}
             <SpanControl
               label="Show hook on"
               value={c.hookSpan}

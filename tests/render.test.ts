@@ -481,10 +481,26 @@ test("multi-section Instagram white hooks render with Apple emoji and independen
 });
 
 
-test('v4 final exports include extra sections and selected text treatment',async()=>{
+test('current final exports include extra sections and selected text treatment',async()=>{
  const p=newProject();p.composition.textAppearance='white-box';p.composition.fontSize=100;p.composition.textPosition=25;p.composition.hookSpan='demo';
  const file=path.join(testDir,'classic-v4-sections.mp4');
  await renderVideo({row:{id:'classic-v4',hookId:'h',reactionId:'reaction',demoId:'demo',musicId:null},hook:{id:'h',text:'First',createdAt:'',sections:[{id:'s',text:'Second',settings:{textAppearance:'grey-box'}},{id:'s2',text:'Third',settings:{textAppearance:'plain'}}]},composition:p.composition,assets},file,()=>{},undefined,[216,384]);
  const data=await pixels(file,1.4);let white=0,grey=0,third=0;for(let y=75;y<180;y++)for(let x=20;x<196;x++){const i=(y*216+x)*3;if(data[i]>220&&data[i+1]>220&&data[i+2]>220){white++;if(y>148)third++;}if(Math.abs(data[i]-77)<15&&Math.abs(data[i+1]-77)<15&&Math.abs(data[i+2]-128)<15)grey++;}
  assert(white>100);assert(grey>100);assert(third>10);
+});
+
+test('both free fonts and all text treatments use the same Russian/emoji raster in final renders',async()=>{
+ const {HOOK_FONTS}=await import('../shared/hook-fonts.ts');
+ const {renderHookPNG}=await import('../server/emoji-hook.ts');
+ const {createCanvas,loadImage}=await import('@napi-rs/canvas');
+ for(const font of HOOK_FONTS){
+  const p=newProject();p.composition.fontId=font.id;p.composition.fontSize=100;p.composition.textPosition=20;p.composition.hookSpan='whole';
+  const hook={id:'h',text:'\u042f \u{1f602}',createdAt:'',sections:[{id:'s1',text:'\u041f\u0440\u0438\u0432\u0435\u0442',settings:{textAppearance:'white-box' as const}},{id:'s2',text:'\u0423\u0445 \u0442\u044b',settings:{textAppearance:'grey-box' as const}},{id:'s3',text:'\u041a\u043b\u0430\u0441\u0441',settings:{textAppearance:'plain' as const}}]};
+  const png=await renderHookPNG(hook,p.composition,216,384),ctx=createCanvas(216,384).getContext('2d');ctx.drawImage(await loadImage(png),0,0);
+  const expected=ctx.getImageData(0,0,216,384).data,file=path.join(testDir,font.id+'-treatments.mp4');
+  await renderVideo({row:{id:font.id,hookId:'h',reactionId:'reaction',demoId:null,musicId:null},hook,composition:p.composition,assets},file,()=>{},undefined,[216,384]);
+  const actual=await pixels(file,.4);let tested=0,matched=0;
+  for(let i=0;i<expected.length;i+=4)if(expected[i+3]>240){tested++;const j=i/4*3;if(Math.max(...[0,1,2].map(n=>Math.abs(expected[i+n]-actual[j+n])))<65)matched++;}
+  assert(tested>600);assert(matched/tested>.85,`${font.name}: rendered glyphs must match preview pixels`);
+ }
 });

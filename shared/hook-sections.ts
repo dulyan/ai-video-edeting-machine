@@ -2,7 +2,8 @@ import type {Composition,Hook,HookTextStyle,TextSectionSettings} from "./types.t
 import {activeHookFontId,v3HookFontId} from "./hook-fonts.ts";
 import {hookPositionFraction} from "./hook-layout.ts";
 import {currentHookStyle,defaultAppearance} from './hook-appearance.ts';
-const fontFor=(fontId:Hook['fontId'],c:Composition)=>c.textLayoutVersion===4?activeHookFontId(fontId):c.textLayoutVersion===3?v3HookFontId(fontId):fontId;
+const v4Font=(id:Hook['fontId']):Hook['fontId']=>id&&['classic-iphone-helvetica','tiktok-classic-ru','tiktok-classic-legacy'].includes(id)?id:'tiktok-classic-ru';
+const fontFor=(fontId:Hook['fontId'],c:Composition)=>c.textLayoutVersion===5?activeHookFontId(fontId):c.textLayoutVersion===4?v4Font(fontId):c.textLayoutVersion===3?v3HookFontId(fontId):fontId;
 export function textPosition(c:Composition) {return c.textPosition ?? hookPositionFraction(c.position)*100;}
 export function textWidth(c:Composition) {return c.textWidth ?? (c.style==="Text Wall"?62:90);}
 export function hookHasText(h:Hook) {return !!h.text.trim() || !!h.sections?.some(s=>s.text.trim());}
@@ -15,7 +16,7 @@ export function hookSections(h:Hook,c:Composition) {
  const resolve=(settings?:TextSectionSettings)=>{
    const merged={...base,...Object.fromEntries(Object.entries(settings || {}).filter(([,v])=>v!==undefined))};
    merged.fontId=fontFor(merged.fontId,c);
-   if(c.textLayoutVersion===4){merged.style=currentHookStyle(merged.style) as HookTextStyle;if(settings?.style==='Instagram'&&!settings.textAppearance)merged.textAppearance='white-box';}
+   if((c.textLayoutVersion??0)>=4){merged.style=currentHookStyle(merged.style) as HookTextStyle;if(settings?.style==='Instagram'&&!settings.textAppearance)merged.textAppearance='white-box';}
    return merged;
  };
  return [{id:h.id,text:h.text,settings:resolve(h.textSettings)},...(h.sections || []).map(s=>({...s,settings:resolve(s.settings)}))].filter(s=>s.text.trim());

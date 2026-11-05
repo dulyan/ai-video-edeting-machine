@@ -87,7 +87,7 @@ export function newProject(): Project {
       musicVolume: 0.3,
       sourceVolume: 1,
       textAppearance: "outline",
-      textLayoutVersion: 4,
+      textLayoutVersion: 5,
       presenterId: "",
       backgroundId: "",
       presenterScale: 0.65,

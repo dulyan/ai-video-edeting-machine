@@ -15,16 +15,15 @@ test("font and virality settings validate and retain backward compatibility",()=
   const {hookVirality,...legacy}=p; delete legacy.composition.fontId;
   assert(projectSchema.safeParse(legacy).success);
 });
-test("current Classic font matches its provenance and legacy requires a local installation",async()=>{
+test("all current fonts are bundled free analogs with verified provenance",async()=>{
   const manifest=JSON.parse(await readFile("public/fonts/manifest.json","utf8"));
-  assert.equal(HOOK_FONTS.length,3);assert.deepEqual(HOOK_FONTS.map(f=>f.group),["TikTok","TikTok","TikTok"]);
-  assert(HOOK_FONTS.every(f=>f.cyrillic));assert.equal(HOOK_FONTS[0].local,true);assert.equal(HOOK_FONTS[2].local,true);
+  assert.equal(HOOK_FONTS.length,2);assert(HOOK_FONTS.every(f=>f.cyrillic&&!f.local));
   for(const font of HOOK_FONTS.filter(f=>!f.local)){
     const bytes=await readFile(`public/fonts/${font.file}`);
-    assert.equal(bytes.readUInt32BE(),0x00010000);
-    const entry=manifest.fonts.find((f:any)=>f.id===font.file.replace(".ttf",""));
+    assert(bytes.readUInt32BE()===0x00010000||bytes.toString('ascii',0,4)==='OTTO');
+    const entry=manifest.fonts.find((f:any)=>(f.file||f.id+'.ttf')===font.file);
     assert.equal(createHash("sha256").update(bytes).digest("hex"),entry.sha256);
-    assert.match(await readFile(`public/fonts/${font.file.replace(".ttf","")}-OFL.txt`,"utf8"),/SIL OPEN FONT LICENSE/);
+    assert.match(await readFile(`public/fonts/${entry.licenseFile||entry.id+'-OFL.txt'}`,"utf8"),/SIL OPEN FONT LICENSE|GNU AFFERO GENERAL PUBLIC LICENSE/);
   }
 });
 test("Cyrillic fallback and industry curiosity policy are explicit",()=>{
