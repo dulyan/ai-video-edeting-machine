@@ -282,7 +282,7 @@ export async function renderVideo(
       args.push("-loop", "1", "-i", img);
       graph.push(`[${i}:v]scale=${Math.round(w * 0.8)}:-2[hookimage]`);
       const y =
-        c.textLayoutVersion === 3 ? `H*${textPosition(c)/100}-h/2` : c.position === "top"
+        (c.textLayoutVersion ?? 0) >= 3 ? `H*${textPosition(c)/100}-h/2` : c.position === "top"
           ? "H*0.1"
           : c.position === "bottom"
             ? "H*0.85-h"
@@ -304,8 +304,8 @@ export async function renderVideo(
       video = "keyed";
     }
     if (hook && hookHasText(hook) && active && c.style !== "IMG") {
-      if (c.textLayoutVersion===3 || hasHookEmoji(hook.text)) {
-        await writeFile(path.join(dir,"hook.png"),c.textLayoutVersion===3 ? await renderHookPNG(hook,c,w,h) : await emojiHookPNG(hook.text,c,w,h,hook.fontId));
+      if ((c.textLayoutVersion??0)>=3 || hasHookEmoji(hook.text)) {
+        await writeFile(path.join(dir,"hook.png"),(c.textLayoutVersion??0)>=3 ? await renderHookPNG(hook,c,w,h) : await emojiHookPNG(hook.text,c,w,h,hook.fontId));
         const i=input++;
         args.push("-loop","1","-i","hook.png");
         graph.push(`[${video}][${i}:v]overlay=0:0:enable='between(t,${hookRange[0]},${hookRange[1]})'[textout]`);

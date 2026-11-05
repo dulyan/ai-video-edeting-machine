@@ -4364,3 +4364,7 @@ progress {
 .hook-row { align-items:flex-start; }
 .hook-row > input[type="checkbox"], .hook-row > span, .hook-row > .icon-button { margin-top:10px; }
 @media(max-width:600px) { .style-tabs { flex-wrap:wrap; border-radius:18px; } .style-tabs > button { flex:0 0 auto; } }
+
+.hook-font-import { min-width:0; max-width:100%; }
+.hook-font-import .text-button { display:block; white-space:normal; max-width:100%; }
+.hook-font-import input[type="file"] { display:block; width:100%; max-width:100%; margin-top:8px; font-size:14px; }

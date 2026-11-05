@@ -472,10 +472,19 @@ test("Apple emoji stays colored in final video and respects the hook span",async
 });
 
 test("multi-section Instagram white hooks render with Apple emoji and independent styling",async()=>{
- const p=newProject();p.composition.style="Instagram";p.composition.fontSize=100;p.composition.textPosition=25;p.composition.textWidth=80;p.composition.hookSpan="demo";
+ const p=newProject();p.composition.style="Instagram";p.composition.textLayoutVersion=3;p.composition.fontSize=100;p.composition.textPosition=25;p.composition.textWidth=80;p.composition.hookSpan="demo";
  const file=path.join(testDir,"sections-instagram.mp4");
  await renderVideo({row:{id:"sections",hookId:"h",reactionId:"reaction",demoId:"demo",musicId:null},hook:{id:"h",text:"First \u{1f602}",createdAt:"",sections:[{id:"s1",text:"Second",settings:{fontId:"tiktok-default"}},{id:"s2",text:"Third",settings:{fontSize:80,widthPercent:50}}]},composition:p.composition,assets},file,()=>{},undefined,[216,384]);
  const before=await pixels(file,.4),after=await pixels(file,1.4);
  const whites=(data:Buffer,minY:number,maxY:number)=>{let n=0;for(let y=minY;y<maxY;y++)for(let x=20;x<196;x++){const i=(y*216+x)*3;if(data[i]>220&&data[i+1]>220&&data[i+2]>220)n++;}return n;};
  assert.equal(whites(before,70,175),0);assert(whites(after,75,110)>100);assert(whites(after,110,145)>100);assert(whites(after,145,175)>50);
+});
+
+
+test('v4 final exports include extra sections and selected text treatment',async()=>{
+ const p=newProject();p.composition.textAppearance='white-box';p.composition.fontSize=100;p.composition.textPosition=25;p.composition.hookSpan='demo';
+ const file=path.join(testDir,'classic-v4-sections.mp4');
+ await renderVideo({row:{id:'classic-v4',hookId:'h',reactionId:'reaction',demoId:'demo',musicId:null},hook:{id:'h',text:'First',createdAt:'',sections:[{id:'s',text:'Second',settings:{textAppearance:'grey-box'}},{id:'s2',text:'Third',settings:{textAppearance:'plain'}}]},composition:p.composition,assets},file,()=>{},undefined,[216,384]);
+ const data=await pixels(file,1.4);let white=0,grey=0,third=0;for(let y=75;y<180;y++)for(let x=20;x<196;x++){const i=(y*216+x)*3;if(data[i]>220&&data[i+1]>220&&data[i+2]>220){white++;if(y>148)third++;}if(Math.abs(data[i]-77)<15&&Math.abs(data[i+1]-77)<15&&Math.abs(data[i+2]-128)<15)grey++;}
+ assert(white>100);assert(grey>100);assert(third>10);
 });

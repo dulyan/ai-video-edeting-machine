@@ -1,4 +1,4 @@
-import {activeHookFontId} from "../shared/hook-fonts.ts";
+import {currentHookComposition} from "../shared/hook-appearance.ts";
 import {hookHasText,textPosition} from "../shared/hook-sections.ts";
 import EmojiHookPreview from "./EmojiHookPreview.tsx";
 import { useState, useRef, useEffect } from "react";
@@ -118,7 +118,7 @@ export default function Preview({
     [mediaError, setMediaError] = useState("");
   const video = useRef<HTMLVideoElement>(null),
     audio = useRef<HTMLAudioElement>(null);
-  const c = {...p.composition,textLayoutVersion:3 as const,fontId:activeHookFontId(p.composition.fontId)},
+  const c = currentHookComposition(p.composition),
     hooks = hookIndex !== undefined ? p.hooks.filter(h => c.style === "IMG" ? !!h.imageId : hookHasText(h)) : activeHooks({ ...p, skipped: p.skipped.filter((n) => n !== 3) }),
     hook = hooks[hookIndex] || hooks[0];
   const chosen =

@@ -1,7 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-const fonts=[['instagram-default','Manrope',600,'manrope'],['tiktok-default','TikTok Sans',600,'tiktoksans']];
+const fonts=[['tiktok-default','TikTok Sans',600,'tiktoksans']];
 const dir=fileURLToPath(new URL('../public/fonts/',import.meta.url));await mkdir(dir,{recursive:true});
 const manifest=await Promise.all(fonts.map(async([id,family,weight,folder])=>{
  const cssURL='https://fonts.googleapis.com/css?family='+encodeURIComponent(family+':'+weight)+'&subset=latin,latin-ext,cyrillic,cyrillic-ext,greek,greek-ext,vietnamese';

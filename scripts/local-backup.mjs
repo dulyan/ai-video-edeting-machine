@@ -1,5 +1,5 @@
 import {DatabaseSync,backup} from 'node:sqlite';
-import {mkdir,copyFile,stat,writeFile} from 'node:fs/promises';
+import {mkdir,copyFile,stat,writeFile,access} from 'node:fs/promises';
 import {createReadStream} from 'node:fs';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
@@ -13,6 +13,9 @@ export async function backupLocal(p) {
   await mkdir(path.join(target,'workspace','media'),{recursive:true});
   await backup(db,path.join(target,'workspace','workspace.sqlite'));
  }finally{db.close();}
+ const fontRelative='workspace/fonts/proxima-nova-semibold.otf',fontSource=path.join(p.data,'fonts','proxima-nova-semibold.otf');
+ const hasFont=await access(fontSource).then(()=>true,()=>false);
+ if(hasFont){await mkdir(path.join(target,'workspace','fonts'),{recursive:true});await copyFile(fontSource,path.join(target,fontRelative));}
  const snapshot=new DatabaseSync(path.join(target,'workspace','workspace.sqlite'),{readOnly:true});
  const manifest={createdAt:new Date().toISOString(),files:[]};
  try{
@@ -26,7 +29,7 @@ export async function backupLocal(p) {
  for(const [source,name] of [[p.config,'config.env'],[p.profile,'profile.json']])await copyFile(source,path.join(target,name));
  // Only originals referenced by the database are required; previews rebuild.
  const check=new DatabaseSync(path.join(target,'workspace','workspace.sqlite'),{readOnly:true});
- const names=['workspace/workspace.sqlite','config.env','profile.json',...check.prepare("SELECT body FROM records WHERE kind='assets'").all().map(({body})=>'workspace/media/'+JSON.parse(body).key)];check.close();
+ const names=['workspace/workspace.sqlite','config.env','profile.json',...(hasFont?[fontRelative]:[]),...check.prepare("SELECT body FROM records WHERE kind='assets'").all().map(({body})=>'workspace/media/'+JSON.parse(body).key)];check.close();
  for(const name of names){const file=path.join(target,name),hash=createHash('sha256');for await(const chunk of createReadStream(file))hash.update(chunk);manifest.files.push({name,size:(await stat(file)).size,sha256:hash.digest('hex')});}
  await writeFile(path.join(target,'manifest.json'),JSON.stringify(manifest,null,2),{mode:0o600});
  return target;

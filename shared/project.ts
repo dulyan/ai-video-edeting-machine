@@ -70,7 +70,7 @@ export function newProject(): Project {
     hooks: [],
     hookCount: 10,
     hookVirality: DEFAULT_HOOK_VIRALITY,
-    language: "English",
+    language: "Russian",
     productId: "",
     composition: {
       aspectRatio: "9:16",
@@ -86,7 +86,8 @@ export function newProject(): Project {
       fit: "cover",
       musicVolume: 0.3,
       sourceVolume: 1,
-      textLayoutVersion: 3,
+      textAppearance: "outline",
+      textLayoutVersion: 4,
       presenterId: "",
       backgroundId: "",
       presenterScale: 0.65,

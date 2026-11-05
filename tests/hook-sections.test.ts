@@ -31,8 +31,8 @@ test("section width wraps without changing glyph advances and position stays cen
  const adjusted=layoutHookSections({...hook,sections:[{id:"s",text:"Second line",settings:{verticalOffset:10}}]},p.composition,1080,1920);
  assert(Math.abs(adjusted[1].top-moved[1].top-192)<.001);
 });
-test("Instagram white background and colored Apple emoji render together",async()=>{
- const p=newProject();p.composition.style="Instagram";p.composition.fontSize=100;
+test("legacy Instagram white background and colored Apple emoji render together",async()=>{
+ const p=newProject();p.composition.style="Instagram";p.composition.textLayoutVersion=3;p.composition.fontSize=100;
  const png=await renderHookPNG({id:"h",text:"\u{1f602}",createdAt:"",sections:[{id:"s",text:"Second"}]},p.composition,216,384);
  const canvas=createCanvas(216,384),ctx=canvas.getContext("2d");ctx.drawImage(await loadImage(png),0,0);
  const data=ctx.getImageData(0,0,216,384).data;let white=0,colored=0,dark=0;

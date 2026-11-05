@@ -105,7 +105,7 @@ test("render snapshots retain text size, position, hook selection and segment vo
  put("assets",{id:"snapshot-reaction",key:"r.mp4",name:"r",size:1,kind:"reaction",projectId:p.id,mime:"video/mp4",createdAt:"",duration:1});
  const batch=queueRender(p);assert.equal(batch.count,1);
  const job=all("jobs").find(j=>j.batchId===batch.batchId)!;
- assert.equal(job.input.hook.id,"wanted");assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.position,"lower-middle");assert.equal(job.input.composition.textLayoutVersion,3);
+ assert.equal(job.input.hook.id,"wanted");assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.position,"lower-middle");assert.equal(job.input.composition.textLayoutVersion,4);
  p.composition.fontSize=20;p.composition.reactionVolume=1;
  assert.equal(job.input.composition.fontSize,93);assert.equal(job.input.composition.reactionVolume,0);assert.equal(job.input.composition.demoVolume,.65);
 });
@@ -128,4 +128,16 @@ test("section settings are snapshotted without multiplying final combinations",(
  const batch=queueRender(p);assert.equal(batch.count,1);const job=all("jobs").find(j=>j.batchId===batch.batchId)!;
  assert.equal(job.input.composition.textPosition,32);assert.equal(job.input.composition.textWidth,70);assert.equal(job.input.hook.sections[0].settings.widthPercent,45);
  p.hooks[0].sections![0].text="Changed later";assert.equal(job.input.hook.sections[0].text,"Secondary");
+});
+
+
+test('new Russian hook policy reaches the provider while old job snapshots keep their language',async()=>{
+ const {processJob}=await import('../server/queue.ts'),{setSecret,get}=await import('../server/store.ts');setSecret('siray','test-only');
+ const p=newProject();put('projects',p);const product={id:'ru-product',internalName:'Product',externalName:'Product',url:'',painPoints:'',costOfInaction:'',solution:'',proof:''};
+ const original=globalThis.fetch;
+ try{for(const [version,language] of [['virality-ru-v2','Russian'],['virality-v1','English']]){
+  const job=addJob(p.id,'hooks','Hooks',{hookPromptVersion:version,viralityLevel:1,productSnapshot:product,count:1,language,model:'openai/gpt-4.1-mini'});
+  globalThis.fetch=async(_url,init)=>{const payload=JSON.parse(String(init?.body));assert.equal(JSON.parse(payload.messages[1].content).language,language);assert.equal(payload.messages[0].content.includes('Write every hook in Russian only.'),version==='virality-ru-v2');return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({hooks:[version]})}}]}));};
+  await processJob(job);assert.equal(get('jobs',job.id)?.status,'completed');
+ }}finally{globalThis.fetch=original;}
 });

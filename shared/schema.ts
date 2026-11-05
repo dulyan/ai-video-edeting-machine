@@ -1,3 +1,4 @@
+import {TEXT_APPEARANCES} from './hook-appearance.ts';
 import { HOOK_POSITIONS } from "./hook-layout.ts";
 import { z } from "zod";
 import { RATIOS } from "./ratios.ts";
@@ -18,6 +19,7 @@ const text = z.string().max(20000),
   ids = z.array(id).max(1000);
 const span = z.enum(["whole", "reaction", "demo"]);
 export const textSectionSettingsSchema = z.object({
+ textAppearance:z.enum(TEXT_APPEARANCES).optional(),
  fontId:z.enum(HOOK_FONT_IDS).optional(),fontSize:z.number().min(20).max(100).optional(),widthPercent:z.number().min(10).max(100).optional(),verticalOffset:z.number().min(-100).max(100).optional(),style:z.enum(["Text","Snapchat","Instagram","Text Wall","Green screen"]).optional(),
 });
 export const textSectionSchema = z.object({id,text,settings:textSectionSettingsSchema.optional()});
@@ -37,7 +39,8 @@ export const compositionSchema = z.object({
   sourceVolume: z.number().min(0).max(2),
   reactionVolume: z.number().min(0).max(2).optional(),
   demoVolume: z.number().min(0).max(2).optional(),
-  textLayoutVersion: z.union([z.literal(2),z.literal(3)]).optional(),
+  textAppearance:z.enum(TEXT_APPEARANCES).optional(),
+  textLayoutVersion: z.union([z.literal(2),z.literal(3),z.literal(4)]).optional(),
   presenterId: id,
   backgroundId: id,
   presenterScale: z.number().min(0.15).max(1),

@@ -1,3 +1,4 @@
+import {requireLocalClassicFont} from './local-hook-font.ts';
 import {hookSections,textPosition} from "../shared/hook-sections.ts";
 import {createCanvas,GlobalFonts,loadImage,type Image,type SKRSContext2D} from "@napi-rs/canvas";
 import {createRequire} from "node:module";
@@ -47,7 +48,7 @@ async function image(file:string) {
 function registerFont(fontId:Hook["fontId"],text:string) {
  const face=effectiveHookFont(fontId,text);
  if(!fonts.has(face.id)){
-  if(!GlobalFonts.registerFromPath(fileURLToPath(new URL(`../public/fonts/${face.file}`,import.meta.url)),`AVEM ${face.family}`))throw new Error("Could not load hook font");
+  if(!GlobalFonts.registerFromPath(("local" in face && face.local)?requireLocalClassicFont():fileURLToPath(new URL(`../public/fonts/${face.file}`,import.meta.url)),`AVEM ${face.family}`))throw new Error("Could not load hook font");
   fonts.add(face.id);
  }
  return face;
@@ -75,7 +76,7 @@ export function layoutHookSections(hook:Hook,c:Composition,w:number,h:number,ctx
   const font=`${face.weight} ${size}px "AVEM ${face.family}"`;
   ctx.font=font;
   const emojiSize=size*1.15,lineHeight=size*1.3;
-  const padding=section.settings.style==="Instagram"?size*.28:0;
+  const padding=(c.textLayoutVersion===4?["white-box","grey-box"].includes(section.settings.textAppearance):section.settings.style==="Instagram")?size*.28:0;
   const maxWidth=Math.max(size,w*section.settings.widthPercent/100-padding*2);
   const lines=wrappedLines(ctx,section.text,maxWidth,emojiSize).map(line=>({...line,x:(w-line.width)/2}));
   const height=lines.length*lineHeight;
@@ -92,17 +93,17 @@ export async function renderHookPNG(hook:Hook,c:Composition,w:number,h:number) {
  for(const section of layout){
   const {size,font,lineHeight,emojiSize,top,height,settings}=section;
   ctx.font=font;ctx.textBaseline="alphabetic";ctx.lineJoin="round";ctx.lineWidth=Math.max(.5,size*.09);
-  if(settings.style==="Snapchat"){ctx.fillStyle="rgba(0,0,0,0.5)";ctx.fillRect(0,top-size*.25,w,height+size*.5);}
+  if(c.textLayoutVersion!==4&&settings.style==="Snapchat"){ctx.fillStyle="rgba(0,0,0,0.5)";ctx.fillRect(0,top-size*.25,w,height+size*.5);}
   const metrics=ctx.measureText("Hg"),ascent=metrics.actualBoundingBoxAscent,descent=metrics.actualBoundingBoxDescent;
   section.lines.forEach((line,i)=>{
    let x=line.x;const y=top+i*lineHeight;
-   if(settings.style==="Instagram"){
-    ctx.fillStyle="#fff";ctx.beginPath();ctx.roundRect(x-size*.28,y-size*.08,line.width+size*.56,lineHeight+size*.16,size*.18);ctx.fill();
+   if(c.textLayoutVersion===4?["white-box","grey-box"].includes(settings.textAppearance):settings.style==="Instagram"){
+    ctx.fillStyle=c.textLayoutVersion===4&&settings.textAppearance==="grey-box"?"rgba(96,96,96,0.8)":"#fff";ctx.beginPath();ctx.roundRect(x-size*.28,y-size*.08,line.width+size*.56,lineHeight+size*.16,size*.18);ctx.fill();
    }
-   ctx.fillStyle=settings.style==="Instagram"?"#111":"#fff";ctx.strokeStyle="#222";
+   ctx.fillStyle=(c.textLayoutVersion===4?settings.textAppearance==="white-box":settings.style==="Instagram")?"#111":"#fff";ctx.strokeStyle=c.textLayoutVersion===4?"#000":"#222";
    for(const run of line.runs){
     if(run.image){ctx.drawImage(sprites.get(run.image)!,x,y+(lineHeight-emojiSize)/2,emojiSize,emojiSize);x+=emojiSize;}
-    else{const baseline=y+(lineHeight-ascent-descent)/2+ascent;if(!["Snapchat","Instagram"].includes(settings.style))ctx.strokeText(run.text,x,baseline);ctx.fillText(run.text,x,baseline);x+=ctx.measureText(run.text).width;}
+    else{const baseline=y+(lineHeight-ascent-descent)/2+ascent;if(c.textLayoutVersion===4?settings.textAppearance==="outline":!["Snapchat","Instagram"].includes(settings.style))ctx.strokeText(run.text,x,baseline);ctx.fillText(run.text,x,baseline);x+=ctx.measureText(run.text).width;}
    }
   });
  }

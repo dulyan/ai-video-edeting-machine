@@ -11,7 +11,9 @@ import { addJob, all, get, put, patchJob, mediaDir } from "./store.ts";
 import { chatJSON, generationPayload, siray } from "./siray.ts";
 import { assetDataURL, copyRemote, storeFile } from "./storage.ts";
 import { probe, renderVideo } from "./render.ts";
-import { activeHookFontId } from "../shared/hook-fonts.ts";
+import {currentHookComposition} from "../shared/hook-appearance.ts";
+import {hookSections} from '../shared/hook-sections.ts';
+import {requireLocalClassicFont} from './local-hook-font.ts';
 import { hookWritingSystem, viralityGuidance } from "../shared/hook-virality.ts";
 import {
   combinationAt,
@@ -219,7 +221,7 @@ export async function processJob(job: Job) {
         await new Promise((r) => setTimeout(r, 5000));
       }
     } else if (job.kind === "hooks") {
-      const scaledHooks = job.input.hookPromptVersion === "virality-v1";
+      const scaledHooks = ["virality-v1","virality-ru-v2"].includes(job.input.hookPromptVersion);
       const product = scaledHooks ? job.input.productSnapshot : get("products", job.input.productId);
       if (!product) throw new Error("Product not found");
       let completed = job.input.completed || 0;
@@ -237,7 +239,7 @@ export async function processJob(job: Job) {
         if (get("jobs", job.id)?.status === "canceled") return;
         const count = Math.min(20, job.input.count - completed);
         const response = await chatJSON(
-          scaledHooks ? hookWritingSystem(job.input.viralityLevel ?? 1) : 'Write concise, varied, attention-grabbing product video hooks in the requested language. Use only supplied product facts; never invent proof, guarantees, or results. Return JSON {"hooks":[strings]}.',
+          scaledHooks ? hookWritingSystem(job.input.viralityLevel ?? 1)+(job.input.hookPromptVersion==='virality-ru-v2'?'\nWrite every hook in Russian only. Keep product names as supplied.':'') : 'Write concise, varied, attention-grabbing product video hooks in the requested language. Use only supplied product facts; never invent proof, guarantees, or results. Return JSON {"hooks":[strings]}.',
           JSON.stringify({
             product,
             ...(scaledHooks ? {viralityLevel:job.input.viralityLevel ?? 1,focus:viralityGuidance(job.input.viralityLevel ?? 1)} : {}),
@@ -361,6 +363,11 @@ export function startQueue() {
   return timer;
 }
 export function queueRender(p: Project) {
+  if (!p.skipped.includes(3) && p.composition.style !== 'IMG') {
+    for (const hook of p.hooks.filter(h=>h.enabled!==false)) {
+      if (hookSections(hook,currentHookComposition(p.composition)).some(s=>s.settings.fontId==='tiktok-classic-legacy'))requireLocalClassicFont();
+    }
+  }
   const batchId = crypto.randomUUID(),
     assets = Object.fromEntries(all("assets").map((a) => [a.id, a]));
   for (const id of p.skipped.includes(6) || p.musicMode === "none" ? [] : p.musicIds) {
@@ -389,7 +396,7 @@ export function queueRender(p: Project) {
       throw new Error(
         "Choose a reaction clip, demo video, or image hook before rendering",
       );
-    const c = {...p.composition,fontId:activeHookFontId(p.composition.fontId),textLayoutVersion:3 as const};
+    const c = currentHookComposition(p.composition);
     if (c.style === "Green screen" && hook && !c.presenterId)
       throw new Error("Choose a green-screen presenter clip");
     const selected = [

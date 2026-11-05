@@ -3,7 +3,7 @@ import type {Composition,Hook} from "../shared/types.ts";
 import {request} from "./api.ts";
 
 export default function EmojiHookPreview({text,composition,fontId,sections,textSettings}:{text:string;composition:Composition;fontId?:Hook["fontId"];sections?:Hook["sections"];textSettings?:Hook["textSettings"]}) {
-  const key=JSON.stringify([text,composition.fontId,fontId,composition.fontSize,composition.position,composition.style,composition.aspectRatio,composition.textPosition,composition.textWidth,sections,textSettings]);
+  const key=JSON.stringify([text,composition.fontId,fontId,composition.fontSize,composition.position,composition.style,composition.aspectRatio,composition.textPosition,composition.textWidth,composition.textAppearance,composition.textLayoutVersion,sections,textSettings]);
   const [image,setImage]=useState<{key:string;url?:string;error?:string}>({key:""});
   useEffect(()=>{
     const controller=new AbortController();let url:string|undefined;

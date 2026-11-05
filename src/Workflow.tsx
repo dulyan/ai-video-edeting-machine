@@ -1,6 +1,7 @@
 import HookTextEditor,{HookFontSelect} from "./HookTextEditor.tsx";
 import {hookHasText,textPosition,textWidth} from "../shared/hook-sections.ts";
-import {activeHookFontId} from "../shared/hook-fonts.ts";
+import {currentHookComposition,HOOK_STYLES,TEXT_APPEARANCES,APPEARANCE_LABELS} from "../shared/hook-appearance.ts";
+import {LegacyHookFontImport} from "./HookTextEditor.tsx";
 import { viralityGuidance } from "../shared/hook-virality.ts";
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { useEffect, useState } from "react";
@@ -824,7 +825,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
     ),
     [selected, setSelected] = useState(0),
     [next, setNext] = useState("");
-  const c = {...p.composition,textLayoutVersion:3 as const,fontId:activeHookFontId(p.composition.fontId)},
+  const c = currentHookComposition(p.composition),
     patch = (value: Partial<Composition>) =>
       update((latest) => ({ composition: { ...latest.composition, ...value } })),
     product = w.data.products.find((x) => x.id === p.productId),
@@ -905,25 +906,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
                 onChange={(hookCount) => update({ hookCount })}
               />
               <Field label="Language">
-                <select
-                  value={p.language}
-                  onChange={(e) => update({ language: e.target.value })}
-                >
-                  {[
-                    "English",
-                    "Russian",
-                    "Spanish",
-                    "French",
-                    "German",
-                    "Portuguese",
-                    "Italian",
-                    "Arabic",
-                    "Hindi",
-                    "Japanese",
-                  ].map((l) => (
-                    <option key={l}>{l}</option>
-                  ))}
-                </select>
+                <select aria-label="Hook generation language" value="Russian" disabled><option value="Russian">Russian</option></select>
               </Field>
               <Button
                 variant="primary"
@@ -954,16 +937,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
               <span className="muted-text">{hooks.filter(h => h.enabled !== false).length} of {hooks.length} hooks selected</span>
             </div>
             <div className="style-tabs" role="tablist" aria-label="Hook style">
-              {(
-                [
-                  "Text",
-                  "Snapchat",
-                  "Instagram",
-                  "IMG",
-                  "Text Wall",
-                  "Green screen",
-                ] as const
-              ).map((style) => (
+              {HOOK_STYLES.map((style) => (
                 <button
                   role="tab"
                   aria-selected={c.style === style}
@@ -973,7 +947,7 @@ export function Hooks({ p, w, update, inspect }: Props) {
                     patch({ style });
                     setSelected(0);
                   }}
-                >{style === "Instagram" ? "Instagram white" : style}</button>
+                >{style}</button>
               ))}
             </div>
             <div className="style-settings">
@@ -984,10 +958,12 @@ export function Hooks({ p, w, update, inspect }: Props) {
               {c.style !== "IMG" && <Field label={`Text width - ${textWidth(c)}%`} hint="Wraps lines without changing letter spacing."><input aria-label="Hook text width" type="range" min={10} max={100} value={textWidth(c)} onChange={e=>patch({textWidth:Number(e.target.value)})}/></Field>}
               {c.style === "Text Wall" && <Field label="Clip duration"><select value={c.textWallDuration} onChange={e=>patch({textWallDuration:Number(e.target.value)})}><option value={7}>Short - 7 seconds</option><option value={14}>Long - 14 seconds</option></select></Field>}
             </div>
-            {c.style !== "IMG" && <Field label="Default hook font" hint="TikTok Sans is the original font. Instagram-style Sans uses the approved Manrope substitute. Both support Russian.">
+            {c.style !== "IMG" && <div className="field"><span className="field-label">Default hook font</span><p className="field-hint">Both Classic options support Russian. Legacy Classic requires a licensed Proxima Nova Semibold font file.</p>
               <HookFontSelect label="Default hook font" value={c.fontId} onChange={fontId=>patch({fontId})}/>
+              <LegacyHookFontImport/>
               <Button onClick={()=>update(latest=>({hooks:latest.hooks.map(h=>({...h,fontId:undefined,textSettings:h.textSettings?{...h.textSettings,fontId:undefined}:undefined,sections:h.sections?.map(s=>({...s,settings:s.settings?{...s.settings,fontId:undefined}:undefined}))}))}))}>Use default font for all hooks</Button>
-            </Field>}
+            </div>}
+            {c.style!=="IMG"&&<Field label="Text appearance"><select aria-label="Hook text appearance" value={c.textAppearance} onChange={e=>patch({textAppearance:e.target.value as Composition['textAppearance']})}>{TEXT_APPEARANCES.map(a=><option key={a} value={a}>{APPEARANCE_LABELS[a]}</option>)}</select></Field>}
             <SpanControl
               label="Show hook on"
               value={c.hookSpan}
@@ -1627,9 +1603,9 @@ export function Outline({ p, w, update, inspect }: Props) {
                   })
                 }
               >
-                {["Text", "Snapchat", "Instagram", "IMG", "Text Wall", "Green screen"].map(
+                {HOOK_STYLES.map(
                   (s) => (
-                    <option key={s} value={s}>{s === "Instagram" ? "Instagram white" : s}</option>
+                    <option key={s} value={s}>{s}</option>
                   ),
                 )}
               </select>

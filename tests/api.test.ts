@@ -516,3 +516,14 @@ test("Apple emoji preview is exactly the shared final-render overlay",async()=>{
  assert.equal(response.status,200);assert.match(response.headers.get("content-type")||"",/image\/png/);
  assert.deepEqual(Buffer.from(await response.arrayBuffer()),await emojiHookPNG(text,composition,1080,1920));
 });
+
+
+test('Classic font status, import and files stay private; invalid imports preserve status',async()=>{
+ assert.equal((await fetch(base+'/hook-fonts')).status,401);
+ assert.equal((await fetch(base+'/hook-fonts/tiktok-classic-legacy/file')).status,401);
+ assert.equal((await api('/hook-fonts')).data.legacyInstalled,false);
+ const form=new FormData();form.append('file',new Blob(['invalid']),'fake.ttf');
+ const invalid=await fetch(base+'/hook-fonts/tiktok-classic-legacy',{method:'POST',headers:{Authorization:'Bearer '+token},body:form});
+ assert.equal(invalid.status,400);assert.match((await invalid.json()).error,/Proxima Nova/);
+ assert.equal((await api('/hook-fonts')).data.legacyInstalled,false);
+});

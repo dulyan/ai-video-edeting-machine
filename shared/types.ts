@@ -1,3 +1,4 @@
+import type {TextAppearance} from './hook-appearance.ts';
 import type { VidGenDraft } from "./vidgen.ts";
 import type { HookPosition } from "./hook-layout.ts";
 import type { ReferencePoses } from "./reference-poses.ts";
@@ -33,6 +34,7 @@ export interface Asset {
 }
 export type HookTextStyle = Exclude<HookStyle,"IMG">;
 export interface TextSectionSettings {
+ textAppearance?:TextAppearance;
  fontId?: HookFontId;
  fontSize?: number;
  widthPercent?: number;
@@ -78,7 +80,8 @@ export interface Composition {
   sourceVolume: number;
   reactionVolume?: number;
   demoVolume?: number;
-  textLayoutVersion?: 2 | 3;
+  textAppearance?:TextAppearance;
+  textLayoutVersion?: 2 | 3 | 4;
   presenterId: string;
   backgroundId: string;
   presenterScale: number;
