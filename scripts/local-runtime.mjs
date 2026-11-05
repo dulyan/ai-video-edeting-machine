@@ -1,3 +1,4 @@
+import {openLocalBrowser} from './local-browser.mjs';
 import {readFile,writeFile,mkdir,open,unlink,stat,cp} from 'node:fs/promises';
 import {existsSync,openSync,closeSync} from 'node:fs';
 import path from 'node:path';
@@ -56,7 +57,7 @@ async function inspect(base,profileId) {
 export async function start({home,browser=true,port=3001,queue=true,uiDir=path.join(repoRoot,'dist')}={}) {
  const p=paths(home),{profile,config}=await settings(p),base='http://127.0.0.1:'+port;
  const existing=await inspect(base,profile.id);
- if(existing){if(browser)openBrowser(base);return {...existing,reused:true};}
+ if(existing){if(browser)await openLocalBrowser(base,p.home);return {...existing,reused:true};}
  let lock;
  try {lock=await open(p.lock,'wx',0o600);await lock.writeFile(JSON.stringify({pid:process.pid}));}
  catch(error){
@@ -64,7 +65,7 @@ export async function start({home,browser=true,port=3001,queue=true,uiDir=path.j
   const owner=JSON.parse(await readFile(p.lock,'utf8'));
   let alive=true;try{process.kill(owner.pid,0);}catch{alive=false;}
   if(!alive){await unlink(p.lock);return start({home,browser,port,queue,uiDir});}
-  for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,250));const status=await inspect(base,profile.id).catch(()=>null);if(status){if(browser)openBrowser(base);return {...status,reused:true};}}
+  for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,250));const status=await inspect(base,profile.id).catch(()=>null);if(status){if(browser)await openLocalBrowser(base,p.home);return {...status,reused:true};}}
   throw new Error('Another launch is still in progress. Try again shortly.');
  }
  try {
@@ -83,7 +84,7 @@ export async function start({home,browser=true,port=3001,queue=true,uiDir=path.j
    if(spawnError)throw spawnError;
    await new Promise(r=>setTimeout(r,200));
    const status=await inspect(base,profile.id).catch(()=>null);
-   if(status){if(browser)openBrowser(base);return {...status,reused:false};}
+   if(status){if(browser)await openLocalBrowser(base,p.home);return {...status,reused:false};}
    if(child.exitCode!==null)break;
   }
   throw new Error('The local backend did not start. Inspect '+boot+' and '+path.join(p.logs,'app.log')+'.');
@@ -96,10 +97,4 @@ export async function stop({home,port=3001}={}) {
  if(!response.ok)throw new Error('The backend refused the shutdown request. No process was killed.');
  for(let i=0;i<100;i++){await new Promise(r=>setTimeout(r,100));if(!await portOpen(port)){await unlink(p.pid).catch(()=>{});return {stopped:true};}}
  throw new Error('Shutdown is still waiting for active requests. No unrelated process was killed.');
-}
-function openBrowser(base) {
- const child=process.platform==='win32'
-  ? spawn('powershell.exe',['-NoProfile','-Command',"Start-Process -FilePath '"+base+"'"],{windowsHide:true,detached:true,stdio:'ignore'})
-  : spawn(process.platform==='darwin'?'open':'xdg-open',[base],{detached:true,stdio:'ignore'});
- child.on('error',()=>{});child.unref();
 }

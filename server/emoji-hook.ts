@@ -87,7 +87,9 @@ export function layoutHookSections(hook:Hook,c:Composition,w:number,h:number,ctx
 }
 /** Both preview and export use this layout; width wraps lines without scaling glyphs. */
 export async function renderHookPNG(hook:Hook,c:Composition,w:number,h:number) {
- const canvas=createCanvas(w,h),ctx=canvas.getContext("2d"),layout=layoutHookSections(hook,c,w,h,ctx);
+ const canvas=createCanvas(w,h);
+ try {
+ const ctx=canvas.getContext("2d"),layout=layoutHookSections(hook,c,w,h,ctx);
  const sprites=new Map<string,Image>();
  for(const section of layout)for(const line of section.lines)for(const run of line.runs)if(run.image&&!sprites.has(run.image))sprites.set(run.image,await image(run.image));
  for(const section of layout){
@@ -108,6 +110,7 @@ export async function renderHookPNG(hook:Hook,c:Composition,w:number,h:number) {
   });
  }
  return canvas.toBuffer("image/png");
+ } finally { canvas.width=1;canvas.height=1; }
 }
 export async function emojiHookPNG(text:string,c:Composition,w:number,h:number,fontId?:Hook["fontId"]) {
  return renderHookPNG({id:"preview",text,fontId,createdAt:""},c,w,h);

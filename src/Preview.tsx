@@ -134,6 +134,10 @@ export default function Preview({
   const musicStartOffset = p.musicStartOffsets?.[p.musicIds[0]] ?? 0;
   const showHook = c.hookSpan === "whole" || c.hookSpan === part,
     playMusic = c.musicSpan === "whole" || c.musicSpan === part;
+  // Explicitly release decoders on source changes/unmount; detached media can otherwise
+  // retain native/GPU resources until the browser eventually collects it.
+  useEffect(()=>{const v=video.current;return()=>{if(v){v.pause();v.removeAttribute('src');v.load();}};},[url]);
+  useEffect(()=>{const a=audio.current;return()=>{if(a){a.pause();a.removeAttribute('src');a.load();}};},[music]);
   useEffect(() => { setPlaying(false); setLoaded(false); setMediaError(""); }, [chosen]);
   useEffect(() => {
     const pause = () => { if (document.hidden) setPlaying(false); };
@@ -149,20 +153,23 @@ export default function Preview({
     return () => a.removeEventListener("loadedmetadata", seek);
   }, [music, musicStartOffset]);
   useEffect(() => {
+    const v=video.current,a=audio.current;
+    if(v)v.volume=Math.min(1,Math.max(0,(part==="reaction"?c.reactionVolume:c.demoVolume)??c.sourceVolume));
+    if(a)a.volume=Math.min(1,Math.max(0,c.musicVolume));
+  },[url,music,part,c.musicVolume,c.sourceVolume,c.reactionVolume,c.demoVolume]);
+  useEffect(() => {
     let active = true;
     const v = video.current, a = audio.current;
     if (v) {
-      v.volume = Math.min(1, Math.max(0, (part === "reaction" ? c.reactionVolume : c.demoVolume) ?? c.sourceVolume));
       if (playing) void v.play().catch(() => { if (active) setPlaying(false); });
       else v.pause();
     }
     if (a) {
-      a.volume = Math.min(1, Math.max(0, c.musicVolume));
       if (playing && playMusic) void a.play().catch(() => {});
       else a.pause();
     }
     return () => { active = false; v?.pause(); a?.pause(); };
-  }, [playing, part, url, music, c.musicVolume, c.sourceVolume, c.reactionVolume, c.demoVolume, playMusic]);
+  }, [playing, part, url, music, playMusic]);
   return (
     <aside className="preview-panel">
       <div className="preview-heading">
@@ -176,7 +183,7 @@ export default function Preview({
         className={`phone-preview ${c.style === "Text Wall" ? "text-wall" : ""}`}
         style={{ aspectRatio: (c.aspectRatio || "9:16").replace(":", " / ") }}
       >
-        {url ? (
+        {url && (loaded || asset?.mime.startsWith("image/")) ? (
           asset?.mime.startsWith("image/") ? (
             <img
               src={url}
@@ -281,7 +288,7 @@ export default function Preview({
       </div>
       <small className="muted-text">Playback uses the original file at its original quality.</small>
       {mediaError && <p role="status" className="inline-error">{mediaError}</p>}
-      {music && <audio ref={audio} src={music} loop preload="none" />}
+      {loaded && music && <audio ref={audio} src={music} loop preload="none" />}
     </aside>
   );
 }

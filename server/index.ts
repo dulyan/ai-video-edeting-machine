@@ -1,6 +1,6 @@
 import {installClassicFont,localClassicInstalled,requireLocalClassicFont} from './local-hook-font.ts';
 import {readFile} from 'node:fs/promises';
-import { renderHookPNG } from "./emoji-hook.ts";
+import {HookPreviewService} from "./hook-preview.ts";
 import { outputResolution } from "../shared/ratios.ts";
 import { HOOK_FONT_IDS } from "../shared/hook-fonts.ts";
 import { vidGenPayload } from "../shared/vidgen.ts";
@@ -61,6 +61,7 @@ import { videoPreview } from "./previews.ts";
 import { localApp, localOrigin, queueEnabled, allowedLocalRequest, healthIdentity, registerLocalApp } from "./local-app.ts";
 import { rotatingLog } from "./local-logging.ts";
 import type { Asset, Project } from "../shared/types.ts";
+const hookPreviews=new HookPreviewService();
 const app = Fastify({
   logger: {
     ...(localApp && process.env.LOCAL_LOG_FILE ? {stream:rotatingLog(process.env.LOCAL_LOG_FILE)} : {}),
@@ -74,6 +75,7 @@ const app = Fastify({
   },
   bodyLimit: 5 * 1024 * 1024,
 });
+app.addHook('onClose',async()=>hookPreviews.close());
 const origins = (
   (localApp ? localOrigin : process.env.FRONTEND_ORIGIN) || "http://localhost:5173,http://127.0.0.1:5173"
 )
@@ -379,10 +381,16 @@ app.post('/api/hook-fonts/tiktok-classic-legacy',async req=>{
  await installClassicFont(await file.toBuffer());return {legacyInstalled:true};
 });
 app.get('/api/hook-fonts/tiktok-classic-legacy/file',async(_req,reply)=>reply.header('Cache-Control','private, no-store').type('font/otf').send(await readFile(requireLocalClassicFont())));
+app.get("/api/hook-preview/status",async()=>hookPreviews.stats());
 app.post("/api/hook-preview", async (req,reply) => {
   const {text,composition,fontId,sections,textSettings}=z.object({text:z.string().max(20000),composition:compositionSchema,fontId:z.enum(HOOK_FONT_IDS).optional(),sections:z.array(textSectionSchema).max(20).optional(),textSettings:textSectionSettingsSchema.optional()}).parse(req.body);
   const [width,height]=outputResolution(composition.aspectRatio);
-  return reply.header("Cache-Control","no-store").type("image/png").send(await renderHookPNG({id:"preview",text,fontId,sections,textSettings,createdAt:""},composition,width,height));
+  if(text.length+(sections||[]).reduce((sum,s)=>sum+s.text.length,0)>20000)throw new Error('Hook preview supports up to 20,000 characters across all text sections.');
+  const controller=new AbortController(),closed=()=>{if(!reply.raw.writableFinished)controller.abort();};reply.raw.on('close',closed);
+  try{
+   const png=await hookPreviews.render({hook:{id:'preview',text,fontId,sections,textSettings,createdAt:''},composition,width,height},controller.signal);
+   if(!reply.raw.destroyed)return reply.header('Cache-Control','no-store').type('image/png').send(png);
+  }finally{reply.raw.off('close',closed);}
 });
 app.post("/api/vidgen", async (req) => {
   const {projectId,modelId,inputs,requestId} = z.object({projectId:z.string(),modelId:z.string(),inputs:z.record(z.string(),z.unknown()),requestId:z.uuid()}).parse(req.body);

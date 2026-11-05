@@ -60,3 +60,12 @@ test("built local frontend ignores stale VPS settings while hosted/dev interface
  assert.equal(initialBackend("https://dulyan.github.io","https://saved","https://default",false),"https://saved");
  assert.equal(initialBackend("http://127.0.0.1:5173",null,undefined,true),"http://127.0.0.1:3001");
 });
+
+
+test('Windows app launch isolates its browser profile and disables accelerated graphics without changing media quality',async()=>{
+ const {softwareBrowserArgs}=await import('../scripts/local-browser.mjs');
+ const args=softwareBrowserArgs('http://127.0.0.1:3001','C:/private-app');
+ for(const flag of ['--disable-gpu','--disable-accelerated-video-decode','--disable-gpu-compositing','--disable-accelerated-2d-canvas'])assert(args.includes(flag));
+ assert(args.some(a=>a.startsWith('--user-data-dir=')&&a.endsWith('browser-software')));assert(args.includes('--app=http://127.0.0.1:3001'));assert(!args.some(a=>a.includes('low-resolution')));
+ assert.throws(()=>softwareBrowserArgs('https://external.example','C:/private-app'),/loopback/);
+});

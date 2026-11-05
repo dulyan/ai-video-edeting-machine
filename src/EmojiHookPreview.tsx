@@ -12,9 +12,9 @@ export default function EmojiHookPreview({text,composition,fontId,sections,textS
         if(controller.signal.aborted)return;
         url=URL.createObjectURL(blob);setImage({key,url});
       }).catch(error=>{if(!controller.signal.aborted)setImage({key,error:error.message});});
-    },150);
+    },300);
     return ()=>{clearTimeout(timer);controller.abort();if(url)URL.revokeObjectURL(url);};
   },[key]);
-  return image.key===key && image.url ? <img className="preview-emoji-overlay" src={image.url} alt={[text,...(sections||[]).map(s=>s.text)].filter(Boolean).join("\n")}/>
+  return image.key===key && image.url ? <img className="preview-emoji-overlay" decoding="async" src={image.url} alt={[text,...(sections||[]).map(s=>s.text)].filter(Boolean).join("\n")}/>
     : <span className="emoji-preview-status">{image.key===key && image.error ? `Hook preview: ${image.error}` : "Preparing hook preview…"}</span>;
 }
