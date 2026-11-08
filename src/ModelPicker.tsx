@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { Model, ModelField, Project } from "../shared/types.ts";
 import { MODELS } from "../shared/models.ts";
 import { fieldDefault, isAutoFrameField } from "../shared/catalog.ts";
+import {ratioInputs} from '../shared/ratios.ts';
 import { request } from "./api.ts";
 import { Field } from "./components.tsx";
 import type { Workspace } from "./workspace.tsx";
@@ -110,7 +111,8 @@ export function ModelOptions({
   managedRatio?: boolean;
 }) {
   if (!model) return null;
-  const inputs = p.modelInputs?.[model.id] || {};
+  const rawInputs=p.modelInputs?.[model.id] || {};
+  const inputs = managedRatio ? ratioInputs(model,(model.kind==='image'?p.imageAspectRatio:p.videoAspectRatio)||'9:16',rawInputs) : rawInputs;
   const fields = Object.entries(model.schema?.properties || {}).filter(
     ([name, field]) =>
       !(
@@ -129,14 +131,7 @@ export function ModelOptions({
         "enable_sequential",
       ].includes(name) &&
       !(autoFrame && isAutoFrameField(name) && field.type !== "array") &&
-      !(
-        managedRatio &&
-        (name === "aspect_ratio" ||
-          (name === "size" &&
-            field.enum?.some(
-              (s) => typeof s === "string" && /^\d+x\d+$/.test(s),
-            )))
-      ),
+      !(managedRatio && name === "aspect_ratio"),
   );
   const required = fields.filter(([name]) =>
     model.schema?.required?.includes(name),
@@ -178,8 +173,9 @@ export function ModelOptions({
         ? "audio"
         : "image";
     const values = Array.isArray(value) ? value : value ? [value] : [];
-    const hint =
-      autoFrame && isAutoFrameField(name) && field.type === "array"
+    const hint = managedRatio && name==='size'
+      ? 'Native generation size affects provider billing. Your choice is preserved; a different aspect ratio is center-cropped locally.'
+      : autoFrame && isAutoFrameField(name) && field.type === "array"
         ? `The selected first frame is added automatically.${field.minItems && field.minItems > 1 ? ` Add at least ${field.minItems - 1} more reference(s).` : ""}`
         : field.description?.toLowerCase() === label.toLowerCase()
           ? undefined

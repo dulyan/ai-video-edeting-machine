@@ -40,7 +40,9 @@ export function ratioInputs(
   const sizes = (p.size?.enum || []).filter(
     (s): s is string => typeof s === "string" && /^\d+x\d+$/.test(s),
   );
-  if (sizes.length) {
+  // Explicit native size is a billing choice. Never replace it with a larger
+  // exact-ratio preset; conformMedia can crop to the requested aspect afterward.
+  if (sizes.length && !(typeof inputs.size==='string' && p.size?.enum?.includes(inputs.size))) {
     const requested = ratioValue(ratio);
     const sorted = sizes.toSorted((a, b) => {
       const [aw, ah] = a.split("x").map(Number),

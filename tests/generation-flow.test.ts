@@ -262,6 +262,7 @@ test("generation model lists match their actions and native dimensions follow ch
   const seedream = MODELS.find((m) => m.id === "bytedance/seedream-4.5-t2i")!;
   assert.equal(ratioInputs(seedream, "16:9", {}).size, "2560x1440");
   assert.equal(ratioInputs(seedream, "1:1", {}).size, "2048x2048");
+  assert.equal(ratioInputs(seedream,"9:16",{size:'2048x2048'}).size,'2048x2048','An explicit native size must not be silently increased for aspect ratio');
   assert.deepEqual(outputResolution("16:9"), [1920, 1080]);
   assert.deepEqual(outputResolution("1:1"), [1080, 1080]);
 });

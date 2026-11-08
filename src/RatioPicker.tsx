@@ -1,23 +1,27 @@
 import type { Model } from "../shared/types.ts";
-import { RATIOS, nativeRatio } from "../shared/ratios.ts";
+import { RATIOS, nativeRatio,ratioValue } from "../shared/ratios.ts";
 import { Field } from "./components.tsx";
 export function RatioPicker({
   value,
   onChange,
   model,
+  nativeSize,
   label = "Aspect ratio",
 }: {
   value: string;
   onChange: (ratio: string) => void;
   model?: Model;
+  nativeSize?: unknown;
   label?: string;
 }) {
+  const selectedDimensions=typeof nativeSize==='string'&&/^\d+x\d+$/.test(nativeSize)?nativeSize.split('x').map(Number):undefined;
+  const crops=selectedDimensions?Math.abs(selectedDimensions[0]/selectedDimensions[1]-ratioValue(value))>.002:model&&!nativeRatio(model,value);
   return (
     <Field
       label={label}
       hint={
-        model && !nativeRatio(model, value)
-          ? "This model does not expose this ratio directly. The saved result will be center-cropped to the selected ratio."
+        crops
+          ? "The native generation size differs from this ratio. The saved result will be center-cropped to the selected ratio."
           : undefined
       }
     >

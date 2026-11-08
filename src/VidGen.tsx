@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState} from "react";
+import GenerationPrice from './GenerationPrice.tsx';
 import {Download, RefreshCw, Sparkles} from "lucide-react";
 import type {Asset, ModelField, Project} from "../shared/types.ts";
 import {vidGenDefault, vidGenInitialInputs, vidGenPayload, vidGenMediaType} from "../shared/vidgen.ts";
@@ -94,6 +95,7 @@ export default function VidGen({p,w,update,inspect}: {p:Project;w:Workspace;upda
       <p className="muted-text">Saved to: <strong>{p.name || "Untitled project"}</strong>. Generation keeps the model's original duration, framing, and audio.</p>
       <ModelPicker label="model" models={videoModels} value={selectedId} onChange={modelId=>update(latest=>({vidGen:{modelId,inputsByModel:latest.vidGen?.inputsByModel || {}}}))}/>
       <small className="vidgen-model-id">{model?.id}</small>
+      <GenerationPrice modelId={model?.id} inputs={inputs} mode="vidgen" connected={w.connected}/>
       {model && <div className="vidgen-fields" key={`${p.id}:${selectedId}`}>{Object.keys(model.schema?.properties || {}).length ? Object.entries(model.schema!.properties!).filter(([name])=>name!=="model").map(([name,field])=><Parameter key={name} name={name} field={field} required={model.schema?.required?.includes(name) || false} value={inputs[name]} onChange={value=>patch(name,value)} w={w} projectId={p.id}/>) : <RawSettings inputs={inputs} onChange={patchInputs} onError={setError}/>}</div>}
       {(error || validation) && <p className="inline-error" role="status">{error || validation}</p>}
       <Button variant="primary" disabled={!w.connected || !!w.busy || !model || model.active===false || !!validation || !!error} onClick={()=>void w.act("Queueing VidGen",generate)}><Sparkles size={16}/>Generate video</Button>

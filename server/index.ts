@@ -4,6 +4,7 @@ import {HookPreviewService} from "./hook-preview.ts";
 import { outputResolution } from "../shared/ratios.ts";
 import { HOOK_FONT_IDS } from "../shared/hook-fonts.ts";
 import { vidGenPayload } from "../shared/vidgen.ts";
+import {PricingService} from './pricing.ts';
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { reactionPromptSettings } from "../shared/project.ts";
 import { createSession, validSession, revokeSession } from "./sessions.ts";
@@ -62,6 +63,7 @@ import { localApp, localOrigin, queueEnabled, allowedLocalRequest, healthIdentit
 import { rotatingLog } from "./local-logging.ts";
 import type { Asset, Project } from "../shared/types.ts";
 const hookPreviews=new HookPreviewService();
+const pricing=new PricingService();
 const app = Fastify({
   logger: {
     ...(localApp && process.env.LOCAL_LOG_FILE ? {stream:rotatingLog(process.env.LOCAL_LOG_FILE)} : {}),
@@ -394,6 +396,17 @@ app.post("/api/hook-preview", async (req,reply) => {
    const png=await hookPreviews.render({hook:{id:'preview',text,fontId,sections,textSettings,createdAt:''},composition,width,height},controller.signal);
    if(!reply.raw.destroyed)return reply.header('Cache-Control','no-store').type('image/png').send(png);
   }finally{reply.raw.off('close',closed);}
+});
+app.post('/api/pricing/estimate',async req=>{
+ const {modelId,inputs,mode,count,duration,aspectRatio}=z.object({modelId:z.string().max(200),inputs:z.record(z.string(),z.unknown()),mode:z.enum(['image','video','vidgen']),count:z.number().int().min(1).max(100000).default(1),duration:z.number().min(1).max(30).optional(),aspectRatio:z.string().max(20).optional()}).parse(req.body);
+ const model=(await getCatalog()).find(m=>m.id===modelId&&m.kind!=='text');if(!model)throw new Error('Choose an available media model');
+ let payload:Record<string,unknown>=inputs;
+ if(mode!=='vidgen'){
+  let native=ratioInputs(model,aspectRatio||'9:16',inputs);
+  if(mode==='video')native=reactionInputs(model,native,'generated');
+  payload=modelPayload(model,'Pricing preview',1,mode==='video'?providerDuration(model,outputDuration(duration||5)):undefined,mode==='video'?'pricing-source-frame':undefined,native);
+ }
+ return pricing.estimate(modelId,payload,count,reference=>reference.startsWith('asset:')?get('assets',reference.slice(6))?.duration:undefined);
 });
 app.post("/api/vidgen", async (req) => {
   const {projectId,modelId,inputs,requestId} = z.object({projectId:z.string(),modelId:z.string(),inputs:z.record(z.string(),z.unknown()),requestId:z.uuid()}).parse(req.body);

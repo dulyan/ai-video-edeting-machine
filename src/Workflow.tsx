@@ -1,4 +1,5 @@
 import HookTextEditor,{HookFontSelect,AppearancePicker} from "./HookTextEditor.tsx";
+import GenerationPrice from './GenerationPrice.tsx';
 import {hookHasText,textPosition,textWidth} from "../shared/hook-sections.ts";
 import {currentHookComposition,HOOK_STYLES} from "../shared/hook-appearance.ts";
 import { viralityGuidance } from "../shared/hook-virality.ts";
@@ -406,6 +407,7 @@ export function Generation({
         </div>
         <RatioPicker
           model={model}
+          nativeSize={p.modelInputs?.[model?.id||'']?.size}
           value={(image ? p.imageAspectRatio : p.videoAspectRatio) || "9:16"}
           onChange={(ratio) =>
             update(
@@ -453,6 +455,7 @@ export function Generation({
             update(image ? { imageCount: value } : { videoCount: value })
           }
         />
+        <GenerationPrice modelId={model?.id} inputs={p.modelInputs?.[model?.id||'']||{}} mode={image?'image':'video'} count={amount} duration={p.videoDuration} aspectRatio={(image?p.imageAspectRatio:p.videoAspectRatio)||'9:16'} connected={w.connected}/>
         {!image && (
           <section className="starting-frame-library">
             <h3>
