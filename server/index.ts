@@ -5,6 +5,7 @@ import { outputResolution } from "../shared/ratios.ts";
 import { HOOK_FONT_IDS } from "../shared/hook-fonts.ts";
 import { vidGenPayload } from "../shared/vidgen.ts";
 import {PricingService} from './pricing.ts';
+import {registerDemoRoutes} from './demo.ts';
 import { outputDuration, providerDuration } from "../shared/reaction-plan.ts";
 import { reactionPromptSettings } from "../shared/project.ts";
 import { createSession, validSession, revokeSession } from "./sessions.ts";
@@ -397,6 +398,7 @@ app.post("/api/hook-preview", async (req,reply) => {
    if(!reply.raw.destroyed)return reply.header('Cache-Control','no-store').type('image/png').send(png);
   }finally{reply.raw.off('close',closed);}
 });
+registerDemoRoutes(app);
 app.post('/api/pricing/estimate',async req=>{
  const {modelId,inputs,mode,count,duration,aspectRatio}=z.object({modelId:z.string().max(200),inputs:z.record(z.string(),z.unknown()),mode:z.enum(['image','video','vidgen']),count:z.number().int().min(1).max(100000).default(1),duration:z.number().min(1).max(30).optional(),aspectRatio:z.string().max(20).optional()}).parse(req.body);
  const model=(await getCatalog()).find(m=>m.id===modelId&&m.kind!=='text');if(!model)throw new Error('Choose an available media model');

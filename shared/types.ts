@@ -1,5 +1,6 @@
 import type {TextAppearance} from './hook-appearance.ts';
 import type { VidGenDraft } from "./vidgen.ts";
+import type {DemoCreationDraft} from './demo-creation.ts';
 import type { HookPosition } from "./hook-layout.ts";
 import type { ReferencePoses } from "./reference-poses.ts";
 import type { HookFontId } from "./hook-fonts.ts";
@@ -100,6 +101,7 @@ export interface RenderRow {
   musicSpan?: Span;
 }
 export interface Project {
+  demoCreation?:DemoCreationDraft;
   vidGen?: VidGenDraft;
   id: string;
   name: string;
@@ -165,14 +167,16 @@ export interface Job {
   id: string;
   projectId: string;
   batchId: string;
-  kind: "prepare" | "image" | "video" | "hooks" | "render";
+  kind: "prepare" | "image" | "video" | "hooks" | "render" | "demo";
   status:
     "queued" | "running" | "completed" | "failed" | "canceled" | "uncertain";
   progress: number;
   label: string;
   input: any;
   /** Safe public job fields; internal input is omitted from workspace state. */
-  tool?: "vidgen";
+  tool?: "vidgen" | "demo-creation";
+  demoPhase?:string;
+  demoResult?:{actions?:import('./demo-creation.ts').DemoAction[];issues?:string[];childId?:string};
   requestSettings?: Record<string, unknown>;
   taskId?: string;
   outputId?: string;

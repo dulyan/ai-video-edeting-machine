@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {mkdtemp,mkdir,writeFile,readFile} from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import {DatabaseSync} from 'node:sqlite';
 import {createServer,request as httpRequest} from "node:http";
 import {parse} from "dotenv";
 import {initialBackend} from "../shared/backend.ts";
@@ -54,6 +55,13 @@ test("launcher refuses an unrelated service without stopping it",async()=>{
  await new Promise<void>(resolve=>other.listen(0,"127.0.0.1",resolve));const port=(other.address() as {port:number}).port;
  try{await assert.rejects(start({home,port,browser:false}),/occupied by another service/);await assert.rejects(stop({home,port}),/occupied by another service/);assert.equal((await fetch(`http://127.0.0.1:${port}`)).status,200);}
  finally{await new Promise<void>(resolve=>other.close(()=>resolve()));}
+});
+
+test('local backup preserves completed demo tracks/masks with checksums and excludes temporary media',async()=>{
+ const home=await mkdtemp(path.join(os.tmpdir(),'avem-demo-backup-')),p=await setup({home,fresh:true}),db=new DatabaseSync(path.join(p.data,'workspace.sqlite'));
+ db.exec('CREATE TABLE records(kind TEXT,id TEXT,body TEXT)');db.prepare('INSERT INTO records VALUES(?,?,?)').run('jobs','tracked',JSON.stringify({id:'tracked',kind:'demo',status:'completed',input:{phase:'track'}}));db.close();
+ const directory=path.join(p.data,'work','demo','tracked');await mkdir(directory,{recursive:true});await writeFile(path.join(directory,'tracks.json'),JSON.stringify({source:{frames:[{}]},candidate:{frames:[{}]}}));for(const prefix of ['source','candidate'])for(const kind of ['hand','hold'])await writeFile(path.join(directory,`${prefix}-${kind}-00000.png`),'mask fixture');await writeFile(path.join(directory,'reference.mp4'),'temporary normalization');
+ const target=await backupLocal(p),manifest=JSON.parse(await readFile(path.join(target,'manifest.json'),'utf8'));const masks=manifest.files.filter((f:any)=>f.name.startsWith('workspace/work/demo/'));assert.equal(masks.length,5);assert(masks.every((f:any)=>/^[a-f0-9]{64}$/.test(f.sha256)));assert(!manifest.files.some((f:any)=>f.name.endsWith('reference.mp4')));assert.equal(await readFile(path.join(target,'workspace/work/demo/tracked/source-hand-00000.png'),'utf8'),'mask fixture');
 });
 test("built local frontend ignores stale VPS settings while hosted/dev interfaces preserve configuration",()=>{
  assert.equal(initialBackend("http://127.0.0.1:3001","https://old-vps","https://pages-default",false),"http://127.0.0.1:3001");

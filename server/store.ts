@@ -134,7 +134,8 @@ export function state(): AppState {
     jobs: jobs.map((j) => ({
       ...j,
       input: undefined,
-      tool: j.input.tool === "vidgen" ? "vidgen" : undefined,
+      tool: ['vidgen','demo-creation'].includes(j.input.tool) ? j.input.tool : undefined,
+      demoPhase:j.input.tool==='demo-creation'?j.demoPhase||j.input.phase:undefined,
       requestSettings: j.input.tool === "vidgen" ? j.input.payload : undefined,
       mode: j.kind === "prepare" ? j.input.mode : undefined,
       prompt:

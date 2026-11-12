@@ -1,6 +1,7 @@
 import {TEXT_APPEARANCES} from './hook-appearance.ts';
 import { HOOK_POSITIONS } from "./hook-layout.ts";
 import { z } from "zod";
+import {demoCreationSchema} from './demo-creation.ts';
 import { RATIOS } from "./ratios.ts";
 import { HOOK_FONT_IDS } from "./hook-fonts.ts";
 export const referencePosesSchema = z.union([
@@ -81,6 +82,7 @@ export const rowSchema = z.object({
   musicSpan: span.optional(),
 });
 export const projectSchema = z.object({
+  demoCreation:demoCreationSchema.optional(),
   vidGen: z.object({modelId: id,inputsByModel: z.record(id,z.record(z.string(),z.unknown()))}).optional(),
   id,
   name: z.string().max(200),

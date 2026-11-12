@@ -33,7 +33,7 @@ export class PricingService {
   let perGeneration:number|undefined=base;
   let estimated=!!quote.estimated||!!table.token_pricing_rules?.length;
   const description=String(table.pricing_description||'');
-  const hasVideos=Array.isArray(payload.videos)&&payload.videos.length>0;
+  const hasVideos=(Array.isArray(payload.videos)&&payload.videos.length>0)||(typeof payload.video==='string'&&!!payload.video);
   const refRule=/input video duration.*up to 5 seconds.*\+\s*output video duration/is.test(description);
   if(hasVideos){
    if(refRule){

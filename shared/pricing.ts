@@ -12,7 +12,7 @@ export function pricingParameters(payload:Record<string,unknown>,dimensions:{key
  return params;
 }
 export function referenceBillingSeconds(payload:Record<string,unknown>,durationOf:(reference:string)=>number|undefined) {
- const videos=payload.videos;
+ const videos=payload.videos??(typeof payload.video==='string'?[payload.video]:undefined);
  if(!Array.isArray(videos)||!videos.length)return {seconds:0,unknown:false};
  // Provider wording does not specify how multiple clips aggregate. Do not guess.
  if(videos.length!==1||typeof videos[0]!=='string')return {seconds:0,unknown:true};

@@ -72,6 +72,10 @@ test("hook emoji preview requires authentication",async()=>{
 test('pricing estimates require workspace authentication',async()=>{
  const r=await fetch(base+'/pricing/estimate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'vidgen',modelId:'alibaba/wan-3.0-ref2v',inputs:{duration:5,size:'720p'}})});assert.equal(r.status,401);
 });
+test('demo routes protect source frames, worker status and generation requests',async()=>{
+ assert.equal((await fetch(base+'/demo/status')).status,401);
+ for(const route of ['/demo/jobs','/demo/frame'])assert.equal((await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,401);
+});
 test("private workspace requires authentication and rejects wrong passwords", async () => {
   assert.equal((await api("/state")).status, 401);
   assert.equal(

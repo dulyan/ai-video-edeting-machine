@@ -264,6 +264,6 @@ export function useWorkspace() {
     notify(`${result.count} videos queued for rendering.`);
   }
   return { data, connected, notice, busy, uploadProgress, cancelUpload:()=>uploadController.current?.abort(), dismissUpload:()=>setUploadProgress(undefined), saving: edits.saving, notify, refresh, sync,
-    setConnected: setConnection, updateProject, addProject, saveProduct, savePreset, upload, act, generate, render };
+    setConnected: setConnection, updateProject, addProject, saveProduct, savePreset, upload, act, generate, render,flushProject };
 }
 export type Workspace = ReturnType<typeof useWorkspace>;

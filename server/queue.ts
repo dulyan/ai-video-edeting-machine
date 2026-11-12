@@ -1,5 +1,6 @@
 import {hookFont} from '../shared/hook-fonts.ts';
 import { materializeVidGen } from "./vidgen-inputs.ts";
+import {processDemoJob} from './demo.ts';
 import { limitReactionDuration } from "./reaction-duration.ts";
 import { freezeInputs } from "../shared/freeze-lips.ts";
 import { removeReactionAudio } from "./reaction-audio.ts";
@@ -43,6 +44,7 @@ export function cancelJob(id: string) {
 }
 export function recoverJobs() {
   for (const job of all("jobs").filter((j) => j.status === "running")) {
+    if(job.kind==='demo'&&job.input.phase==='analyze'&&!job.demoResult){patchJob(job.id,{status:'uncertain',error:'Stopped during a paid analysis request. Review Siray usage before explicitly starting another analysis.'});continue;}
     if (["image", "video"].includes(job.kind) && !job.taskId)
       patchJob(job.id, {
         status: "uncertain",
@@ -75,7 +77,9 @@ export async function processJob(job: Job) {
   controllers.set(job.id, controller);
   try {
     patchJob(job.id, { status: "running", error: undefined });
-    if (job.kind === "prepare") {
+    if (job.kind === 'demo') {
+      await processDemoJob(job,controller.signal);
+    } else if (job.kind === "prepare") {
       await prepareGeneration(job, controller.signal);
     } else if (job.kind === "image" || job.kind === "video") {
       let taskId = job.taskId;
@@ -83,7 +87,7 @@ export async function processJob(job: Job) {
         const source = job.input.sourceId
           ? get("assets", job.input.sourceId)
           : undefined;
-        const body = job.input.tool === "vidgen" ? await materializeVidGen(job.input.payload,job.input.modelDefinition) : generationPayload(
+        const body = ['vidgen','demo-creation'].includes(job.input.tool) ? await materializeVidGen(job.input.payload,job.input.modelDefinition) : generationPayload(
           job.input.model,
           job.input.prompt,
           job.input.seed,
@@ -105,6 +109,7 @@ export async function processJob(job: Job) {
             matchEndFrame: job.input.matchEndFrame === true,
           },
         );
+        if (controller.signal.aborted || get('jobs', job.id)?.status === 'canceled') return;
         const response = await siray(
           job.kind === "image"
             ? "/v1/images/generations/async"
@@ -180,7 +185,7 @@ export async function processJob(job: Job) {
             id,
             key,
             name: outputs.length > 1 ? `${job.label} #${outputIndex + 1}` : job.label,
-            kind: job.kind === "image" ? "image" : "reaction",
+            kind: job.input.tool==='demo-creation'?'presenter':job.kind === "image" ? "image" : "reaction",
             projectId: job.projectId,
             createdAt: new Date().toISOString(),
             mime: copied.mime.startsWith(
@@ -327,7 +332,7 @@ export async function processJob(job: Job) {
     if (get("jobs", job.id)?.status === "canceled") return;
     const current = get("jobs", job.id)!;
     const uncertain =
-      ["image", "video"].includes(job.kind) &&
+      (["image", "video"].includes(job.kind) || job.kind === 'demo' && job.input.phase === 'analyze') &&
       !current.taskId &&
       /timeout|fetch failed|accepted|socket/i.test(String(error));
     patchJob(job.id, {
@@ -348,13 +353,13 @@ export function startQueue() {
       .filter((j) => j.status === "queued" && !running.has(j.id))
       .reverse();
     const renderActive = all("jobs").some(
-      (j) => j.kind === "render" && running.has(j.id),
+      (j) => ['render','demo'].includes(j.kind) && running.has(j.id),
     );
     let renderStarted = renderActive;
     for (const job of queue) {
       if (running.size >= 4) break;
-      if (job.kind === "render" && renderStarted) continue;
-      if (job.kind === "render") renderStarted = true;
+      if (['render','demo'].includes(job.kind) && renderStarted) continue;
+      if (['render','demo'].includes(job.kind)) renderStarted = true;
       running.add(job.id);
       void processJob(job);
     }

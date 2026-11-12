@@ -7,4 +7,6 @@ data/
 test-output/
 *.log
 *.tsbuildinfo
+__pycache__/
+*.pyc
 .DS_Store

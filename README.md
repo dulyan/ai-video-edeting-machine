@@ -2,6 +2,31 @@
 
 A project-based creative assembly line for first frames, reaction clips, viral hooks, product demos, music, and final video batches.
 
+## Demo Creation
+
+The separate **Demo Creation** tab creates phone/tablet app walkthroughs from a reference video and either ordered screenshots or a screen recording, plus written instructions. Work in six steps: Reference, App screens, Action timeline, Movement, Tracking & masks, Review & export.
+
+- Choose **Preserve appearance, replace actions** or **Freely recreate scene**, and strict or approximate touch accuracy. Use one continuous 3–30 second shot; sources/screenshots must be 4K or smaller. Computer scenes, multi-shot edits and longer clips are not supported in this version.
+- Add named screenshots in order, with per-screen instructions, or select a recording start. Edit the action timing, actual button targets, swipe endpoints and transitions. Scroll transitions need overlapping screenshot content and a viewport that excludes fixed headers/navigation. Missing content is never invented by the local screen animator.
+- Optional paid vision analysis proposes actions; inspect and apply them yourself. Render and approve the deterministic screen animation before generating movements. The default editing model is Siray's Kling 4.0 Video Edit, with Seedance 2.5 ref2v (`task_type=edit`) as an alternative. Native model duration/resolution limits are validated before submission; unavailable settings are rejected without substitution. Reference-video charges can apply; an unverified total is shown as unavailable.
+- Calibrate screen corners clockwise, add interacting/holding-hand and exclusion seeds, and draw the editable region for appearance preservation. Use GPU segmentation or manual painted masks, with correction keyframes and on-demand mask overlays. Brush strokes persist until the next keyframe. Keyboard users can focus the correction canvas, move with arrow keys, and mark/paint with Enter.
+- Render and inspect a **composited review preview**. Strict mode requires recorded fingertip contacts at the action times, within 4% of normalized screen coordinates (both endpoints for swipes), plus scene approval. Approximate mode explicitly warns that taps may miss. Input changes invalidate dependent results/approvals; stale screen animations and tracking cannot be exported.
+- Final exports use exact supplied app screens under foreground fingers, retain source audio/aspect ratio, and save to **Studio → Product demos** at 30 fps, up to a 1920px long edge. Original files remain unchanged. AI hand/nail identity and gesture timing require visual review; prompt coordinates are guidance, not enforced provider controls. Lighting matching is basic; complex glare, motion blur and occlusion may need manual corrections.
+
+The local GPU/media worker is optional for Studio, but required for Demo Creation's local stages. On Windows, install Python 3.12 and a compatible NVIDIA driver, then run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-demo-worker.ps1
+# If Python is not detected:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-demo-worker.ps1 -BasePython 'C:\path\to\python.exe'
+```
+
+Setup creates an isolated environment under `%LOCALAPPDATA%\AI Video Edeting Machine\demo-worker`, using CUDA PyTorch 2.7.1 and [Meta SAM 2.1 Small](https://huggingface.co/facebook/sam2.1-hiera-small). Upstream runtime files and checkpoint revisions are pinned; source files are verified against Git blob hashes. No CUDA compiler or Docker is required. One heavy local stage runs at a time; segmentation uses 90-frame windows with CPU offloading and a 4GB/65% GPU allocation cap. If CUDA is unavailable or free VRAM is below 3GB, use manual masks. Use the desktop shortcut's software-graphics browser profile on this PC.
+
+Drafts and job snapshots live in the existing SQLite workspace. Tracks/masks live privately in `workspace\work\demo\<job-id>`; original inputs, intermediate videos and final demos use the existing private media library. The normal backup includes completed correction tracks/masks and their checksums. The Python environment/checkpoint can be reinstalled and need not be copied as a backup. Restart resumes local stages and saved provider task IDs; an interrupted paid analysis/submission with an unknown outcome needs a Siray usage check before retrying.
+
+Verification: `npm.cmd test` includes real CPU media checks when the optional Python worker is installed; otherwise that check is explicitly skipped. Provider transport tests are mocked and incur no charges. The bounded GPU smoke test uses synthetic footage and does not establish real-hand editing fidelity.
+
 ## Local browser app (current setup)
 
 The interface and backend run together at **http://127.0.0.1:3001** on this PC. Siray handles AI generation; local FFmpeg handles final composition. No VPS, Docker, or GitHub Pages connection is needed for local operation.
