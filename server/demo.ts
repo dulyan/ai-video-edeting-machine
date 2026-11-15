@@ -7,7 +7,7 @@ import path from 'node:path';
 import {z} from 'zod';
 import type {FastifyInstance} from 'fastify';
 import type {Asset,Job,Model} from '../shared/types.ts';
-import {demoCreationSchema,demoActionSchema,demoMotionPrompt,validateDemoTimeline,validateDemoReview,type DemoCreationDraft} from '../shared/demo-creation.ts';
+import {slideshowSchema,demoCreationSchema,demoActionSchema,demoMotionPrompt,validateDemoTimeline,validateDemoReview,type DemoCreationDraft} from '../shared/demo-creation.ts';
 import {addJob,get,patchJob,mediaDir,workDir,dataDir} from './store.ts';
 import {downloadAsset,storeFile} from './storage.ts';
 import {ffmpeg,probe,run} from './render.ts';
@@ -63,6 +63,7 @@ function validateCalibration(d:DemoCreationDraft){
  if(d.scene==='preserve'&&d.sourceCalibration.some(c=>!c.editRegion||c.editRegion.length<3))throw new Error('Draw an editable region with at least three points around the old and new gesture paths.');
 }
 export async function processDemoJob(job:Job,signal:AbortSignal){
+ if(job.input.phase==='slideshow'){await renderSlideshow(job,signal);return;}
  const d=demoCreationSchema.parse(job.input.draft),dir=stageDirectory(job.id);await mkdir(dir,{recursive:true});
  const progress=(n:number,message:string)=>{if(get('jobs',job.id)?.status!=='canceled')patchJob(job.id,{progress:Math.min(99,Math.round(n)),demoPhase:message});};
  if(job.input.phase==='analyze'){
@@ -102,6 +103,7 @@ export async function processDemoJob(job:Job,signal:AbortSignal){
 }
 export function registerDemoRoutes(app:FastifyInstance){
  let frameBusy=false;
+ app.post('/api/demo/slideshow',async req=>{const {projectId,requestId}=z.object({projectId:z.string(),requestId:z.uuid()}).parse(req.body),p=get('projects',projectId);if(!p)throw new Error('Project not found');const settings=slideshowSchema.parse(p.demoCreation?.slideshow);validateSlideshow(settings);const old=get('jobs',requestId);if(old){if(old.projectId!==projectId||old.input.phase!=='slideshow')throw new Error('Request ID conflict');return old;}return addJob(projectId,'demo','Demo slideshow',{tool:'demo-creation',phase:'slideshow',settings},undefined,requestId);});
  app.get('/api/demo/status',async()=>({installed:existsSync(path.join(workerHome,'ready.json')),pythonAvailable:existsSync(demoPython),gpuCheckpoint:existsSync(path.join(workerHome,'sam2.1_hiera_small.pt'))}));
  app.post('/api/demo/jobs',async req=>{
   const {projectId,phase,requestId}=z.object({projectId:z.string(),phase:z.enum(phases),requestId:z.uuid()}).parse(req.body),p=get('projects',projectId);if(!p)throw new Error('Project not found');
@@ -132,4 +134,16 @@ export function registerDemoRoutes(app:FastifyInstance){
    await demoWorker({mode:'frame',source,time,trackTime,tracks,trackingDirectory,view,rectified,overlay,screenSize,output},dir,AbortSignal.timeout(30000));return reply.header('Cache-Control','no-store').type('image/png').send(await readFile(output));
   }finally{frameBusy=false;await rm(dir,{recursive:true,force:true});}
  });
+}
+
+export function validateSlideshow(s:z.infer<typeof slideshowSchema>){if(!s.screens.length)throw new Error('Upload screenshots first.');if(Math.round(s.duration*30)<s.screens.length*8)throw new Error('Allow at least 0.27 seconds per screenshot.');for(const id of s.screens)asset(id,'image');}
+export async function renderSlideshow(job:Job,signal:AbortSignal){
+ const s=slideshowSchema.parse(job.input.settings);validateSlideshow(s);const dir=stageDirectory(job.id);await mkdir(dir,{recursive:true});const first=asset(s.screens[0],'image'),portrait=(first.height||1920)>(first.width||1080),square=first.height===first.width,w=square?1080:portrait?1080:1920,h=square?1080:portrait?1920:1080,total=Math.round(s.duration*30),files:string[]=[];
+ const fit=`scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30,format=yuv420p,settb=1/30`;
+ for(let i=0;i<s.screens.length;i++){
+  signal.throwIfAborted();const frames=Math.round((i+1)*total/s.screens.length)-Math.round(i*total/s.screens.length),seconds=frames/30,style=s.sameTransition?s.transition:s.transitions[i]||s.transition,file=path.join(dir,'slide-'+i+'.mp4'),input=await localAsset(s.screens[i],'image',dir),transition=Math.min(.4,seconds/2),args=['-y','-v','error','-threads','1','-loop','1','-framerate','30','-i',input];
+  if(i<s.screens.length-1&&style!=='cut'){const next=await localAsset(s.screens[i+1],'image',dir);args.push('-threads','1','-loop','1','-framerate','30','-i',next,'-filter_complex_threads','1','-filter_complex',`[0:v]${fit}[a];[1:v]${fit}[b];[a][b]xfade=transition=${style}:duration=${transition}:offset=${seconds-transition}[v]`,'-map','[v]');}else args.push('-vf',fit,'-filter_threads','1');
+  args.push('-frames:v',String(frames),'-an','-c:v','libx264','-preset','slow','-crf','16','-threads','2','-pix_fmt','yuv420p',file);await run(ffmpeg,args,undefined,undefined,signal);files.push(file);patchJob(job.id,{progress:Math.round((i+1)/s.screens.length*95),demoPhase:'Rendering screenshot '+(i+1)+' / '+s.screens.length});
+ }
+ const list=path.join(dir,'slides.txt');await writeFile(list,files.map(f=>"file '"+f.replaceAll('\\','/')+"'").join('\n'));const output=path.join(dir,'slideshow.mp4');await run(ffmpeg,['-y','-v','error','-f','concat','-safe','0','-i',list,'-c','copy','-movflags','+faststart',output],undefined,undefined,signal);await saveVideo(job,output,'demo','App demo slideshow');if(get('jobs',job.id)?.status!=='canceled')patchJob(job.id,{status:'completed',progress:100,demoPhase:'Complete'});
 }
