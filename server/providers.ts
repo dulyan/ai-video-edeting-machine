@@ -1,5 +1,5 @@
 import {get} from './store.ts';
-import {r2Configured} from './wan-hosting.ts';
+import {wanStorageConfigured} from './wan-hosting.ts';
 import type {Job,Model} from '../shared/types.ts';
 import snapshots from '../shared/provider-models.json';
 import {getSecret} from './store.ts';
@@ -28,7 +28,7 @@ export function validateExternal(model:Model,p:Record<string,any>){
  if((p.first_frame||p.last_frame)&&['reference_images','reference_videos','reference_audios','file','link'].some(k=>Array.isArray(p[k])?p[k].length:!!p[k]))throw new Error('Frames cannot be combined with references, file or link.');
  if(p.file&&p.link)throw new Error('Choose file or link, not both.');
  if((p.nsfw_checker??!model.nativeId?.includes('pro'))&&(p.file||p.link))throw new Error('file/link require nsfw_checker=false.');
- for(const k of media)for(const value of Array.isArray(p[k])?p[k]:p[k]?[p[k]]:[]){if(typeof value==='string'&&value.startsWith('asset:')){const a=get('assets',value.slice(6)),type=k.includes('video')?'video':k.includes('audio')?'audio':'image';if(!a||!a.mime.startsWith(type+'/')||['file','link'].includes(k))throw new Error('Choose valid reference media.');if(!r2Configured())throw new Error('Configure private R2 storage in Settings to use library files with Wan API.');if(type==='video'&&a.mime!=='video/mp4')throw new Error('Wan reference video must be an original MP4/MOV file.');if(type==='video'&&(!a.duration||a.duration<1||a.duration>15))throw new Error('Wan reference video clips must each be 1 to 15 seconds.');continue;}let u:URL;try{u=new URL(value);}catch{throw new Error('Wan API needs public HTTP(S) URLs; local library media requires public hosting.');}if(!['http:','https:'].includes(u.protocol)||u.username||u.password||/^(localhost|127\.|10\.|192\.168\.|\[|0\.)/.test(u.hostname))throw new Error('Wan API requires public HTTP(S) media URLs.');}
+ for(const k of media)for(const value of Array.isArray(p[k])?p[k]:p[k]?[p[k]]:[]){if(typeof value==='string'&&value.startsWith('asset:')){const a=get('assets',value.slice(6)),type=k.includes('video')?'video':k.includes('audio')?'audio':'image';if(!a||!a.mime.startsWith(type+'/')||['file','link'].includes(k))throw new Error('Choose valid reference media.');if(!wanStorageConfigured())throw new Error('Configure private Google Cloud Storage storage in Settings to use library files with Wan API.');if(type==='video'&&a.mime!=='video/mp4')throw new Error('Wan reference video must be an original MP4/MOV file.');if(type==='video'&&(!a.duration||a.duration<1||a.duration>15))throw new Error('Wan reference video clips must each be 1 to 15 seconds.');continue;}let u:URL;try{u=new URL(value);}catch{throw new Error('Wan API needs public HTTP(S) URLs; local library media requires public hosting.');}if(!['http:','https:'].includes(u.protocol)||u.username||u.password||/^(localhost|127\.|10\.|192\.168\.|\[|0\.)/.test(u.hostname))throw new Error('Wan API requires public HTTP(S) media URLs.');}
 }
 export async function mediaProvider(job:Job,body?:Record<string,unknown>){
  const model=job.input.modelDefinition as Model,provider=providerOf(job.input.model||'');

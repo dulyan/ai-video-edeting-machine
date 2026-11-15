@@ -16,12 +16,12 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "reference_images": {
@@ -29,7 +29,7 @@
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "image"
           }
         },
@@ -38,7 +38,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "video"
           }
         },
@@ -47,7 +47,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "audio"
           }
         },
@@ -153,12 +153,12 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "reference_images": {
@@ -166,7 +166,7 @@
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "image"
           }
         },
@@ -175,7 +175,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "video"
           }
         },
@@ -184,7 +184,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "audio"
           }
         },
@@ -290,12 +290,12 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "reference_images": {
@@ -303,7 +303,7 @@
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "image"
           }
         },
@@ -312,7 +312,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "video"
           }
         },
@@ -321,7 +321,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "audio"
           }
         },
@@ -430,12 +430,12 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
           "x-format": "image"
         },
         "reference_images": {
@@ -443,7 +443,7 @@
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "image"
           }
         },
@@ -452,7 +452,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "video"
           }
         },
@@ -461,7 +461,7 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private Google Cloud Storage storage.",
             "x-format": "audio"
           }
         },
