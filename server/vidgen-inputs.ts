@@ -1,3 +1,9 @@
+import {openAsBlob} from 'node:fs';
+import {unlink} from 'node:fs/promises';
+import path from 'node:path';
+import {providerJSON} from './providers.ts';
+import {workDir} from './store.ts';
+import {downloadAsset} from './storage.ts';
 import type {Model,ModelField} from "../shared/types.ts";
 import {vidGenMediaType} from "../shared/vidgen.ts";
 import {get} from "./store.ts";
@@ -10,6 +16,7 @@ export async function materializeVidGen(payload:Record<string,unknown>,model:Mod
       const asset=get("assets",value.slice(6));
       if(!asset)throw new Error(`A reference for ${name} is missing.`);
       if(!asset.mime.startsWith(vidGenMediaType(name,field)!+"/"))throw new Error(`Choose a matching media type for ${name}.`);
+      if(model.apiProvider==='replicate'){const file=path.join(workDir,crypto.randomUUID()+'.upload');try{await downloadAsset(asset,file);const form=new FormData();form.set('content',await openAsBlob(file,{type:asset.mime}),asset.name);const uploaded=await providerJSON('replicate','/v1/files',form);if(typeof uploaded.urls?.get!=='string')throw new Error('Replicate upload returned no file URL');return uploaded.urls.get;}finally{await unlink(file).catch(()=>{});}}
       return assetDataURL(asset);
     }
     if(Array.isArray(value)) {

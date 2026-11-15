@@ -1,3 +1,4 @@
+import {mediaProvider} from './providers.ts';
 import {hookFont} from '../shared/hook-fonts.ts';
 import { materializeVidGen } from "./vidgen-inputs.ts";
 import {processDemoJob} from './demo.ts';
@@ -38,7 +39,7 @@ export function cancelJob(id: string) {
     patchJob(id, {
       status: "canceled",
       error: job.taskId
-        ? "Stopped tracking this provider task. Siray may still finish and charge for it."
+        ? "Stopped tracking this provider task. The provider may still finish and charge for it."
         : undefined,
     });
 }
@@ -110,16 +111,11 @@ export async function processJob(job: Job) {
           },
         );
         if (controller.signal.aborted || get('jobs', job.id)?.status === 'canceled') return;
-        const response = await siray(
-          job.kind === "image"
-            ? "/v1/images/generations/async"
-            : "/v1/video/generations",
-          body,
-        );
+        const response = await mediaProvider(job,body);
         taskId = response.data?.task_id || response.task_id;
         if (!taskId)
           throw new Error(
-            "Siray accepted a request but returned no task ID. Check your provider dashboard before retrying.",
+            "Provider accepted a request but returned no task ID. Check your provider dashboard before retrying.",
           );
         patchJob(job.id, { taskId });
       }
@@ -127,9 +123,7 @@ export async function processJob(job: Job) {
       while (get("jobs", job.id)?.status !== "canceled") {
         let response: any;
         try {
-          response = await siray(
-            `${job.kind === "image" ? "/v1/images/generations/async" : "/v1/video/generations"}/${encodeURIComponent(taskId!)}`,
-          );
+          response = await mediaProvider({...job,taskId});
           failures = 0;
         } catch (error) {
           if (++failures >= 5) throw error;
@@ -138,18 +132,18 @@ export async function processJob(job: Job) {
         }
         const info = response.data || response,
           status = String(info.status).toUpperCase();
-        if (["FAILED", "FAILURE", "ERROR"].includes(status))
+        if (["FAILED", "FAILURE", "ERROR", "CANCELED"].includes(status))
           throw new Error(
             info.fail_reason || info.message || "Provider generation failed",
           );
         if (["SUCCESS", "COMPLETED", "SUCCEEDED"].includes(status)) {
           if (get("jobs", job.id)?.status === "canceled") return;
           const outputs = job.input.tool === "vidgen" ? info.outputs : info.outputs?.slice(0,1);
-          if (!Array.isArray(outputs) || !outputs.length) throw new Error("Siray completed without an output URL");
+          if (!Array.isArray(outputs) || !outputs.length) throw new Error("Provider completed without an output URL");
           for (const [outputIndex, output] of outputs.entries()) {
           const
             url = typeof output === "string" ? output : output?.url;
-          if (!url) throw new Error("Siray completed without an output URL");
+          if (!url) throw new Error("Provider completed without an output URL");
           const ext = job.kind === "image" ? ".png" : ".mp4",
             id = outputIndex === 0 ? job.id : `${job.id}-${outputIndex + 1}`,
             key = `${id}${ext}`,
@@ -185,7 +179,7 @@ export async function processJob(job: Job) {
             id,
             key,
             name: outputs.length > 1 ? `${job.label} #${outputIndex + 1}` : job.label,
-            kind: job.input.tool==='demo-creation'?'presenter':job.kind === "image" ? "image" : "reaction",
+            kind: job.input.modelDefinition?.apiProvider==='replicate'?(get('assets',String(job.input.payload?.video||'').replace(/^asset:/,''))?.kind||'presenter'):job.input.tool==='demo-creation'?'presenter':job.kind === "image" ? "image" : "reaction",
             projectId: job.projectId,
             createdAt: new Date().toISOString(),
             mime: copied.mime.startsWith(

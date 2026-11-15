@@ -103,6 +103,7 @@ export interface RenderRow {
 export interface Project {
   demoCreation?:DemoCreationDraft;
   vidGen?: VidGenDraft;
+  upscale?: VidGenDraft;
   id: string;
   name: string;
   createdAt: string;
@@ -222,6 +223,8 @@ export interface AppState {
 /** Browser clients never receive internal worker input or model definitions. */
 export type PublicJob = Omit<Job, "input">;
 export interface Model {
+  apiProvider?: 'siray'|'wanapi'|'replicate';
+  nativeId?:string;
   id: string;
   name: string;
   kind: "image" | "video" | "text";

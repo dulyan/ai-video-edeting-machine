@@ -83,6 +83,7 @@ export const rowSchema = z.object({
 });
 export const projectSchema = z.object({
   demoCreation:demoCreationSchema.optional(),
+  upscale: z.object({modelId: id,inputsByModel: z.record(id,z.record(z.string(),z.unknown()))}).optional(),
   vidGen: z.object({modelId: id,inputsByModel: z.record(id,z.record(z.string(),z.unknown()))}).optional(),
   id,
   name: z.string().max(200),

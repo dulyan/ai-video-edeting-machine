@@ -45,7 +45,7 @@ export function ModelPicker({
 }) {
   const [search, setSearch] = useState("");
   const filtered = models.filter((m) =>
-    `${m.name} ${m.id} ${m.provider} ${m.tag}`
+    `${m.name.startsWith('[')?m.name:'[Siray] '+m.name} ${m.id} ${m.provider} ${m.tag}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -54,7 +54,8 @@ export function ModelPicker({
     selected && !filtered.includes(selected)
       ? [selected, ...filtered]
       : filtered;
-  const groups = [...new Set(visible.map((m) => m.tag || m.kind))];
+  const groupOf=(m:Model)=>(m.apiProvider==='wanapi'?'Wan API':m.apiProvider==='replicate'?'Replicate':'Siray')+' / '+(m.tag||m.kind);
+  const groups = [...new Set(visible.map(groupOf))];
   return (
     <Field label={label}>
       <div className="model-picker">
@@ -79,7 +80,7 @@ export function ModelPicker({
           {groups.map((group) => (
             <optgroup key={group} label={group.replaceAll("-", " ")}>
               {visible
-                .filter((m) => (m.tag || m.kind) === group)
+                .filter((m) => groupOf(m) === group)
                 .map((m) => (
                   <option key={m.id} value={m.id} disabled={m.active === false}>
                     {m.name}

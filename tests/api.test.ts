@@ -544,3 +544,11 @@ test('Helvetica reference import is private, validates the actual font, and neve
  const preview=await fetch(base+'/hook-preview',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({text:'\u044f',composition:{...newProject().composition,textLayoutVersion:4,fontId:'classic-iphone-helvetica'}})});
  assert.equal(preview.status,400);assert.match((await preview.json()).error,/Import a licensed Helvetica Pro Roman/);
 });
+
+ test('provider keys require authentication, stay encrypted/redacted and survive a backend restart',async()=>{
+  assert.equal((await fetch(base+'/provider-keys')).status,401);
+  assert.equal((await fetch(base+'/provider-keys',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:'wanapi',key:'unauthorized'})})).status,401);
+  const fixture='fixture-private-new-provider-key';for(const provider of ['wanapi','replicate'])assert.equal((await api('/provider-keys','PUT',{provider,key:fixture+provider})).status,200);
+  assert.deepEqual((await api('/provider-keys')).data,{wanapi:true,replicate:true});assert(!JSON.stringify((await api('/state')).data).includes(fixture));assert(!(await readFile(path.join(dir,'workspace.sqlite'))).includes(Buffer.from(fixture)));assert(!logs.includes(fixture));
+  await stop();await start();token=(await api('/login','POST',{password})).data.token;assert.deepEqual((await api('/provider-keys')).data,{wanapi:true,replicate:true});for(const provider of ['wanapi','replicate'])await api('/provider-keys','PUT',{provider,key:''});
+ });

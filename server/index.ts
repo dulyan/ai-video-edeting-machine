@@ -1,3 +1,5 @@
+import {providerOf,validateExternal} from './providers.ts';
+import {externalEstimate} from './provider-pricing.ts';
 import {installClassicFont,localClassicInstalled,requireLocalClassicFont} from './local-hook-font.ts';
 import {readFile} from 'node:fs/promises';
 import {HookPreviewService} from "./hook-preview.ts";
@@ -219,6 +221,8 @@ app.put("/api/presets/:id", async (req) => {
   put("presets", p);
   return { ok: true, revision: revision() };
 });
+app.get('/api/provider-keys',()=>({wanapi:!!getSecret('wanapi'),replicate:!!getSecret('replicate')}));
+app.put('/api/provider-keys',async req=>{const {provider,key}=z.object({provider:z.enum(['wanapi','replicate']),key:z.string().max(1000)}).parse(req.body);setSecret(provider,key.trim());invalidateCatalog();return {ok:true};});
 app.get("/api/settings", () => ({
   keyConfigured: !!getSecret("siray"),
   keySuffix: getSecret("siray").slice(-4),
@@ -408,15 +412,16 @@ app.post('/api/pricing/estimate',async req=>{
   if(mode==='video')native=reactionInputs(model,native,'generated');
   payload=modelPayload(model,'Pricing preview',1,mode==='video'?providerDuration(model,outputDuration(duration||5)):undefined,mode==='video'?'pricing-source-frame':undefined,native);
  }
+ if(providerOf(modelId)!=='siray')return externalEstimate(model,inputs,count);
  return pricing.estimate(modelId,payload,count,reference=>reference.startsWith('asset:')?get('assets',reference.slice(6))?.duration:undefined);
 });
 app.post("/api/vidgen", async (req) => {
   const {projectId,modelId,inputs,requestId} = z.object({projectId:z.string(),modelId:z.string(),inputs:z.record(z.string(),z.unknown()),requestId:z.uuid()}).parse(req.body);
   if (!get("projects",projectId)) throw new Error("Project not found");
-  if (!getSecret("siray")) throw new Error("Add your Siray API key in Settings first");
+  if (!getSecret(providerOf(modelId))) throw new Error("Add the selected provider API key in Settings first");
   const definition=(await getCatalog()).find(m=>m.id===modelId && m.kind === "video" && m.active !== false);
   if (!definition) throw new Error("Choose an available video model");
-  const payload=vidGenPayload(definition,inputs);
+  const payload=vidGenPayload(definition,inputs);validateExternal(definition,payload);
   const existing=all("jobs").find(j=>j.projectId===projectId && j.input.vidGenRequestId===requestId);
   if(existing)return existing;
   return addJob(projectId,"video",`VidGen - ${definition.name}`,{tool:"vidgen",vidGenRequestId:requestId,payload,model:modelId,prompt:payload.prompt || "",modelDefinition:definition});

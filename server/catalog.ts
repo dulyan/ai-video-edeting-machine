@@ -1,3 +1,4 @@
+import {externalCatalog} from './providers.ts';
 import { MODELS } from "../shared/models.ts";
 import { normalizeCatalog } from "../shared/catalog.ts";
 import type { Model } from "../shared/types.ts";
@@ -27,7 +28,7 @@ export async function getCatalog(): Promise<Model[]> {
       /* Use checked-in catalog during a provider outage. */
     }
     if (getSecret("siray")) {
-      const result = await siray("/v1/models");
+      const result = await siray("/v1/models").catch(()=>({data:[]}));
       const entries: any[] = result.data || [];
       const byId = new Map(publicModels.map((m) => [m.id, m]));
       for (const m of normalizeCatalog(entries))
@@ -40,6 +41,7 @@ export async function getCatalog(): Promise<Model[]> {
         active: available.get(m.id) === true,
       }));
     } else catalog = publicModels;
+    catalog=[...catalog.map(m=>({...m,apiProvider:'siray' as const})),...await externalCatalog()];
     expires = Date.now() + 10 * 60 * 1000;
     return catalog;
   })().finally(() => {

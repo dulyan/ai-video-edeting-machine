@@ -1,3 +1,4 @@
+import ProviderKeys from './ProviderKeys.tsx';
 import VidGen from "./VidGen.tsx";
 import DemoCreation from './DemoCreation.tsx';
 import { useEffect, useState } from "react";
@@ -63,7 +64,7 @@ import { ModelPicker, useModels } from "./ModelPicker.tsx";
 import { backendURL, configureBackend, hasSession, request } from "./api.ts";
 import type { ProjectUpdate } from "./workspace-sync.ts";
 type Page =
-  "Studio" | "VidGen" | "Demo Creation" | "Projects" | "Image Library" | "Video Library" | "Settings";
+  "Studio" | "upscale" | "VidGen" | "Demo Creation" | "Projects" | "Image Library" | "Video Library" | "Settings";
 const stepSubtitles = [
   "Every great video starts with a little idea.",
   "One brief. A fresh perspective in every frame.",
@@ -125,7 +126,7 @@ function Settings({
     w.notify("Backend connected. Local drafts were imported.");
   }
   return (
-    <div className="settings-grid">
+    <div className="settings-grid"><ProviderKeys w={w}/>
       <section className="card settings-card">
         <span className="icon-disc">
           <Sun size={20} />
@@ -543,6 +544,7 @@ export default function App() {
             [
               { name: "Studio", icon: Clapperboard },
               { name: "VidGen", icon: Sparkles },
+              { name: "upscale", icon: Sparkles },
               { name: "Demo Creation", icon: Monitor },
               { name: "Projects", icon: FolderOpen },
               { name: "Image Library", icon: ImageIcon },
@@ -791,7 +793,7 @@ export default function App() {
                 </div>
               </footer>
             </>
-          ) : page === "VidGen" ? (
+          ) : page === "upscale" ? (<VidGen {...props} upscale/>) : page === "VidGen" ? (
             <VidGen {...props}/>
           ) : page === 'Demo Creation' ? (
             <DemoCreation {...props}/>

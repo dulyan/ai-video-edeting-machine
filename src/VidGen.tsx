@@ -16,7 +16,7 @@ function Parameter({name,field,value,required,onChange,w,projectId}: {
   const requiredKeys=(field.required || []) as string[];
   const type=field.type;
   const mediaType=vidGenMediaType(name,field);
-  const media=type === "string" && !field.enum && !!mediaType;
+  const media=type === "string" && !field.enum && !!mediaType && field.description?.startsWith("Public HTTP")!==true;
   const hint=[field.description,field.default !== undefined ? `Provider default: ${JSON.stringify(field.default)}` : "",field.minimum !== undefined ? `Minimum: ${field.minimum}` : "",field.maximum !== undefined ? `Maximum: ${field.maximum}` : ""].filter(Boolean).join(" · ");
   if(type === "object" || type === "array") {
     const values=Array.isArray(value)?value:[];
@@ -61,24 +61,26 @@ function RawSettings({inputs,onChange,onError}: {inputs:Record<string,unknown>;o
   return <Field label="Model settings (JSON)" hint="Siray has not published a parameter schema for this model. Enter its documented settings here."><textarea rows={12} value={text} onChange={e=>{setText(e.target.value);try{const next=JSON.parse(e.target.value);if(!next || typeof next!=="object" || Array.isArray(next))throw new Error();onChange(next);onError("");}catch{onError("Enter a valid JSON settings object.");}}}/></Field>;
 }
 
-export default function VidGen({p,w,update,inspect}: {p:Project;w:Workspace;update:(patch:ProjectUpdate)=>void;inspect:(asset:Asset)=>void}) {
+export default function VidGen({p,w,update,inspect,upscale=false}: {p:Project;w:Workspace;update:(patch:ProjectUpdate)=>void;inspect:(asset:Asset)=>void;upscale?:boolean}) {
   const {models,setModels}=useModels(w.connected);
-  const videoModels=models.filter(m=>m.kind==="video");
-  const selectedId=p.vidGen?.modelId || videoModels.find(m=>m.active!==false)?.id || "";
+  const [providerFilter,setProviderFilter]=useState('all');
+  const draftKey=upscale?'upscale':'vidGen';
+  const videoModels=models.filter(m=>m.kind==='video'&&(upscale?m.tag==='upscale':m.tag!=='upscale')&&(upscale||providerFilter==='all'||(m.apiProvider||'siray')===providerFilter));
+  const selectedId=(videoModels.some(m=>m.id===p[draftKey]?.modelId)?p[draftKey]?.modelId:undefined) || videoModels.find(m=>m.active!==false)?.id || "";
   const model=videoModels.find(m=>m.id===selectedId);
-  const inputs=p.vidGen?.inputsByModel?.[selectedId] || (model?vidGenInitialInputs(model):{});
+  const inputs=p[draftKey]?.inputsByModel?.[selectedId] || (model?vidGenInitialInputs(model):{});
   const [error,setError]=useState("");
   const [page,setPage]=useState(0);
   const requestToken=useRef<{signature:string;id:string}|undefined>(undefined);
   useEffect(()=>{setError("");setPage(0);},[p.id,selectedId]);
-  function patchInputs(next:Record<string,unknown>) {update(latest=>({vidGen:{modelId:selectedId,inputsByModel:{...latest.vidGen?.inputsByModel,[selectedId]:next}}}));requestToken.current=undefined;}
+  function patchInputs(next:Record<string,unknown>) {update(latest=>({[draftKey]:{modelId:selectedId,inputsByModel:{...latest[draftKey]?.inputsByModel,[selectedId]:next}}}));requestToken.current=undefined;}
   function patch(name:string,value:unknown) {
-    update(latest=>({vidGen:{modelId:selectedId,inputsByModel:{...latest.vidGen?.inputsByModel,[selectedId]:{...(latest.vidGen?.inputsByModel?.[selectedId] || (model?vidGenInitialInputs(model):{})),[name]:value}}}}));
+    update(latest=>({[draftKey]:{modelId:selectedId,inputsByModel:{...latest[draftKey]?.inputsByModel,[selectedId]:{...(latest[draftKey]?.inputsByModel?.[selectedId] || (model?vidGenInitialInputs(model):{})),[name]:value}}}}));
     requestToken.current=undefined;
   }
   let validation="",payload:Record<string,unknown>|undefined;
   try {if(model)payload=vidGenPayload(model,inputs);}catch(e){validation=(e as Error).message;}
-  const jobs=w.data.jobs.filter(j=>j.projectId===p.id && j.tool==="vidgen").sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  const jobs=w.data.jobs.filter(j=>j.projectId===p.id && j.tool==="vidgen" && (upscale?j.generationModel?.startsWith('replicate/'):!j.generationModel?.startsWith('replicate/'))).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   const visible=jobs.slice(page*10,page*10+10);
   async function generate() {
     if(!model)return;
@@ -90,15 +92,16 @@ export default function VidGen({p,w,update,inspect}: {p:Project;w:Workspace;upda
   }
   return <div className="vidgen-layout">
     <section className="card vidgen-form">
-      <div className="section-heading"><h2>Generate a video</h2><Button disabled={!w.connected || !!w.busy} onClick={()=>void w.act("Refreshing models",async()=>{const result=await request("/models?refresh=1");setModels(result.models);window.dispatchEvent(new Event("models-changed"));})}><RefreshCw size={15}/>Refresh models</Button></div>
-      <p>Choose any Siray video model. All published settings are shown below; optional settings can stay on provider defaults.</p>
+      <div className="section-heading"><h2>{upscale?'Upscale video':'Generate a video'}</h2><Button disabled={!w.connected || !!w.busy} onClick={()=>void w.act("Refreshing models",async()=>{const result=await request("/models?refresh=1");setModels(result.models);window.dispatchEvent(new Event("models-changed"));})}><RefreshCw size={15}/>Refresh models</Button></div>
+      <p>Choose a provider and video model. All published settings are shown below; optional settings can stay on provider defaults.</p>
       <p className="muted-text">Saved to: <strong>{p.name || "Untitled project"}</strong>. Generation keeps the model's original duration, framing, and audio.</p>
-      <ModelPicker label="model" models={videoModels} value={selectedId} onChange={modelId=>update(latest=>({vidGen:{modelId,inputsByModel:latest.vidGen?.inputsByModel || {}}}))}/>
-      <small className="vidgen-model-id">{model?.id}</small>
+      {!upscale&&<Field label="API provider"><select aria-label="API provider" value={providerFilter} onChange={e=>setProviderFilter(e.target.value)}><option value="all">All providers</option><option value="siray">Siray</option><option value="wanapi">Wan API</option></select></Field>}
+      <ModelPicker label="model" models={videoModels} value={selectedId} onChange={modelId=>update(latest=>({[draftKey]:{modelId,inputsByModel:latest[draftKey]?.inputsByModel || {}}}))}/>
+      <small className="vidgen-model-id">{model?.id}</small>{model?.apiProvider==='wanapi'&&<p>Wan API requires public HTTP(S) media URLs. Files on this PC cannot be sent unless hosted publicly. Reference video and output seconds are both billed; auto-duration reserves up to 30 seconds.</p>}
       <GenerationPrice modelId={model?.id} inputs={inputs} mode="vidgen" connected={w.connected}/>
       {model && <div className="vidgen-fields" key={`${p.id}:${selectedId}`}>{Object.keys(model.schema?.properties || {}).length ? Object.entries(model.schema!.properties!).filter(([name])=>name!=="model").map(([name,field])=><Parameter key={name} name={name} field={field} required={model.schema?.required?.includes(name) || false} value={inputs[name]} onChange={value=>patch(name,value)} w={w} projectId={p.id}/>) : <RawSettings inputs={inputs} onChange={patchInputs} onError={setError}/>}</div>}
       {(error || validation) && <p className="inline-error" role="status">{error || validation}</p>}
-      <Button variant="primary" disabled={!w.connected || !!w.busy || !model || model.active===false || !!validation || !!error} onClick={()=>void w.act("Queueing VidGen",generate)}><Sparkles size={16}/>Generate video</Button>
+      <Button variant="primary" disabled={!w.connected || !!w.busy || !model || model.active===false || !!validation || !!error} onClick={()=>void w.act("Queueing VidGen",generate)}><Sparkles size={16}/>{upscale?'Upscale video':'Generate video'}</Button>
       <details className="vidgen-request"><summary>Request settings</summary><p className="field-hint">Library references are replaced with their media data on the backend. Other values are sent as shown.</p><pre>{JSON.stringify(payload || {model:selectedId,...inputs},null,2)}</pre></details>
     </section>
     <section className="vidgen-results"><h2>Generations</h2>{!jobs.length && <p className="muted-text">Your video jobs and completed originals appear here and in the Video Library.</p>}
@@ -106,8 +109,8 @@ export default function VidGen({p,w,update,inspect}: {p:Project;w:Workspace;upda
         <strong>{job.label}</strong><p>{job.status}{job.status==="running"?` - ${Math.round(job.progress)}%`:""}</p>
         {job.error && <p className="inline-error">{job.error}</p>}
         {["queued","running"].includes(job.status) && <Button onClick={()=>void w.act("Canceling job",()=>request(`/jobs/${job.id}/cancel`,{method:"POST"}))}>Cancel</Button>}
-        {["failed","canceled","uncertain"].includes(job.status) && <Button onClick={()=>void w.act("Retrying job",()=>request(`/jobs/${job.id}/retry`,{method:"POST"}))}>{job.status === "uncertain" ? "Retry after checking Siray" : "Retry saved request"}</Button>}
-        {job.status==="uncertain" && <p>Check Siray for this request before retrying to avoid a duplicate charge.</p>}
+        {["failed","canceled","uncertain"].includes(job.status) && <Button onClick={()=>void w.act("Retrying job",()=>request(`/jobs/${job.id}/retry`,{method:"POST"}))}>{job.status === "uncertain" ? "Retry after checking your provider" : "Retry saved request"}</Button>}
+        {job.status==="uncertain" && <p>Check your provider for this request before retrying to avoid a duplicate charge.</p>}
         {w.data.assets.filter(a=>a.jobId===job.id).map(asset=><div key={asset.id}><AssetCard asset={asset} onInspect={inspect}/><Button onClick={()=>void w.act("Downloading video",async()=>{const r=await request(`/assets/${asset.id}/url`);const a=document.createElement("a");a.href=r.url;a.download=asset.name+".mp4";a.click();})}><Download size={14}/>Download original</Button></div>)}
         <details><summary>Saved request</summary><pre>{JSON.stringify(job.requestSettings || {},null,2)}</pre></details>
       </article>)}

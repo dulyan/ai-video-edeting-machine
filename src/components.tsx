@@ -282,7 +282,7 @@ export function AssetCard({
             month: "short",
             day: "numeric",
           })}{" "}
-          <span>·</span> {asset.model?.split("/")[1] || asset.kind}
+          <span>·</span> {asset.model ? (asset.model.startsWith('wanapi/')?'Wan API':asset.model.startsWith('replicate/')?'Replicate':'Siray')+' / '+asset.model.split('/').slice(-1)[0] : asset.kind}
         </small>
       </div>
     </article>
@@ -388,7 +388,7 @@ export function Inspector({
         <dt>Created</dt>
         <dd>{new Date(asset.createdAt).toLocaleString()}</dd>
         <dt>Model</dt>
-        <dd>{asset.model || "Uploaded media"}</dd>
+        <dd>{asset.model ? (asset.model.startsWith('wanapi/')?'Wan API: ':asset.model.startsWith('replicate/')?'Replicate: ':'Siray: ')+asset.model : 'Uploaded media'}</dd>
         <dt>File size</dt>
         <dd>{(asset.size / 1048576).toFixed(1)} MB</dd>
         {asset.prompt && !asset.promptParts && (
