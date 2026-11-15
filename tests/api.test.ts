@@ -552,3 +552,9 @@ test('Helvetica reference import is private, validates the actual font, and neve
   assert.deepEqual((await api('/provider-keys')).data,{wanapi:true,replicate:true});assert(!JSON.stringify((await api('/state')).data).includes(fixture));assert(!(await readFile(path.join(dir,'workspace.sqlite'))).includes(Buffer.from(fixture)));assert(!logs.includes(fixture));
   await stop();await start();token=(await api('/login','POST',{password})).data.token;assert.deepEqual((await api('/provider-keys')).data,{wanapi:true,replicate:true});for(const provider of ['wanapi','replicate'])await api('/provider-keys','PUT',{provider,key:''});
  });
+
+test('R2 settings and maintenance are authenticated, write-only for credentials, and persistent',async()=>{
+ for(const route of ['/r2/settings','/r2/test','/r2/cleanup'])assert.equal((await fetch(base+route,{method:route.endsWith('settings')?'GET':'POST'})).status,401);
+ const config={accountId:'a'.repeat(32),bucket:'r2-test-bucket',accessKeyId:'fixture-r2-access-key',secretAccessKey:'fixture-r2-private-key'};assert.equal((await api('/r2/settings','PUT',config)).status,200);const settings=(await api('/r2/settings')).data;assert.equal(settings.configured,true);assert(!JSON.stringify(settings).includes(config.accessKeyId));assert(!JSON.stringify(settings).includes(config.secretAccessKey));assert(!JSON.stringify((await api('/state')).data).includes(config.secretAccessKey));
+ await stop();await start();token=(await api('/login','POST',{password})).data.token;assert.equal((await api('/r2/settings')).data.bucket,config.bucket);assert(!logs.includes(config.secretAccessKey));
+});

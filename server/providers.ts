@@ -1,3 +1,5 @@
+import {get} from './store.ts';
+import {r2Configured} from './wan-hosting.ts';
 import type {Job,Model} from '../shared/types.ts';
 import snapshots from '../shared/provider-models.json';
 import {getSecret} from './store.ts';
@@ -20,18 +22,19 @@ export function validateExternal(model:Model,p:Record<string,any>){
  if(model.apiProvider==='replicate'&&!model.schema?.properties?.processing_type?.enum?.includes('standard'))throw new Error('This model version does not publish support for the Standard tier.');
  if(model.apiProvider==='replicate'&&p.processing_type&&p.processing_type!=='standard')throw new Error('This tool uses the requested ByteDance Standard tier.');
  if(model.apiProvider!=='wanapi')return;
+ const refs=Array.isArray(p.reference_videos)?p.reference_videos:[];const known=refs.map((r:string)=>r.startsWith('asset:')?get('assets',r.slice(6))?.duration:undefined);if(known.every((n:unknown)=>typeof n==='number')&&known.length){const sum=known.reduce((a:number,b:number)=>a+b,0);if(sum>15||(p.duration>0&&sum+p.duration>30))throw new Error('Reference videos must total at most 15 seconds and fit 30 seconds with the output.');}
  const media=['first_frame','last_frame','reference_images','reference_videos','reference_audios','file','link'];
  if(!String(p.prompt||'').trim()&&!media.some(k=>Array.isArray(p[k])?p[k].length:!!p[k]))throw new Error('Provide a prompt or media input.');
  if((p.first_frame||p.last_frame)&&['reference_images','reference_videos','reference_audios','file','link'].some(k=>Array.isArray(p[k])?p[k].length:!!p[k]))throw new Error('Frames cannot be combined with references, file or link.');
  if(p.file&&p.link)throw new Error('Choose file or link, not both.');
  if((p.nsfw_checker??!model.nativeId?.includes('pro'))&&(p.file||p.link))throw new Error('file/link require nsfw_checker=false.');
- for(const k of media)for(const value of Array.isArray(p[k])?p[k]:p[k]?[p[k]]:[]){let u:URL;try{u=new URL(value);}catch{throw new Error('Wan API needs public HTTP(S) URLs; local library media requires public hosting.');}if(!['http:','https:'].includes(u.protocol)||u.username||u.password||/^(localhost|127\.|10\.|192\.168\.|\[|0\.)/.test(u.hostname))throw new Error('Wan API requires public HTTP(S) media URLs.');}
+ for(const k of media)for(const value of Array.isArray(p[k])?p[k]:p[k]?[p[k]]:[]){if(typeof value==='string'&&value.startsWith('asset:')){const a=get('assets',value.slice(6)),type=k.includes('video')?'video':k.includes('audio')?'audio':'image';if(!a||!a.mime.startsWith(type+'/')||['file','link'].includes(k))throw new Error('Choose valid reference media.');if(!r2Configured())throw new Error('Configure private R2 storage in Settings to use library files with Wan API.');if(type==='video'&&a.mime!=='video/mp4')throw new Error('Wan reference video must be an original MP4/MOV file.');if(type==='video'&&(!a.duration||a.duration<1||a.duration>15))throw new Error('Wan reference video clips must each be 1 to 15 seconds.');continue;}let u:URL;try{u=new URL(value);}catch{throw new Error('Wan API needs public HTTP(S) URLs; local library media requires public hosting.');}if(!['http:','https:'].includes(u.protocol)||u.username||u.password||/^(localhost|127\.|10\.|192\.168\.|\[|0\.)/.test(u.hostname))throw new Error('Wan API requires public HTTP(S) media URLs.');}
 }
 export async function mediaProvider(job:Job,body?:Record<string,unknown>){
  const model=job.input.modelDefinition as Model,provider=providerOf(job.input.model||'');
  if(provider==='siray')return siray(body?job.kind==='image'?'/v1/images/generations/async':'/v1/video/generations':`${job.kind==='image'?'/v1/images/generations/async':'/v1/video/generations'}/${encodeURIComponent(job.taskId!)}`,body);
  if(!model?.nativeId)throw new Error('Provider model definition missing.');
- if(provider==='wanapi'){const endpoint='/wan/v1/'+encodeURIComponent(model.nativeId)+'/generation';if(body){const {model:_,...native}=body;validateExternal(model,native);const d=await providerJSON(provider,endpoint,native);return {task_id:d.task_info?.id};}const d=await providerJSON(provider,endpoint+'/'+encodeURIComponent(job.taskId!));return {status:d.task_info?.status,outputs:d.videos,fail_reason:'Wan API generation failed. Review your provider dashboard.'};}
+ if(provider==='wanapi'){const endpoint='/wan/v1/'+encodeURIComponent(model.nativeId)+'/generation';if(body){const {model:_,...provided}=body;const native=Object.fromEntries(Object.entries(provided).filter(([,v])=>v!==''&&(!Array.isArray(v)||v.length>0)));validateExternal(model,native);const d=await providerJSON(provider,endpoint,native);return {task_id:d.task_info?.id};}const d=await providerJSON(provider,endpoint+'/'+encodeURIComponent(job.taskId!));return {status:d.task_info?.status,outputs:d.videos,fail_reason:'Wan API generation failed. Review your provider dashboard.'};}
  if(body){const {model:_,...input}=body;validateExternal(model,input);const d=await providerJSON(provider,'/v1/predictions',{version:model.nativeId,input});return {task_id:d.id};}
  const d=await providerJSON(provider,'/v1/predictions/'+encodeURIComponent(job.taskId!));return {status:d.status,outputs:d.output?(Array.isArray(d.output)?d.output:[d.output]):[],fail_reason:'Replicate prediction failed. Review your provider dashboard.'};
 }

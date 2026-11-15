@@ -6,8 +6,8 @@ export function vidGenMediaType(name:string,field:ModelField): "image"|"video"|"
   if (["image","video","audio"].includes(format)) return format as "image"|"video"|"audio";
   const leaf=name.replace(/\[\d+\]$/,"").split(".").at(-1) || name;
   if (/^(images?|image_url|reference_images|first_frame|last_frame|first_frame_image|end_image|frontal_image)$/.test(leaf)) return "image";
-  if (/^(videos?|video_url)$/.test(leaf)) return "video";
-  if (/^(audios?|audio_url)$/.test(leaf)) return "audio";
+  if (/^(videos?|video_url|reference_videos)$/.test(leaf)) return "video";
+  if (/^(audios?|audio_url|reference_audios)$/.test(leaf)) return "audio";
 }
 export function vidGenDefault(field: ModelField): unknown {
   if (field.default !== undefined) return structuredClone(field.default);

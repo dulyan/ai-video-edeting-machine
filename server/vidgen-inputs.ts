@@ -1,3 +1,4 @@
+import {wanMediaHost} from './wan-hosting.ts';
 import {openAsBlob} from 'node:fs';
 import {unlink} from 'node:fs/promises';
 import path from 'node:path';
@@ -10,12 +11,13 @@ import {get} from "./store.ts";
 import {assetDataURL} from "./storage.ts";
 
 // Resolve media sequentially; text fields (especially prompt) remain literal.
-export async function materializeVidGen(payload:Record<string,unknown>,model:Model) {
+export async function materializeVidGen(payload:Record<string,unknown>,model:Model,context?:{jobId:string;signal?:AbortSignal}) {
   async function visit(value:unknown,field:ModelField,name:string):Promise<unknown> {
     if(typeof value === "string" && value.startsWith("asset:") && vidGenMediaType(name,field)) {
       const asset=get("assets",value.slice(6));
       if(!asset)throw new Error(`A reference for ${name} is missing.`);
       if(!asset.mime.startsWith(vidGenMediaType(name,field)!+"/"))throw new Error(`Choose a matching media type for ${name}.`);
+      if(model.apiProvider==='wanapi'){if(!context)throw new Error('Wan upload job context missing');return wanMediaHost.publish(asset,context.jobId,context.signal);}
       if(model.apiProvider==='replicate'){const file=path.join(workDir,crypto.randomUUID()+'.upload');try{await downloadAsset(asset,file);const form=new FormData();form.set('content',await openAsBlob(file,{type:asset.mime}),asset.name);const uploaded=await providerJSON('replicate','/v1/files',form);if(typeof uploaded.urls?.get!=='string')throw new Error('Replicate upload returned no file URL');return uploaded.urls.get;}finally{await unlink(file).catch(()=>{});}}
       return assetDataURL(asset);
     }

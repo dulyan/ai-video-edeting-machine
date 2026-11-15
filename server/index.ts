@@ -1,3 +1,4 @@
+import {registerWanHosting} from './wan-hosting.ts';
 import {providerOf,validateExternal} from './providers.ts';
 import {externalEstimate} from './provider-pricing.ts';
 import {installClassicFont,localClassicInstalled,requireLocalClassicFont} from './local-hook-font.ts';
@@ -221,6 +222,7 @@ app.put("/api/presets/:id", async (req) => {
   put("presets", p);
   return { ok: true, revision: revision() };
 });
+registerWanHosting(app);
 app.get('/api/provider-keys',()=>({wanapi:!!getSecret('wanapi'),replicate:!!getSecret('replicate')}));
 app.put('/api/provider-keys',async req=>{const {provider,key}=z.object({provider:z.enum(['wanapi','replicate']),key:z.string().max(1000)}).parse(req.body);setSecret(provider,key.trim());invalidateCatalog();return {ok:true};});
 app.get("/api/settings", () => ({

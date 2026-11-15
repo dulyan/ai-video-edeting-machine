@@ -9,7 +9,7 @@ export function externalEstimate(model:Model,p:Record<string,any>,count:number):
   const id=model.nativeId!,pro=id.includes('pro'),prime=id.includes('prime'),res=p.resolution||'1080p',filter=p.nsfw_checker??!pro;
   const rates:Record<string,number>=pro?(prime?{'1080p':.182,'2k':.196,'4k':.217}:{'1080p':.126,'2k':.140,'4k':.161}):prime?(filter?{'480p':.0442,'720p':.091,'1080p':.182}:{'480p':.0476,'720p':.098,'1080p':.196}):(filter?{'480p':.0275,'720p':.055,'1080p':.110}:{'480p':.030,'720p':.060,'1080p':.120});
   const rate=rates[res],seconds=p.duration??5;Object.assign(settings,{resolution:res,duration:seconds,nsfw_checker:filter});notes.push(`USD ${rate} per billable second. Audio does not change this rate.`);
-  if(seconds>0&&!(p.reference_videos?.length))price=rate*seconds;
+  const refs=(p.reference_videos||[]).map(duration);if(seconds>0&&refs.every((n:unknown)=>typeof n==='number')){const inputSeconds=refs.reduce((a:number,b:number)=>a+b,0);price=rate*(seconds+inputSeconds);if(inputSeconds)notes.push(`${seconds}s output + ${inputSeconds}s reference video = ${seconds+inputSeconds}s billable. Up to 30 seconds may initially be reserved.`);}
   else notes.push(`Total unavailable: automatic output or reference-video duration is unknown. Up to USD ${(rate*30).toFixed(4)} may be reserved for 30 billable seconds. Reference video plus output must fit 30 seconds.`);
  }else{
   const res=p.target_resolution||'4k',fps=p.target_fps??60,seconds=duration(p.video),tier=p.processing_type||'standard';Object.assign(settings,{target_resolution:res,target_fps:fps,processing_type:tier});

@@ -16,18 +16,21 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "reference_images": {
           "type": "array",
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "image"
           }
         },
         "reference_videos": {
@@ -35,7 +38,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "video"
           }
         },
         "reference_audios": {
@@ -43,7 +47,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "audio"
           }
         },
         "file": {
@@ -148,18 +153,21 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "reference_images": {
           "type": "array",
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "image"
           }
         },
         "reference_videos": {
@@ -167,7 +175,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "video"
           }
         },
         "reference_audios": {
@@ -175,7 +184,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "audio"
           }
         },
         "file": {
@@ -280,18 +290,21 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "reference_images": {
           "type": "array",
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "image"
           }
         },
         "reference_videos": {
@@ -299,7 +312,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "video"
           }
         },
         "reference_audios": {
@@ -307,7 +321,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "audio"
           }
         },
         "file": {
@@ -415,18 +430,21 @@
         },
         "first_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "last_frame": {
           "type": "string",
-          "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+          "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+          "x-format": "image"
         },
         "reference_images": {
           "type": "array",
           "maxItems": 10,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "image"
           }
         },
         "reference_videos": {
@@ -434,7 +452,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "video"
           }
         },
         "reference_audios": {
@@ -442,7 +461,8 @@
           "maxItems": 5,
           "items": {
             "type": "string",
-            "description": "Public HTTP(S) URL required; localhost, base64 and uploads are not accepted."
+            "description": "Public HTTP(S) URL or an original library/uploaded file via private R2 storage.",
+            "x-format": "audio"
           }
         },
         "file": {

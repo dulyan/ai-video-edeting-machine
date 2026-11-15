@@ -1,3 +1,4 @@
+import {cleanupWanInputs} from './wan-hosting.ts';
 import {mediaProvider} from './providers.ts';
 import {hookFont} from '../shared/hook-fonts.ts';
 import { materializeVidGen } from "./vidgen-inputs.ts";
@@ -88,7 +89,7 @@ export async function processJob(job: Job) {
         const source = job.input.sourceId
           ? get("assets", job.input.sourceId)
           : undefined;
-        const body = ['vidgen','demo-creation'].includes(job.input.tool) ? await materializeVidGen(job.input.payload,job.input.modelDefinition) : generationPayload(
+        const body = ['vidgen','demo-creation'].includes(job.input.tool) ? await materializeVidGen(job.input.payload,job.input.modelDefinition,{jobId:job.id,signal:controller.signal}) : generationPayload(
           job.input.model,
           job.input.prompt,
           job.input.seed,
@@ -342,7 +343,9 @@ export function startQueue() {
   closing = false;
   clearInterval(queueTimer);
   recoverJobs();
+  let lastCleanup=0;
   const timer = setInterval(() => {
+    if(Date.now()-lastCleanup>600000){lastCleanup=Date.now();void cleanupWanInputs().catch(()=>{});}
     const queue = all("jobs")
       .filter((j) => j.status === "queued" && !running.has(j.id))
       .reverse();

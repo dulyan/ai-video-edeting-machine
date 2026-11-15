@@ -16,7 +16,7 @@ function Parameter({name,field,value,required,onChange,w,projectId}: {
   const requiredKeys=(field.required || []) as string[];
   const type=field.type;
   const mediaType=vidGenMediaType(name,field);
-  const media=type === "string" && !field.enum && !!mediaType && field.description?.startsWith("Public HTTP")!==true;
+  const media=type === "string" && !field.enum && !!mediaType;
   const hint=[field.description,field.default !== undefined ? `Provider default: ${JSON.stringify(field.default)}` : "",field.minimum !== undefined ? `Minimum: ${field.minimum}` : "",field.maximum !== undefined ? `Maximum: ${field.maximum}` : ""].filter(Boolean).join(" · ");
   if(type === "object" || type === "array") {
     const values=Array.isArray(value)?value:[];
@@ -34,7 +34,7 @@ function Parameter({name,field,value,required,onChange,w,projectId}: {
         <Button type="button" disabled={field.maxItems !== undefined && values.length >= field.maxItems} onClick={()=>onChange([...values,vidGenDefault(field.items || {type:"string"})])}>Add {name} item</Button>
         {field.items?.["x-format"] && <input type="file" aria-label={`Upload ${name}`} accept={`${field.items["x-format"]}/*`} multiple disabled={!!w.busy} onChange={e=>{
           const files=e.target.files;if(!files?.length)return;
-          void w.act(`Uploading ${name}`,async()=>{const assets=await w.upload(files,field.items!["x-format"] === "video"?"reaction":field.items!["x-format"] === "audio"?"music":"image",projectId);onChange([...values,...assets.map(a=>`asset:${a.id}`)]);});e.target.value="";
+          void w.act(`Uploading ${name}`,async()=>{if(field.maxItems!==undefined&&files.length+values.length>field.maxItems)throw new Error(`Choose at most ${field.maxItems-values.length} more files.`);let next=[...values];await w.upload(files,field.items!["x-format"] === "video"?"reaction":field.items!["x-format"] === "audio"?"music":"image",projectId,a=>{next=[...next,`asset:${a.id}`];onChange(next);});});e.target.value="";
         }}/>}
       </>}
       {value !== undefined && !required && <Button type="button" onClick={()=>onChange(undefined)}>Use provider default for {name}</Button>}
@@ -45,7 +45,7 @@ function Parameter({name,field,value,required,onChange,w,projectId}: {
       <option value="">{required?"Choose a value":"Provider default"}</option>{field.enum.map(v=><option key={String(v)} value={String(v)}>{String(v)}</option>)}
     </select> : type === "boolean" ? <select aria-label={name} value={value===undefined?"":String(value)} onChange={e=>onChange(e.target.value===""?undefined:e.target.value==="true")}><option value="">Provider default</option><option value="true">true</option><option value="false">false</option></select>
     : type === "integer" || type === "number" ? <input aria-label={name} type="number" min={field.minimum} max={field.maximum} step={type==="integer"?1:"any"} value={value===undefined?"":String(value)} onChange={e=>onChange(e.target.value===""?undefined:Number(e.target.value))}/>
-    : <textarea aria-label={name} rows={name==="prompt"?6:2} value={String(value??"")} placeholder={media?"Public URL or library reference":""} onChange={e=>onChange(e.target.value)}/>}
+    : <textarea aria-label={name} rows={name==="prompt"?6:2} value={String(value??"")} placeholder={media?"Public URL or library reference":""} onChange={e=>onChange(media&&e.target.value===''?undefined:e.target.value)}/>}
     </Field>
     {media && <div className="model-reference">
       <select aria-label={`Choose ${name} from library`} value="" onChange={e=>{if(e.target.value)onChange(e.target.value);}}><option value="">Choose from library</option>{w.data.assets.filter(a=>a.mime.startsWith(mediaType+"/")).map(a=><option key={a.id} value={`asset:${a.id}`}>{a.name}</option>)}</select>
@@ -97,7 +97,7 @@ export default function VidGen({p,w,update,inspect,upscale=false}: {p:Project;w:
       <p className="muted-text">Saved to: <strong>{p.name || "Untitled project"}</strong>. Generation keeps the model's original duration, framing, and audio.</p>
       {!upscale&&<Field label="API provider"><select aria-label="API provider" value={providerFilter} onChange={e=>setProviderFilter(e.target.value)}><option value="all">All providers</option><option value="siray">Siray</option><option value="wanapi">Wan API</option></select></Field>}
       <ModelPicker label="model" models={videoModels} value={selectedId} onChange={modelId=>update(latest=>({[draftKey]:{modelId,inputsByModel:latest[draftKey]?.inputsByModel || {}}}))}/>
-      <small className="vidgen-model-id">{model?.id}</small>{model?.apiProvider==='wanapi'&&<p>Wan API requires public HTTP(S) media URLs. Files on this PC cannot be sent unless hosted publicly. Reference video and output seconds are both billed; auto-duration reserves up to 30 seconds.</p>}
+      <small className="vidgen-model-id">{model?.id}</small>{model?.apiProvider==='wanapi'&&<p>Choose library media, upload originals, or paste public URLs. Selected local files are copied unchanged to private R2 storage when you generate; temporary links are sent to Wan API. Configure R2 in Settings first. Reference video and output seconds are both billed. R2 storage/operation charges are separate.</p>}
       <GenerationPrice modelId={model?.id} inputs={inputs} mode="vidgen" connected={w.connected}/>
       {model && <div className="vidgen-fields" key={`${p.id}:${selectedId}`}>{Object.keys(model.schema?.properties || {}).length ? Object.entries(model.schema!.properties!).filter(([name])=>name!=="model").map(([name,field])=><Parameter key={name} name={name} field={field} required={model.schema?.required?.includes(name) || false} value={inputs[name]} onChange={value=>patch(name,value)} w={w} projectId={p.id}/>) : <RawSettings inputs={inputs} onChange={patchInputs} onError={setError}/>}</div>}
       {(error || validation) && <p className="inline-error" role="status">{error || validation}</p>}

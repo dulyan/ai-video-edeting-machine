@@ -4339,6 +4339,8 @@ progress {
 .vidgen-complex { min-width:0; border:1px solid var(--border); border-radius:16px; padding:18px; display:grid; gap:14px; }
 .vidgen-complex legend { font-weight:700; padding:0 6px; overflow-wrap:anywhere; }
 .vidgen-array-item { min-width:0; border-bottom:1px solid var(--border); padding-bottom:14px; }
+.vidgen-layout input[type=file] { width:100%; min-width:0; max-width:100%; }
+.vidgen-complex .button { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 .vidgen-item-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:10px 0; }
 .vidgen-layout pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:420px; overflow:auto; font-size:13px; }
 .vidgen-layout details { margin-top:16px; }

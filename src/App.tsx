@@ -1,3 +1,4 @@
+import R2Settings from './R2Settings.tsx';
 import ProviderKeys from './ProviderKeys.tsx';
 import VidGen from "./VidGen.tsx";
 import DemoCreation from './DemoCreation.tsx';
@@ -126,7 +127,7 @@ function Settings({
     w.notify("Backend connected. Local drafts were imported.");
   }
   return (
-    <div className="settings-grid"><ProviderKeys w={w}/>
+    <div className="settings-grid"><ProviderKeys w={w}/><R2Settings w={w}/>
       <section className="card settings-card">
         <span className="icon-disc">
           <Sun size={20} />
